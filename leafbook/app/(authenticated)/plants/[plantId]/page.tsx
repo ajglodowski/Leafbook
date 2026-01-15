@@ -130,7 +130,7 @@ export default async function PlantDetailPage({
     .eq("plant_id", plantId)
     .maybeSingle();
 
-  const plantType = plant.plant_types;
+  const plantType = Array.isArray(plant.plant_types) ? plant.plant_types[0] : plant.plant_types;
   
   // Determine if using custom values
   const hasCustomWatering = carePrefs?.watering_frequency_days !== null && carePrefs?.watering_frequency_days !== undefined;

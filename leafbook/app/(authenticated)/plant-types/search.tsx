@@ -59,13 +59,13 @@ export function PlantTypesSearch() {
     return () => clearTimeout(timeout);
   }, [searchValue, lightValue, sizeValue, updateUrl]);
 
-  function handleLightChange(value: string) {
-    const newLight = value === "all" ? "" : value;
+  function handleLightChange(value: string | null) {
+    const newLight = value === "all" || !value ? "" : value;
     updateUrl({ q: searchValue, light: newLight, size: sizeValue });
   }
 
-  function handleSizeChange(value: string) {
-    const newSize = value === "all" ? "" : value;
+  function handleSizeChange(value: string | null) {
+    const newSize = value === "all" || !value ? "" : value;
     updateUrl({ q: searchValue, light: lightValue, size: newSize });
   }
 

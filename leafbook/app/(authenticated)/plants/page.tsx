@@ -68,7 +68,7 @@ export default async function PlantsPage() {
       {hasPlants ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {plants.map((plant) => {
-            const plantType = plant.plant_types;
+            const plantType = Array.isArray(plant.plant_types) ? plant.plant_types[0] : plant.plant_types;
             const taskStatus = dueTaskMap.get(plant.id);
             const needsWater = taskStatus?.watering_status === "overdue" || taskStatus?.watering_status === "due_soon";
             const needsFertilizer = taskStatus?.fertilizing_status === "overdue" || taskStatus?.fertilizing_status === "due_soon";

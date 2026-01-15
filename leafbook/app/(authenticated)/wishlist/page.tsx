@@ -61,7 +61,7 @@ export default async function WishlistPage() {
       {hasItems ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {wishlistItems.map((item) => {
-            const plantType = item.plant_types;
+            const plantType = Array.isArray(item.plant_types) ? item.plant_types[0] : item.plant_types;
             const name = plantType?.name || item.custom_name || "Unknown plant";
             
             return (

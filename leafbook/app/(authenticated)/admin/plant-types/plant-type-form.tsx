@@ -140,7 +140,7 @@ export function PlantTypeForm({ plantType, mode }: PlantTypeFormProps) {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="light">Light Requirement</Label>
-              <Select value={lightRequirement} onValueChange={setLightRequirement}>
+              <Select value={lightRequirement} onValueChange={(value) => setLightRequirement(value || "")}>
                 <SelectTrigger id="light" className="w-full">
                   <SelectValue placeholder="Select light level">
                     {lightRequirement ? getLightLabel(lightRequirement) : null}
@@ -158,7 +158,7 @@ export function PlantTypeForm({ plantType, mode }: PlantTypeFormProps) {
             </div>
             <div className="space-y-2">
               <Label htmlFor="size">Size Category</Label>
-              <Select value={sizeCategory} onValueChange={setSizeCategory}>
+              <Select value={sizeCategory} onValueChange={(value) => setSizeCategory(value || "")}>
                 <SelectTrigger id="size" className="w-full">
                   <SelectValue placeholder="Select size">
                     {sizeCategory ? getSizeLabel(sizeCategory) : null}

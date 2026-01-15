@@ -206,7 +206,7 @@ export function EditPlantDialog({ plant }: { plant: PlantData }) {
             {/* Light exposure */}
             <div className="space-y-2">
               <Label>Light exposure (optional)</Label>
-              <Select value={lightExposure} onValueChange={setLightExposure}>
+              <Select value={lightExposure} onValueChange={(value) => setLightExposure(value || "")}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select light level">
                     {lightExposure ? getLightLabel(lightExposure) : null}
