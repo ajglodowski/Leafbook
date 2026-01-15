@@ -1,0 +1,61 @@
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import Link from "next/link";
+import { Shield, Library, ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
+export default async function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/auth/login");
+  }
+
+  // Check if user is admin
+  const { data: profile, error } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (error || profile?.role !== "admin") {
+    redirect("/today");
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Admin header */}
+      <div className="flex items-center justify-between border-b pb-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/10">
+            <Shield className="h-5 w-5 text-amber-600" />
+          </div>
+          <div>
+            <h1 className="font-serif text-xl font-semibold">Admin Dashboard</h1>
+            <p className="text-sm text-muted-foreground">Manage catalog and settings</p>
+          </div>
+        </div>
+        <Button variant="ghost" size="sm" render={<Link href="/today" />} className="gap-1">
+          <ArrowLeft className="h-4 w-4" />
+          Back to app
+        </Button>
+      </div>
+
+      {/* Admin navigation */}
+      <nav className="flex gap-2">
+        <Button variant="secondary" size="sm" render={<Link href="/admin/plant-types" />} className="gap-1.5">
+          <Library className="h-4 w-4" />
+          Plant Types
+        </Button>
+      </nav>
+
+      {/* Content */}
+      {children}
+    </div>
+  );
+}
