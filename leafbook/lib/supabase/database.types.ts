@@ -436,6 +436,7 @@ export type Database = {
       plants: {
         Row: {
           acquired_at: string | null
+          active_photo_id: string | null
           created_at: string
           current_pot_id: string | null
           description: string | null
@@ -455,6 +456,7 @@ export type Database = {
         }
         Insert: {
           acquired_at?: string | null
+          active_photo_id?: string | null
           created_at?: string
           current_pot_id?: string | null
           description?: string | null
@@ -474,6 +476,7 @@ export type Database = {
         }
         Update: {
           acquired_at?: string | null
+          active_photo_id?: string | null
           created_at?: string
           current_pot_id?: string | null
           description?: string | null
@@ -492,6 +495,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "plants_active_photo_id_fkey"
+            columns: ["active_photo_id"]
+            isOneToOne: false
+            referencedRelation: "plant_photos"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "plants_current_pot_id_fkey"
             columns: ["current_pot_id"]

@@ -22,7 +22,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
         // Parse client payload
         const payload = clientPayload ? JSON.parse(clientPayload) : {};
-        const { plantId, caption, takenAt } = payload;
+        const { plantId } = payload;
 
         if (!plantId) {
           throw new Error("Missing plantId in payload");
@@ -40,36 +40,20 @@ export async function POST(request: Request): Promise<NextResponse> {
           throw new Error("Unauthorized: You do not own this plant");
         }
 
-        // Return token configuration
+        // Return token configuration with user-specific path prefix
         return {
           allowedContentTypes: ["image/jpeg", "image/png", "image/webp", "image/heic"],
           maximumSizeInBytes: 15 * 1024 * 1024, // 15MB
-          tokenPayload: JSON.stringify({
-            userId: user.id,
-            plantId,
-            caption: caption || null,
-            takenAt: takenAt || new Date().toISOString(),
-          }),
+          addRandomSuffix: true,
+          // Store in user-specific directory: user-uploads/{userId}/plant-photos/
+          pathname: `user-uploads/${user.id}/plant-photos/${pathname}`,
         };
       },
-      onUploadCompleted: async ({ blob, tokenPayload }) => {
-        // Insert the photo record into Supabase
-        const supabase = await createClient();
-        const payload = JSON.parse(tokenPayload || "{}");
-        const { userId, plantId, caption, takenAt } = payload;
-
-        const { error } = await supabase.from("plant_photos").insert({
-          plant_id: plantId,
-          user_id: userId,
-          url: blob.url,
-          caption: caption || null,
-          taken_at: takenAt || new Date().toISOString(),
-        });
-
-        if (error) {
-          console.error("Error saving plant photo to database:", error);
-          throw new Error("Failed to save photo metadata");
-        }
+      // Note: onUploadCompleted is a webhook callback that may not work in dev
+      // The client will call a server action to create the DB record instead
+      onUploadCompleted: async () => {
+        // No-op: database record is created by client-side server action call
+        // This avoids issues with webhook callbacks in development
       },
     });
 

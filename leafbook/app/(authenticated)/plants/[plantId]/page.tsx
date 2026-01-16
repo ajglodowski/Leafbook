@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { 
   ArrowLeft, 
   Droplets, 
@@ -75,7 +76,7 @@ export default async function PlantDetailPage({
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Fetch plant with plant type info
+  // Fetch plant with plant type info and active photo
   const { data: plant, error } = await supabase
     .from("plants")
     .select(`
@@ -91,6 +92,7 @@ export default async function PlantDetailPage({
       how_acquired,
       description,
       plant_type_id,
+      active_photo_id,
       plant_types (
         id,
         name,
@@ -140,6 +142,11 @@ export default async function PlantDetailPage({
 
   const plantType = Array.isArray(plant.plant_types) ? plant.plant_types[0] : plant.plant_types;
   
+  // Compute thumbnail URL (active photo if set, otherwise most recent)
+  const thumbnailUrl = plant.active_photo_id
+    ? photos?.find(p => p.id === plant.active_photo_id)?.url ?? photos?.[0]?.url ?? null
+    : photos?.[0]?.url ?? null;
+
   // Determine if using custom values
   const hasCustomWatering = carePrefs?.watering_frequency_days !== null && carePrefs?.watering_frequency_days !== undefined;
   const hasCustomFertilizing = carePrefs?.fertilizing_frequency_days !== null && carePrefs?.fertilizing_frequency_days !== undefined;
@@ -157,27 +164,41 @@ export default async function PlantDetailPage({
 
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="font-serif text-3xl font-semibold tracking-tight">
-            {plant.name}
-          </h1>
-          {plant.nickname && (
-            <p className="mt-1 text-lg text-muted-foreground">
-              "{plant.nickname}"
-            </p>
+        <div className="flex gap-4">
+          {/* Thumbnail */}
+          {thumbnailUrl && (
+            <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-muted sm:h-24 sm:w-24">
+              <Image
+                src={thumbnailUrl}
+                alt={plant.name}
+                fill
+                className="object-cover"
+                sizes="96px"
+              />
+            </div>
           )}
-          {plantType && (
-            <Link 
-              href={`/plant-types/${plantType.id}`}
-              className="mt-1 inline-flex items-center gap-1 text-muted-foreground hover:text-primary transition-colors"
-            >
-              {plantType.name}
-              {plantType.scientific_name && (
-                <span className="italic"> · {plantType.scientific_name}</span>
-              )}
-              <ExternalLink className="h-3 w-3" />
-            </Link>
-          )}
+          <div>
+            <h1 className="font-serif text-3xl font-semibold tracking-tight">
+              {plant.name}
+            </h1>
+            {plant.nickname && (
+              <p className="mt-1 text-lg text-muted-foreground">
+                "{plant.nickname}"
+              </p>
+            )}
+            {plantType && (
+              <Link 
+                href={`/plant-types/${plantType.id}`}
+                className="mt-1 inline-flex items-center gap-1 text-muted-foreground hover:text-primary transition-colors"
+              >
+                {plantType.name}
+                {plantType.scientific_name && (
+                  <span className="italic"> · {plantType.scientific_name}</span>
+                )}
+                <ExternalLink className="h-3 w-3" />
+              </Link>
+            )}
+          </div>
         </div>
         
         {/* Edit button */}
@@ -360,6 +381,7 @@ export default async function PlantDetailPage({
         plantId={plant.id}
         plantName={plant.name}
         photos={photos || []}
+        activePhotoId={plant.active_photo_id}
       />
 
       {/* Care History Timeline */}

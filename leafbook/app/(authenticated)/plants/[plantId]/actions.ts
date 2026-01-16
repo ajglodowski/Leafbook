@@ -194,6 +194,52 @@ export async function upsertPlantCarePreferences(
   return { success: true };
 }
 
+export async function createPlantPhoto(
+  plantId: string,
+  data: {
+    url: string;
+    caption: string | null;
+    takenAt: string;
+  }
+) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/auth/login");
+  }
+
+  // Verify the plant belongs to this user
+  const { data: plant, error: plantError } = await supabase
+    .from("plants")
+    .select("id")
+    .eq("id", plantId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (plantError || !plant) {
+    return { success: false, error: "Plant not found" };
+  }
+
+  // Insert the photo record
+  const { error } = await supabase.from("plant_photos").insert({
+    plant_id: plantId,
+    user_id: user.id,
+    url: data.url,
+    caption: data.caption,
+    taken_at: data.takenAt,
+  });
+
+  if (error) {
+    console.error("Error creating plant photo:", error);
+    return { success: false, error: error.message };
+  }
+
+  revalidatePath(`/plants/${plantId}`);
+
+  return { success: true };
+}
+
 export async function deletePlantPhoto(photoId: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -279,6 +325,64 @@ export async function updatePlantPhotoMetadata(
   }
 
   revalidatePath(`/plants/${photo.plant_id}`);
+
+  return { success: true };
+}
+
+export async function setPlantActivePhoto(
+  plantId: string,
+  photoId: string | null
+) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/auth/login");
+  }
+
+  // Verify the plant belongs to this user
+  const { data: plant, error: plantError } = await supabase
+    .from("plants")
+    .select("id")
+    .eq("id", plantId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (plantError || !plant) {
+    return { success: false, error: "Plant not found" };
+  }
+
+  // If setting an active photo (not clearing), verify the photo belongs to this plant
+  if (photoId) {
+    const { data: photo, error: photoError } = await supabase
+      .from("plant_photos")
+      .select("id")
+      .eq("id", photoId)
+      .eq("plant_id", plantId)
+      .eq("user_id", user.id)
+      .single();
+
+    if (photoError || !photo) {
+      return { success: false, error: "Photo not found or does not belong to this plant" };
+    }
+  }
+
+  // Update the plant's active photo
+  const { error } = await supabase
+    .from("plants")
+    .update({
+      active_photo_id: photoId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", plantId);
+
+  if (error) {
+    console.error("Error setting active photo:", error);
+    return { success: false, error: error.message };
+  }
+
+  revalidatePath("/plants");
+  revalidatePath(`/plants/${plantId}`);
 
   return { success: true };
 }

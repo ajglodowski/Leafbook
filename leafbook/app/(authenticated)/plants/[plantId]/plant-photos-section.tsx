@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { upload } from "@vercel/blob/client";
 import exifr from "exifr";
-import { Camera, Trash2, Plus, Loader2, X, Pencil } from "lucide-react";
+import { Camera, Trash2, Plus, Loader2, X, Pencil, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -21,7 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { deletePlantPhoto, updatePlantPhotoMetadata } from "./actions";
+import { createPlantPhoto, deletePlantPhoto, updatePlantPhotoMetadata, setPlantActivePhoto } from "./actions";
 
 interface PlantPhoto {
   id: string;
@@ -34,6 +34,7 @@ interface PlantPhotosSectionProps {
   plantId: string;
   plantName: string;
   photos: PlantPhoto[];
+  activePhotoId: string | null;
 }
 
 function formatDateTime(dateString: string): string {
@@ -82,7 +83,7 @@ async function getExifDate(file: File): Promise<Date | null> {
   }
 }
 
-export function PlantPhotosSection({ plantId, plantName, photos }: PlantPhotosSectionProps) {
+export function PlantPhotosSection({ plantId, plantName, photos, activePhotoId }: PlantPhotosSectionProps) {
   const router = useRouter();
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -96,6 +97,15 @@ export function PlantPhotosSection({ plantId, plantName, photos }: PlantPhotosSe
   const [editCaption, setEditCaption] = useState("");
   const [editError, setEditError] = useState<string | null>(null);
 
+  function handleSetActivePhoto(photoId: string) {
+    startTransition(async () => {
+      const result = await setPlantActivePhoto(plantId, photoId);
+      if (!result.success) {
+        setUploadError(result.error || "Failed to set active photo");
+      }
+    });
+  }
+
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -108,15 +118,30 @@ export function PlantPhotosSection({ plantId, plantName, photos }: PlantPhotosSe
       const exifDate = await getExifDate(file);
       const takenAt = exifDate ? exifDate.toISOString() : new Date().toISOString();
 
-      await upload(file.name, file, {
+      // Generate a unique ID for the upload and use it as the filename
+      const photoId = crypto.randomUUID();
+      const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const filename = `${photoId}.${extension}`;
+
+      // Upload to Vercel Blob
+      const blob = await upload(filename, file, {
         access: "public",
         handleUploadUrl: "/api/blob/plant-photos",
         clientPayload: JSON.stringify({
           plantId,
-          caption: null,
-          takenAt,
         }),
       });
+
+      // Create the database record via server action
+      const result = await createPlantPhoto(plantId, {
+        url: blob.url,
+        caption: null,
+        takenAt,
+      });
+
+      if (!result.success) {
+        throw new Error(result.error || "Failed to save photo");
+      }
 
       // Refresh the page to show the new photo
       router.refresh();
@@ -257,47 +282,71 @@ export function PlantPhotosSection({ plantId, plantName, photos }: PlantPhotosSe
 
           {photos.length > 0 ? (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-              {photos.map((photo) => (
-                <div
-                  key={photo.id}
-                  className="group relative aspect-square overflow-hidden rounded-lg bg-muted"
-                >
-                  <Image
-                    src={photo.url}
-                    alt={photo.caption || `${plantName} photo`}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
-                  />
-                  {/* Overlay on hover */}
-                  <div className="absolute inset-0 flex flex-col justify-between bg-black/0 p-2 opacity-0 transition-all group-hover:bg-black/40 group-hover:opacity-100">
-                    <div className="flex justify-end gap-1">
-                      <Button
-                        variant="secondary"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => handleEditClick(photo)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => handleDeleteClick(photo)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <div className="text-xs text-white">
-                      {formatDateTime(photo.taken_at)}
-                      {photo.caption && (
-                        <p className="mt-1 line-clamp-2">{photo.caption}</p>
-                      )}
+              {photos.map((photo) => {
+                const isActive = photo.id === activePhotoId;
+                return (
+                  <div
+                    key={photo.id}
+                    className={`group relative aspect-square overflow-hidden rounded-lg bg-muted ${
+                      isActive ? "ring-2 ring-primary ring-offset-2" : ""
+                    }`}
+                  >
+                    <Image
+                      src={photo.url}
+                      alt={photo.caption || `${plantName} photo`}
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
+                    />
+                    {/* Active badge */}
+                    {isActive && (
+                      <div className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground">
+                        <Star className="h-3 w-3 fill-current" />
+                        Active
+                      </div>
+                    )}
+                    {/* Overlay on hover */}
+                    <div className="absolute inset-0 flex flex-col justify-between bg-black/0 p-2 opacity-0 transition-all group-hover:bg-black/40 group-hover:opacity-100">
+                      <div className="flex justify-end gap-1">
+                        {!isActive && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="h-7 gap-1 px-2 text-xs"
+                            onClick={() => handleSetActivePhoto(photo.id)}
+                            disabled={isPending}
+                          >
+                            <Star className="h-3 w-3" />
+                            Set active
+                          </Button>
+                        )}
+                        <Button
+                          variant="secondary"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => handleEditClick(photo)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => handleDeleteClick(photo)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="text-xs text-white">
+                        {formatDateTime(photo.taken_at)}
+                        {photo.caption && (
+                          <p className="mt-1 line-clamp-2">{photo.caption}</p>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="py-8 text-center text-muted-foreground">
