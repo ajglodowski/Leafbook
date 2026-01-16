@@ -690,11 +690,13 @@ export type Database = {
         | "wilting"
         | "other"
       light_requirement:
-        | "dark"
-        | "low_indirect"
+        | "low"
+        | "low_to_medium"
+        | "low_to_bright_indirect"
         | "medium_indirect"
+        | "medium_to_bright_indirect"
         | "bright_indirect"
-        | "direct"
+        | "direct_sun"
       size_category: "small" | "medium" | "large" | "extra_large"
       user_role: "user" | "admin"
     }
@@ -856,11 +858,13 @@ export const Constants = {
         "other",
       ],
       light_requirement: [
-        "dark",
-        "low_indirect",
+        "low",
+        "low_to_medium",
+        "low_to_bright_indirect",
         "medium_indirect",
+        "medium_to_bright_indirect",
         "bright_indirect",
-        "direct",
+        "direct_sun",
       ],
       size_category: ["small", "medium", "large", "extra_large"],
       user_role: ["user", "admin"],

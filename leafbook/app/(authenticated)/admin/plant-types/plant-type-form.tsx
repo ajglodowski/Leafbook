@@ -40,9 +40,11 @@ function getSizeLabel(value: string): string {
 interface PlantTypeFormProps {
   plantType?: PlantType;
   mode: "create" | "edit";
+  wikidataQid?: string | null;
+  wikipediaTitle?: string | null;
 }
 
-export function PlantTypeForm({ plantType, mode }: PlantTypeFormProps) {
+export function PlantTypeForm({ plantType, mode, wikidataQid, wikipediaTitle }: PlantTypeFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -70,6 +72,14 @@ export function PlantTypeForm({ plantType, mode }: PlantTypeFormProps) {
     formData.set("fertilizing_frequency_days", fertilizingDays);
     formData.set("size_category", sizeCategory);
     formData.set("care_notes", careNotes);
+    
+    // Include Wikidata fields if provided (for create from Wikidata flow)
+    if (wikidataQid) {
+      formData.set("wikidata_qid", wikidataQid);
+    }
+    if (wikipediaTitle) {
+      formData.set("wikipedia_title", wikipediaTitle);
+    }
 
     startTransition(async () => {
       let result;

@@ -41,7 +41,7 @@ An app for journaling your plants
 - [x] Plant Types index `/plant-types`:
   - [x] search + basic filters (light, size, watering cadence)
 - [x] Plant Type detail `/plant-types/[plantTypeId]`:
-  - [ ] show catalog photos + recommended light/water/size (photos pending Vercel Blob)
+  - [x] show catalog photos + recommended light/water/size
   - [x] CTA: "Add to wishlist"
   - [x] CTA: "Add to my plants"
 - [x] Ensure PlantType ↔ UserPlant linking model is implemented (`plants.plant_type_id`)
@@ -80,9 +80,10 @@ An app for journaling your plants
 ### Next up (recommended order)
 - [x] Plant detail page `/plants/[plantId]` — view/edit plant info, care history timeline
 - [x] Quick backdate option for care logging
-- [ ] Photo uploads via Vercel Blob (Phase 9)
+- [x] Photo uploads via Vercel Blob (Phase 9)
 - [ ] Repot workflow (Phase 6)
 - [ ] Journal entries (Phase 7)
+- [ ] Issues + tracking (Phase 8)
 
 ### Phase 6 — Pots inventory + repot workflow
 - [ ] Pots page `/pots` (or in Settings)
@@ -107,22 +108,31 @@ An app for journaling your plants
 - [ ] Issue appears in timeline + plant health context
 
 ### Phase 9 — Photos (Vercel Blob) for users + catalog
-- [ ] Vercel Blob integration via Next.js signed uploads:
-  - [ ] User upload API route (validates Supabase session + plant ownership)
-  - [ ] Admin upload API route for PlantType photos (validates `profiles.role=admin`)
-- [ ] User plant photos:
-  - [ ] upload photo (dated `taken_at`, optional caption)
-  - [ ] show gallery + timeline integration
-- [ ] PlantType catalog photos:
-  - [ ] show primary + gallery on PlantType detail
+- [x] Vercel Blob integration via Next.js signed uploads:
+  - [x] User upload API route (validates Supabase session + plant ownership)
+  - [x] Admin upload API route for PlantType photos (validates `profiles.role=admin`)
+- [x] User plant photos:
+  - [x] upload photo (dated `taken_at`, optional caption)
+  - [x] show gallery + timeline integration
+- [x] PlantType catalog photos:
+  - [x] show primary + gallery on PlantType detail
 
 ### Phase 10 — Admin tools (catalog management)
 - [x] Admin route protection (only `profiles.role=admin`)
 - [x] Admin pages:
   - [x] `/admin/plant-types` list/create/edit
   - [x] `/admin/plant-types/[id]` manage details + photos
-- [ ] Photo management features:
-  - [ ] set primary, reorder, delete
+- [x] Photo management features:
+  - [x] set primary, reorder, delete
+
+### Phase 11 — Wikidata/Wikipedia Integration
+- [x] Wikidata search and linkage for plant types (`wikidata_qid`)
+- [x] Data enrichment from Wikipedia/Wikidata (scientific name, descriptions)
+- [x] Taxonomy lineage import (automated walk up the parent taxon chain)
+- [x] Wikimedia Commons image import:
+  - [x] Automatic license validation (CC BY, CC BY-SA, CC0, PD)
+  - [x] Multi-select and batch import to Vercel Blob
+  - [x] Attribution and provenance metadata storage (`source`, `license`, `artist`, `credit`)
 
 ---
 
@@ -173,3 +183,11 @@ An app for journaling your plants
 - [ ] Upload bytes directly to Vercel Blob
 - [ ] Save metadata row to Supabase (`plant_photos`)
 - [ ] Show photo gallery + timeline integration
+
+## Future Features
+
+- **Global Origin Visualizer**: Track the origin location for plant types and provide a visualizer for users to see where on a globe their plants are from.
+- **Custom User Lists**: Allow users to create custom lists to group their plants together.
+- **Legacy Plant Logging**: Ability for users to log plants no longer in their collection (e.g., died or given away).
+- **Taxonomy Family Tree**: A family tree view for users to see how their plants are related (backend support implemented).
+- **Propagation Tracking**: A cutting/propagation view to allow users to mark plants as descendants of each other.

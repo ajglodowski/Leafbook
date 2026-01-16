@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { del } from "@vercel/blob";
 import { createClient } from "@/lib/supabase/server";
 
 export async function logCareEvent(
@@ -189,6 +190,95 @@ export async function upsertPlantCarePreferences(
   revalidatePath("/today");
   revalidatePath("/plants");
   revalidatePath(`/plants/${plantId}`);
+
+  return { success: true };
+}
+
+export async function deletePlantPhoto(photoId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/auth/login");
+  }
+
+  // Fetch the photo to get the URL and verify ownership
+  const { data: photo, error: photoError } = await supabase
+    .from("plant_photos")
+    .select("id, url, plant_id")
+    .eq("id", photoId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (photoError || !photo) {
+    return { success: false, error: "Photo not found" };
+  }
+
+  // Delete from Vercel Blob
+  try {
+    await del(photo.url);
+  } catch (error) {
+    console.error("Error deleting from blob storage:", error);
+    // Continue to delete from DB even if blob deletion fails
+  }
+
+  // Delete from database
+  const { error } = await supabase
+    .from("plant_photos")
+    .delete()
+    .eq("id", photoId);
+
+  if (error) {
+    console.error("Error deleting plant photo:", error);
+    return { success: false, error: error.message };
+  }
+
+  revalidatePath(`/plants/${photo.plant_id}`);
+
+  return { success: true };
+}
+
+export async function updatePlantPhotoMetadata(
+  photoId: string,
+  data: {
+    takenAt: string;
+    caption: string | null;
+  }
+) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/auth/login");
+  }
+
+  // Fetch the photo to verify ownership
+  const { data: photo, error: photoError } = await supabase
+    .from("plant_photos")
+    .select("id, plant_id")
+    .eq("id", photoId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (photoError || !photo) {
+    return { success: false, error: "Photo not found" };
+  }
+
+  // Update the photo metadata
+  const { error } = await supabase
+    .from("plant_photos")
+    .update({
+      taken_at: data.takenAt,
+      caption: data.caption,
+    })
+    .eq("id", photoId);
+
+  if (error) {
+    console.error("Error updating plant photo:", error);
+    return { success: false, error: error.message };
+  }
+
+  revalidatePath(`/plants/${photo.plant_id}`);
 
   return { success: true };
 }

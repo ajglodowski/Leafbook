@@ -20,6 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { CareButton } from "./care-button";
 import { EditPlantDialog } from "./edit-plant-dialog";
 import { CarePreferencesDialog } from "./care-preferences-dialog";
+import { PlantPhotosSection } from "./plant-photos-section";
 
 // Human-friendly labels for light requirement enum
 const lightLabels: Record<string, string> = {
@@ -129,6 +130,13 @@ export default async function PlantDetailPage({
     .select("watering_frequency_days, fertilizing_frequency_days")
     .eq("plant_id", plantId)
     .maybeSingle();
+
+  // Fetch photos for this plant
+  const { data: photos } = await supabase
+    .from("plant_photos")
+    .select("id, url, caption, taken_at")
+    .eq("plant_id", plantId)
+    .order("taken_at", { ascending: false });
 
   const plantType = Array.isArray(plant.plant_types) ? plant.plant_types[0] : plant.plant_types;
   
@@ -346,6 +354,13 @@ export default async function PlantDetailPage({
           </CardContent>
         </Card>
       )}
+
+      {/* Photos Section */}
+      <PlantPhotosSection
+        plantId={plant.id}
+        plantName={plant.name}
+        photos={photos || []}
+      />
 
       {/* Care History Timeline */}
       <Card>

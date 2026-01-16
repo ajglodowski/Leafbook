@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Droplets, Sun, Ruler, Sparkles, Leaf, Heart } from "lucide-react";
+import Image from "next/image";
+import { ArrowLeft, Droplets, Sun, Ruler, Sparkles, Leaf, Heart, Camera } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +50,18 @@ export default async function PlantTypeDetailPage({
   if (error || !plantType) {
     notFound();
   }
+
+  // Fetch photos for this plant type
+  const { data: photos } = await supabase
+    .from("plant_type_photos")
+    .select("*")
+    .eq("plant_type_id", plantTypeId)
+    .order("is_primary", { ascending: false })
+    .order("display_order", { ascending: true })
+    .order("created_at", { ascending: true });
+
+  const primaryPhoto = photos?.find((p) => p.is_primary) || photos?.[0];
+  const galleryPhotos = photos?.filter((p) => p.id !== primaryPhoto?.id) || [];
 
   // Check if user has this in their wishlist
   const { data: { user } } = await supabase.auth.getUser();
@@ -105,6 +118,50 @@ export default async function PlantTypeDetailPage({
           />
         </div>
       </div>
+
+      {/* Photo gallery */}
+      {photos && photos.length > 0 && (
+        <div className="space-y-4">
+          {/* Primary photo */}
+          {primaryPhoto && (
+            <div className="relative aspect-4/3 w-full overflow-hidden rounded-xl bg-muted">
+              <Image
+                src={primaryPhoto.url}
+                alt={primaryPhoto.caption || plantType.name}
+                fill
+                className="object-cover"
+                priority
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
+              />
+              {primaryPhoto.caption && (
+                <div className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/60 to-transparent p-4">
+                  <p className="text-sm text-white">{primaryPhoto.caption}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Gallery grid */}
+          {galleryPhotos.length > 0 && (
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
+              {galleryPhotos.map((photo) => (
+                <div
+                  key={photo.id}
+                  className="relative aspect-square overflow-hidden rounded-lg bg-muted"
+                >
+                  <Image
+                    src={photo.url}
+                    alt={photo.caption || plantType.name}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 768px) 33vw, 20vw"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Already owned notice */}
       {userOwnsThisType && (

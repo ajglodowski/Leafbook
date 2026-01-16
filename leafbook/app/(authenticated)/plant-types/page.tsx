@@ -12,10 +12,17 @@ export default async function PlantTypesPage({
   const params = await searchParams;
   const supabase = await createClient();
 
-  // Build query
+  // Build query - include primary photo
   let query = supabase
     .from("plant_types")
-    .select("*")
+    .select(`
+      *,
+      plant_type_photos!left (
+        id,
+        url,
+        is_primary
+      )
+    `)
     .order("name");
 
   // Apply search filter
@@ -59,9 +66,23 @@ export default async function PlantTypesPage({
       {/* Results */}
       {plantTypes && plantTypes.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {plantTypes.map((plantType) => (
-            <PlantTypeCard key={plantType.id} plantType={plantType} />
-          ))}
+          {plantTypes.map((plantType) => {
+            // Extract primary photo URL
+            const photos = plantType.plant_type_photos || [];
+            const primaryPhoto = photos.find((p: { is_primary: boolean }) => p.is_primary) || photos[0];
+            const primaryPhotoUrl = primaryPhoto?.url || null;
+            
+            // Remove photos from plantType object for the card
+            const { plant_type_photos, ...plantTypeData } = plantType;
+            
+            return (
+              <PlantTypeCard 
+                key={plantType.id} 
+                plantType={plantTypeData} 
+                primaryPhotoUrl={primaryPhotoUrl}
+              />
+            );
+          })}
         </div>
       ) : (
         <EmptyState
