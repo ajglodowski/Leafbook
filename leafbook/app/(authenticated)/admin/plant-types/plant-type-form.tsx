@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Home, TreePine, Combine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,19 +14,27 @@ import type { Tables } from "@/lib/supabase/database.types";
 
 type PlantType = Tables<"plant_types">;
 
+// Light options with numeric values for ordering
 const lightOptions = [
-  { value: "dark", label: "Dark" },
-  { value: "low_indirect", label: "Low Indirect" },
-  { value: "medium_indirect", label: "Medium Indirect" },
-  { value: "bright_indirect", label: "Bright Indirect" },
-  { value: "direct", label: "Direct" },
+  { value: "dark", label: "Dark", numeric: 1 },
+  { value: "low_indirect", label: "Low Indirect", numeric: 2 },
+  { value: "medium_indirect", label: "Medium Indirect", numeric: 3 },
+  { value: "bright_indirect", label: "Bright Indirect", numeric: 4 },
+  { value: "direct", label: "Direct", numeric: 5 },
 ];
 
+// Size options with numeric values for ordering
 const sizeOptions = [
-  { value: "small", label: "Small" },
-  { value: "medium", label: "Medium" },
-  { value: "large", label: "Large" },
-  { value: "extra_large", label: "Extra Large" },
+  { value: "small", label: "Small", numeric: 1 },
+  { value: "medium", label: "Medium", numeric: 2 },
+  { value: "large", label: "Large", numeric: 3 },
+  { value: "extra_large", label: "Extra Large", numeric: 4 },
+];
+
+const locationOptions = [
+  { value: "indoor", label: "Indoor", icon: Home },
+  { value: "outdoor", label: "Outdoor", icon: TreePine },
+  { value: "both", label: "Both", icon: Combine },
 ];
 
 // Helper functions to get labels from values
@@ -35,6 +44,14 @@ function getLightLabel(value: string): string {
 
 function getSizeLabel(value: string): string {
   return sizeOptions.find((opt) => opt.value === value)?.label || value;
+}
+
+function getLightNumeric(value: string): number {
+  return lightOptions.find((opt) => opt.value === value)?.numeric || 0;
+}
+
+function getSizeNumeric(value: string): number {
+  return sizeOptions.find((opt) => opt.value === value)?.numeric || 0;
 }
 
 interface PlantTypeFormProps {
@@ -53,24 +70,52 @@ export function PlantTypeForm({ plantType, mode, wikidataQid, wikipediaTitle }: 
   const [name, setName] = useState(plantType?.name || "");
   const [scientificName, setScientificName] = useState(plantType?.scientific_name || "");
   const [description, setDescription] = useState(plantType?.description || "");
-  const [lightRequirement, setLightRequirement] = useState(plantType?.light_requirement || "");
+  
+  // Light range (min/max)
+  const [lightMin, setLightMin] = useState(plantType?.light_min || "");
+  const [lightMax, setLightMax] = useState(plantType?.light_max || "");
+  
+  // Size range (min/max)
+  const [sizeMin, setSizeMin] = useState(plantType?.size_min || "");
+  const [sizeMax, setSizeMax] = useState(plantType?.size_max || "");
+  
+  // Location preference
+  const [locationPreference, setLocationPreference] = useState(plantType?.location_preference || "indoor");
+  
   const [wateringDays, setWateringDays] = useState(plantType?.watering_frequency_days?.toString() || "");
   const [fertilizingDays, setFertilizingDays] = useState(plantType?.fertilizing_frequency_days?.toString() || "");
-  const [sizeCategory, setSizeCategory] = useState(plantType?.size_category || "");
   const [careNotes, setCareNotes] = useState(plantType?.care_notes || "");
+  
+  // Validate that max >= min for light
+  const isLightRangeValid = !lightMin || !lightMax || getLightNumeric(lightMax) >= getLightNumeric(lightMin);
+  // Validate that max >= min for size
+  const isSizeRangeValid = !sizeMin || !sizeMax || getSizeNumeric(sizeMax) >= getSizeNumeric(sizeMin);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    
+    // Validate ranges
+    if (!isLightRangeValid) {
+      setError("Light max must be greater than or equal to light min");
+      return;
+    }
+    if (!isSizeRangeValid) {
+      setError("Size max must be greater than or equal to size min");
+      return;
+    }
 
     const formData = new FormData();
     formData.set("name", name);
     formData.set("scientific_name", scientificName);
     formData.set("description", description);
-    formData.set("light_requirement", lightRequirement);
+    formData.set("light_min", lightMin);
+    formData.set("light_max", lightMax);
+    formData.set("size_min", sizeMin);
+    formData.set("size_max", sizeMax);
+    formData.set("location_preference", locationPreference);
     formData.set("watering_frequency_days", wateringDays);
     formData.set("fertilizing_frequency_days", fertilizingDays);
-    formData.set("size_category", sizeCategory);
     formData.set("care_notes", careNotes);
     
     // Include Wikidata fields if provided (for create from Wikidata flow)
@@ -140,6 +185,37 @@ export function PlantTypeForm({ plantType, mode, wikidataQid, wikipediaTitle }: 
         </CardContent>
       </Card>
 
+      {/* Location Preference */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Location</CardTitle>
+          <CardDescription>Where this plant type can thrive</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            <Label>Environment</Label>
+            <div className="flex gap-2">
+              {locationOptions.map((option) => {
+                const Icon = option.icon;
+                return (
+                  <Button
+                    key={option.value}
+                    type="button"
+                    variant={locationPreference === option.value ? "secondary" : "outline"}
+                    size="sm"
+                    onClick={() => setLocationPreference(option.value)}
+                    className="flex-1 gap-2"
+                  >
+                    <Icon className="h-4 w-4" />
+                    {option.label}
+                  </Button>
+                );
+              })}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Care requirements */}
       <Card>
         <CardHeader>
@@ -147,44 +223,104 @@ export function PlantTypeForm({ plantType, mode, wikidataQid, wikipediaTitle }: 
           <CardDescription>Recommended care settings for this plant type</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="light">Light Requirement</Label>
-              <Select value={lightRequirement} onValueChange={(value) => setLightRequirement(value || "")}>
-                <SelectTrigger id="light" className="w-full">
-                  <SelectValue placeholder="Select light level">
-                    {lightRequirement ? getLightLabel(lightRequirement) : null}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Not specified</SelectItem>
-                  {lightOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          {/* Light Range */}
+          <div className="space-y-2">
+            <Label>Light Requirement Range</Label>
+            <p className="text-xs text-muted-foreground mb-2">
+              Select the minimum and maximum light levels this plant can tolerate
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1">
+                <Label htmlFor="light-min" className="text-xs text-muted-foreground">Min</Label>
+                <Select value={lightMin} onValueChange={(value) => setLightMin(value || "")}>
+                  <SelectTrigger id="light-min" className="w-full">
+                    <SelectValue placeholder="Select min light">
+                      {lightMin ? getLightLabel(lightMin) : null}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Not specified</SelectItem>
+                    {lightOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="light-max" className="text-xs text-muted-foreground">Max</Label>
+                <Select value={lightMax} onValueChange={(value) => setLightMax(value || "")}>
+                  <SelectTrigger id="light-max" className={`w-full ${!isLightRangeValid ? 'border-destructive' : ''}`}>
+                    <SelectValue placeholder="Select max light">
+                      {lightMax ? getLightLabel(lightMax) : null}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Not specified</SelectItem>
+                    {lightOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="size">Size Category</Label>
-              <Select value={sizeCategory} onValueChange={(value) => setSizeCategory(value || "")}>
-                <SelectTrigger id="size" className="w-full">
-                  <SelectValue placeholder="Select size">
-                    {sizeCategory ? getSizeLabel(sizeCategory) : null}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Not specified</SelectItem>
-                  {sizeOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {!isLightRangeValid && (
+              <p className="text-xs text-destructive">Max must be greater than or equal to min</p>
+            )}
           </div>
+
+          {/* Size Range */}
+          <div className="space-y-2">
+            <Label>Size Range</Label>
+            <p className="text-xs text-muted-foreground mb-2">
+              Select the minimum and maximum mature size for this plant type
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1">
+                <Label htmlFor="size-min" className="text-xs text-muted-foreground">Min</Label>
+                <Select value={sizeMin} onValueChange={(value) => setSizeMin(value || "")}>
+                  <SelectTrigger id="size-min" className="w-full">
+                    <SelectValue placeholder="Select min size">
+                      {sizeMin ? getSizeLabel(sizeMin) : null}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Not specified</SelectItem>
+                    {sizeOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="size-max" className="text-xs text-muted-foreground">Max</Label>
+                <Select value={sizeMax} onValueChange={(value) => setSizeMax(value || "")}>
+                  <SelectTrigger id="size-max" className={`w-full ${!isSizeRangeValid ? 'border-destructive' : ''}`}>
+                    <SelectValue placeholder="Select max size">
+                      {sizeMax ? getSizeLabel(sizeMax) : null}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Not specified</SelectItem>
+                    {sizeOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {!isSizeRangeValid && (
+              <p className="text-xs text-destructive">Max must be greater than or equal to min</p>
+            )}
+          </div>
+
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="watering">Watering Frequency (days)</Label>
@@ -249,7 +385,7 @@ export function PlantTypeForm({ plantType, mode, wikidataQid, wikipediaTitle }: 
         >
           Cancel
         </Button>
-        <Button type="submit" disabled={isPending || !name.trim()}>
+        <Button type="submit" disabled={isPending || !name.trim() || !isLightRangeValid || !isSizeRangeValid}>
           {isPending 
             ? (mode === "create" ? "Creating..." : "Saving...") 
             : (mode === "create" ? "Create plant type" : "Save changes")}

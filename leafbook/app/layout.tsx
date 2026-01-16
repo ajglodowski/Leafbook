@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Lora, Source_Sans_3 } from "next/font/google";
+import { Lora, Source_Sans_3, Caveat } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import "./globals.css";
 
@@ -25,6 +25,12 @@ const sourceSans = Source_Sans_3({
   subsets: ["latin"],
 });
 
+const caveat = Caveat({
+  variable: "--font-handwritten",
+  display: "swap",
+  subsets: ["latin"],
+});
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -32,7 +38,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${sourceSans.variable} ${lora.variable} font-sans antialiased`}>
+      <body className={`${sourceSans.variable} ${lora.variable} ${caveat.variable} font-sans antialiased`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, Droplets, Sun, Ruler, Sparkles, Leaf, Heart, Camera } from "lucide-react";
+import { ArrowLeft, Droplets, Sun, Ruler, Sparkles, Leaf, Home, TreePine, Combine } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +31,24 @@ const sizeDescriptions: Record<string, string> = {
   large: "Statement piece, floor plant",
   extra_large: "Major presence, needs space",
 };
+
+const locationLabels: Record<string, { label: string; description: string }> = {
+  indoor: { label: "Indoor", description: "Best kept inside" },
+  outdoor: { label: "Outdoor", description: "Thrives outside" },
+  both: { label: "Indoor or Outdoor", description: "Versatile placement" },
+};
+
+// Helper to format a range display
+function formatRange(min: string | null, max: string | null, labels: Record<string, string>): string | null {
+  if (!min && !max) return null;
+  const minLabel = min ? labels[min] || min : null;
+  const maxLabel = max ? labels[max] || max : null;
+  
+  if (minLabel && maxLabel) {
+    return minLabel === maxLabel ? minLabel : `${minLabel} to ${maxLabel}`;
+  }
+  return minLabel || maxLabel;
+}
 
 export default async function PlantTypeDetailPage({
   params,
@@ -194,8 +212,34 @@ export default async function PlantTypeDetailPage({
 
       {/* Care recommendations */}
       <div className="grid gap-4 sm:grid-cols-2">
+        {/* Location */}
+        {plantType.location_preference && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-base">
+                {plantType.location_preference === "indoor" ? (
+                  <Home className="h-5 w-5 text-teal-500" />
+                ) : plantType.location_preference === "outdoor" ? (
+                  <TreePine className="h-5 w-5 text-teal-500" />
+                ) : (
+                  <Combine className="h-5 w-5 text-teal-500" />
+                )}
+                Location
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="font-medium">
+                {locationLabels[plantType.location_preference]?.label || plantType.location_preference}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {locationLabels[plantType.location_preference]?.description || ""}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Light */}
-        {plantType.light_requirement && (
+        {(plantType.light_min || plantType.light_max) && (
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-base">
@@ -205,7 +249,7 @@ export default async function PlantTypeDetailPage({
             </CardHeader>
             <CardContent>
               <p className="font-medium">
-                {lightLabels[plantType.light_requirement] || plantType.light_requirement}
+                {formatRange(plantType.light_min, plantType.light_max, lightLabels)}
               </p>
             </CardContent>
           </Card>
@@ -260,7 +304,7 @@ export default async function PlantTypeDetailPage({
         )}
 
         {/* Size */}
-        {plantType.size_category && (
+        {(plantType.size_min || plantType.size_max) && (
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-base">
@@ -270,11 +314,13 @@ export default async function PlantTypeDetailPage({
             </CardHeader>
             <CardContent>
               <p className="font-medium">
-                {sizeLabels[plantType.size_category] || plantType.size_category}
+                {formatRange(plantType.size_min, plantType.size_max, sizeLabels)}
               </p>
-              <p className="text-sm text-muted-foreground">
-                {sizeDescriptions[plantType.size_category] || ""}
-              </p>
+              {plantType.size_min && plantType.size_max && plantType.size_min === plantType.size_max && (
+                <p className="text-sm text-muted-foreground">
+                  {sizeDescriptions[plantType.size_min] || ""}
+                </p>
+              )}
             </CardContent>
           </Card>
         )}

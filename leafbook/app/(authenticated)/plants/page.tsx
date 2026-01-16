@@ -19,7 +19,7 @@ export default async function PlantsPage() {
       id,
       name,
       nickname,
-      is_indoor,
+      plant_location,
       location,
       is_active,
       created_at,
@@ -136,7 +136,7 @@ export default async function PlantsPage() {
                             )}
                           </div>
                           <Badge variant="secondary" className="gap-1 shrink-0">
-                            {plant.is_indoor ? (
+                            {plant.plant_location === "indoor" ? (
                               <>
                                 <Home className="h-3 w-3" />
                                 Indoor

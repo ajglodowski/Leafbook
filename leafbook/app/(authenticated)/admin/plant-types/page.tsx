@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus, Pencil, Trash2, Library, Droplets, Sun, Ruler, Sparkles } from "lucide-react";
+import { Plus, Pencil, Trash2, Library, Droplets, Sun, Ruler, Sparkles, Home, TreePine, Combine } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -22,6 +22,24 @@ const sizeLabels: Record<string, string> = {
   large: "L",
   extra_large: "XL",
 };
+
+const locationIcons: Record<string, typeof Home> = {
+  indoor: Home,
+  outdoor: TreePine,
+  both: Combine,
+};
+
+// Helper to format a range display (short form)
+function formatRangeShort(min: string | null, max: string | null, labels: Record<string, string>): string | null {
+  if (!min && !max) return null;
+  const minLabel = min ? labels[min] || min : null;
+  const maxLabel = max ? labels[max] || max : null;
+  
+  if (minLabel && maxLabel) {
+    return minLabel === maxLabel ? minLabel : `${minLabel}–${maxLabel}`;
+  }
+  return minLabel || maxLabel;
+}
 
 export default async function AdminPlantTypesPage() {
   const supabase = await createClient();
@@ -80,10 +98,22 @@ export default async function AdminPlantTypesPage() {
 
                 {/* Care badges */}
                 <div className="hidden md:flex items-center gap-2">
-                  {plantType.light_requirement && (
+                  {plantType.location_preference && (
+                    (() => {
+                      const LocationIcon = locationIcons[plantType.location_preference] || Home;
+                      return (
+                        <Badge variant="outline" className="gap-1 text-xs">
+                          <LocationIcon className="h-3 w-3" />
+                          {plantType.location_preference === "both" ? "Both" : 
+                            plantType.location_preference.charAt(0).toUpperCase() + plantType.location_preference.slice(1)}
+                        </Badge>
+                      );
+                    })()
+                  )}
+                  {(plantType.light_min || plantType.light_max) && (
                     <Badge variant="outline" className="gap-1 text-xs">
                       <Sun className="h-3 w-3" />
-                      {lightLabels[plantType.light_requirement]}
+                      {formatRangeShort(plantType.light_min, plantType.light_max, lightLabels)}
                     </Badge>
                   )}
                   {plantType.watering_frequency_days && (
@@ -98,10 +128,10 @@ export default async function AdminPlantTypesPage() {
                       {plantType.fertilizing_frequency_days}d
                     </Badge>
                   )}
-                  {plantType.size_category && (
+                  {(plantType.size_min || plantType.size_max) && (
                     <Badge variant="outline" className="gap-1 text-xs">
                       <Ruler className="h-3 w-3" />
-                      {sizeLabels[plantType.size_category]}
+                      {formatRangeShort(plantType.size_min, plantType.size_max, sizeLabels)}
                     </Badge>
                   )}
                 </div>

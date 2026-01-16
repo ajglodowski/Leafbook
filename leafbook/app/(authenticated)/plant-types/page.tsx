@@ -4,6 +4,23 @@ import { EmptyState } from "@/components/empty-state";
 import { PlantTypeCard } from "@/components/plant-type-card";
 import { PlantTypesSearch } from "./search";
 
+// Map light enum values to numeric for filtering
+const lightToNumeric: Record<string, number> = {
+  dark: 1,
+  low_indirect: 2,
+  medium_indirect: 3,
+  bright_indirect: 4,
+  direct: 5,
+};
+
+// Map size enum values to numeric for filtering
+const sizeToNumeric: Record<string, number> = {
+  small: 1,
+  medium: 2,
+  large: 3,
+  extra_large: 4,
+};
+
 export default async function PlantTypesPage({
   searchParams,
 }: {
@@ -32,14 +49,18 @@ export default async function PlantTypesPage({
     );
   }
 
-  // Apply light filter
-  if (params.light) {
-    query = query.eq("light_requirement", params.light);
+  // Apply light filter - find plant types where the filter value is within their min/max range
+  if (params.light && lightToNumeric[params.light]) {
+    const numericValue = lightToNumeric[params.light];
+    // Plant type matches if: light_min_numeric <= filter_value <= light_max_numeric
+    query = query.lte("light_min_numeric", numericValue).gte("light_max_numeric", numericValue);
   }
 
-  // Apply size filter
-  if (params.size) {
-    query = query.eq("size_category", params.size);
+  // Apply size filter - find plant types where the filter value is within their min/max range
+  if (params.size && sizeToNumeric[params.size]) {
+    const numericValue = sizeToNumeric[params.size];
+    // Plant type matches if: size_min_numeric <= filter_value <= size_max_numeric
+    query = query.lte("size_min_numeric", numericValue).gte("size_max_numeric", numericValue);
   }
 
   const { data: plantTypes, error } = await query;

@@ -33,10 +33,16 @@ export async function createPlantType(formData: FormData) {
   const name = formData.get("name") as string;
   const scientific_name = formData.get("scientific_name") as string | null;
   const description = formData.get("description") as string | null;
-  const light_requirement = formData.get("light_requirement") as string | null;
+  
+  // Light and size ranges
+  const light_min = formData.get("light_min") as string | null;
+  const light_max = formData.get("light_max") as string | null;
+  const size_min = formData.get("size_min") as string | null;
+  const size_max = formData.get("size_max") as string | null;
+  const location_preference = formData.get("location_preference") as string | null;
+  
   const watering_frequency_days = formData.get("watering_frequency_days") as string | null;
   const fertilizing_frequency_days = formData.get("fertilizing_frequency_days") as string | null;
-  const size_category = formData.get("size_category") as string | null;
   const care_notes = formData.get("care_notes") as string | null;
   
   // Optional Wikidata fields (from "Create from Wikidata" flow)
@@ -51,10 +57,13 @@ export async function createPlantType(formData: FormData) {
     name: name.trim(),
     scientific_name: scientific_name?.trim() || null,
     description: description?.trim() || null,
-    light_requirement: light_requirement || null,
+    light_min: light_min || null,
+    light_max: light_max || null,
+    size_min: size_min || null,
+    size_max: size_max || null,
+    location_preference: location_preference || 'indoor',
     watering_frequency_days: watering_frequency_days ? parseInt(watering_frequency_days) : null,
     fertilizing_frequency_days: fertilizing_frequency_days ? parseInt(fertilizing_frequency_days) : null,
-    size_category: size_category || null,
     care_notes: care_notes?.trim() || null,
   };
 
@@ -93,10 +102,16 @@ export async function updatePlantType(id: string, formData: FormData) {
   const name = formData.get("name") as string;
   const scientific_name = formData.get("scientific_name") as string | null;
   const description = formData.get("description") as string | null;
-  const light_requirement = formData.get("light_requirement") as string | null;
+  
+  // Light and size ranges
+  const light_min = formData.get("light_min") as string | null;
+  const light_max = formData.get("light_max") as string | null;
+  const size_min = formData.get("size_min") as string | null;
+  const size_max = formData.get("size_max") as string | null;
+  const location_preference = formData.get("location_preference") as string | null;
+  
   const watering_frequency_days = formData.get("watering_frequency_days") as string | null;
   const fertilizing_frequency_days = formData.get("fertilizing_frequency_days") as string | null;
-  const size_category = formData.get("size_category") as string | null;
   const care_notes = formData.get("care_notes") as string | null;
 
   if (!name?.trim()) {
@@ -109,10 +124,13 @@ export async function updatePlantType(id: string, formData: FormData) {
       name: name.trim(),
       scientific_name: scientific_name?.trim() || null,
       description: description?.trim() || null,
-      light_requirement: light_requirement || null,
+      light_min: light_min || null,
+      light_max: light_max || null,
+      size_min: size_min || null,
+      size_max: size_max || null,
+      location_preference: location_preference || 'indoor',
       watering_frequency_days: watering_frequency_days ? parseInt(watering_frequency_days) : null,
       fertilizing_frequency_days: fertilizing_frequency_days ? parseInt(fertilizing_frequency_days) : null,
-      size_category: size_category || null,
       care_notes: care_notes?.trim() || null,
     })
     .eq("id", id);

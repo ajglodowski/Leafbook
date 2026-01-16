@@ -29,6 +29,9 @@ export default async function HomePage() {
             <span>Leafbook</span>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" render={<Link href="/about" />}>
+              About
+            </Button>
             <Button variant="ghost" size="sm" render={<Link href="/auth/login" />}>
               Sign in
             </Button>

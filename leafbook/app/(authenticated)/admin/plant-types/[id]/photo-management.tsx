@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useRef } from "react";
+import { useState, useTransition, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { upload } from "@vercel/blob/client";
@@ -19,6 +19,7 @@ import {
   ExternalLink,
   Info,
 } from "lucide-react";
+import { ImageCropper } from "@/components/ui/image-cropper";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
@@ -90,15 +91,44 @@ export function PhotoManagement({ plantTypeId, plantTypeName, wikipediaTitle, ph
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0 });
   const [wikipediaError, setWikipediaError] = useState<string | null>(null);
 
+  // Cropper state
+  const [showCropper, setShowCropper] = useState(false);
+  const [cropperImageUrl, setCropperImageUrl] = useState<string | null>(null);
+
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setUploadError(null);
+
+    try {
+      // Create a URL for the cropper
+      const imageUrl = URL.createObjectURL(file);
+      setCropperImageUrl(imageUrl);
+      setShowCropper(true);
+    } catch (error) {
+      console.error("Error preparing image:", error);
+      setUploadError(error instanceof Error ? error.message : "Failed to prepare image");
+    } finally {
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  }
+
+  const handleCropComplete = useCallback(async (croppedBlob: Blob) => {
     setIsUploading(true);
     setUploadError(null);
 
     try {
-      await upload(file.name, file, {
+      const photoId = crypto.randomUUID();
+      const filename = `${photoId}.jpg`;
+
+      // Create a File from the Blob for upload
+      const croppedFile = new File([croppedBlob], filename, { type: "image/jpeg" });
+
+      await upload(filename, croppedFile, {
         access: "public",
         handleUploadUrl: "/api/blob/plant-type-photos",
         clientPayload: JSON.stringify({
@@ -114,12 +144,13 @@ export function PhotoManagement({ plantTypeId, plantTypeName, wikipediaTitle, ph
       setUploadError(error instanceof Error ? error.message : "Upload failed");
     } finally {
       setIsUploading(false);
-      // Reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
+      // Clean up
+      if (cropperImageUrl) {
+        URL.revokeObjectURL(cropperImageUrl);
       }
+      setCropperImageUrl(null);
     }
-  }
+  }, [plantTypeId, cropperImageUrl, router]);
 
   function handleSetPrimary(photo: PlantTypePhoto) {
     startTransition(async () => {
@@ -521,6 +552,34 @@ export function PhotoManagement({ plantTypeId, plantTypeName, wikipediaTitle, ph
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Image cropper dialog */}
+      {cropperImageUrl && (
+        <ImageCropper
+          imageUrl={cropperImageUrl}
+          open={showCropper}
+          onOpenChange={(open) => {
+            setShowCropper(open);
+            if (!open) {
+              URL.revokeObjectURL(cropperImageUrl);
+              setCropperImageUrl(null);
+            }
+          }}
+          onCropComplete={handleCropComplete}
+          title="Crop plant type photo"
+          description="Create a square photo for the catalog"
+        />
+      )}
+
+      {/* Uploading overlay */}
+      {isUploading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-3 rounded-lg border bg-card p-6 shadow-lg">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm font-medium">Uploading photo...</p>
+          </div>
+        </div>
+      )}
 
       {/* Wikipedia image import panel */}
       {showWikipediaDialog && (

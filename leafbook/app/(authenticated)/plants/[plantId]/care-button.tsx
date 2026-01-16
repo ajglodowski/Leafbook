@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Droplets, Sparkles, Check, ChevronDown, Calendar, CalendarDays } from "lucide-react";
+import { Droplets, Sparkles, Check, ChevronDown, Calendar, CalendarDays, Sprout } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,7 +46,7 @@ const variantConfig = {
     className: "bg-amber-500 hover:bg-amber-600 text-white",
   },
   repot: {
-    icon: Droplets,
+    icon: Sprout,
     label: "Repot",
     doneLabel: "Repotted!",
     pastLabel: "repotted",

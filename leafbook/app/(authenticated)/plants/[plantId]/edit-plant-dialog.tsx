@@ -29,9 +29,10 @@ interface PlantData {
   id: string;
   name: string;
   nickname: string | null;
-  is_indoor: boolean;
+  plant_location: "indoor" | "outdoor";
   location: string | null;
   light_exposure: string | null;
+  size_category: string | null;
   how_acquired: string | null;
   description: string | null;
   acquired_at: string | null;
@@ -45,9 +46,20 @@ const lightOptions = [
   { value: "direct", label: "Direct" },
 ];
 
+const sizeOptions = [
+  { value: "small", label: "Small" },
+  { value: "medium", label: "Medium" },
+  { value: "large", label: "Large" },
+  { value: "extra_large", label: "Extra Large" },
+];
+
 // Helper to get label from value
 function getLightLabel(value: string): string {
   return lightOptions.find((opt) => opt.value === value)?.label || value;
+}
+
+function getSizeLabel(value: string): string {
+  return sizeOptions.find((opt) => opt.value === value)?.label || value;
 }
 
 export function EditPlantDialog({ plant }: { plant: PlantData }) {
@@ -58,9 +70,10 @@ export function EditPlantDialog({ plant }: { plant: PlantData }) {
   
   const [name, setName] = useState(plant.name);
   const [nickname, setNickname] = useState(plant.nickname || "");
-  const [isIndoor, setIsIndoor] = useState(plant.is_indoor);
+  const [plantLocation, setPlantLocation] = useState<"indoor" | "outdoor">(plant.plant_location);
   const [location, setLocation] = useState(plant.location || "");
   const [lightExposure, setLightExposure] = useState(plant.light_exposure || "");
+  const [sizeCategory, setSizeCategory] = useState(plant.size_category || "");
   const [howAcquired, setHowAcquired] = useState(plant.how_acquired || "");
   const [description, setDescription] = useState(plant.description || "");
   const [acquiredAt, setAcquiredAt] = useState(
@@ -73,9 +86,10 @@ export function EditPlantDialog({ plant }: { plant: PlantData }) {
     if (isOpen) {
       setName(plant.name);
       setNickname(plant.nickname || "");
-      setIsIndoor(plant.is_indoor);
+      setPlantLocation(plant.plant_location);
       setLocation(plant.location || "");
       setLightExposure(plant.light_exposure || "");
+      setSizeCategory(plant.size_category || "");
       setHowAcquired(plant.how_acquired || "");
       setDescription(plant.description || "");
       setAcquiredAt(plant.acquired_at ? plant.acquired_at.split("T")[0] : "");
@@ -95,9 +109,10 @@ export function EditPlantDialog({ plant }: { plant: PlantData }) {
       const result = await updatePlant(plant.id, {
         name: name.trim(),
         nickname: nickname.trim() || null,
-        is_indoor: isIndoor,
+        plant_location: plantLocation,
         location: location.trim() || null,
         light_exposure: lightExposure || null,
+        size_category: sizeCategory || null,
         how_acquired: howAcquired.trim() || null,
         description: description.trim() || null,
         acquired_at: acquiredAt || null,
@@ -171,9 +186,9 @@ export function EditPlantDialog({ plant }: { plant: PlantData }) {
               <div className="flex gap-2">
                 <Button
                   type="button"
-                  variant={isIndoor ? "secondary" : "outline"}
+                  variant={plantLocation === "indoor" ? "secondary" : "outline"}
                   size="sm"
-                  onClick={() => setIsIndoor(true)}
+                  onClick={() => setPlantLocation("indoor")}
                   className="flex-1 gap-2"
                 >
                   <Home className="h-4 w-4" />
@@ -181,9 +196,9 @@ export function EditPlantDialog({ plant }: { plant: PlantData }) {
                 </Button>
                 <Button
                   type="button"
-                  variant={!isIndoor ? "secondary" : "outline"}
+                  variant={plantLocation === "outdoor" ? "secondary" : "outline"}
                   size="sm"
-                  onClick={() => setIsIndoor(false)}
+                  onClick={() => setPlantLocation("outdoor")}
                   className="flex-1 gap-2"
                 >
                   <TreePine className="h-4 w-4" />
@@ -214,6 +229,25 @@ export function EditPlantDialog({ plant }: { plant: PlantData }) {
                 </SelectTrigger>
                 <SelectContent>
                   {lightOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Current size */}
+            <div className="space-y-2">
+              <Label>Current size (optional)</Label>
+              <Select value={sizeCategory} onValueChange={(value) => setSizeCategory(value || "")}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select size">
+                    {sizeCategory ? getSizeLabel(sizeCategory) : null}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {sizeOptions.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
                     </SelectItem>

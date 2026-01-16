@@ -46,7 +46,7 @@ export async function convertWishlistToPlant(
       user_id: user.id,
       plant_type_id: plantTypeId,
       name: plantName,
-      is_indoor: true,
+      plant_location: "indoor",
     })
     .select()
     .single();

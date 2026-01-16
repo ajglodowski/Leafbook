@@ -75,7 +75,7 @@ export async function addPlant(formData: FormData) {
 
   const plantTypeId = formData.get("plantTypeId") as string | null;
   const name = formData.get("name") as string;
-  const isIndoor = formData.get("isIndoor") === "true";
+  const plantLocation = (formData.get("plant_location") as "indoor" | "outdoor") || "indoor";
 
   if (!name?.trim()) {
     return { success: false, error: "Name is required" };
@@ -87,7 +87,7 @@ export async function addPlant(formData: FormData) {
       user_id: user.id,
       plant_type_id: plantTypeId || null,
       name: name.trim(),
-      is_indoor: isIndoor,
+      plant_location: plantLocation,
     })
     .select()
     .single();
@@ -121,7 +121,7 @@ export async function convertWishlistToPlant(wishlistItemId: string, plantTypeId
       user_id: user.id,
       plant_type_id: plantTypeId,
       name: plantTypeName,
-      is_indoor: true,
+      plant_location: "indoor",
     })
     .select()
     .single();

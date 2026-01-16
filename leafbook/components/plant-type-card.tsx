@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Droplets, Sun, Ruler, Leaf } from "lucide-react";
+import { Droplets, Sun, Ruler, Leaf, Home, TreePine, Combine } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { Tables } from "@/lib/supabase/database.types";
@@ -22,6 +22,24 @@ const sizeLabels: Record<string, string> = {
   large: "Large",
   extra_large: "Extra Large",
 };
+
+const locationIcons: Record<string, typeof Home> = {
+  indoor: Home,
+  outdoor: TreePine,
+  both: Combine,
+};
+
+// Helper to format a range display
+function formatRange(min: string | null, max: string | null, labels: Record<string, string>): string | null {
+  if (!min && !max) return null;
+  const minLabel = min ? labels[min] || min : null;
+  const maxLabel = max ? labels[max] || max : null;
+  
+  if (minLabel && maxLabel) {
+    return minLabel === maxLabel ? minLabel : `${minLabel}–${maxLabel}`;
+  }
+  return minLabel || maxLabel;
+}
 
 interface PlantTypeCardProps {
   plantType: PlantType;
@@ -64,10 +82,22 @@ export function PlantTypeCard({ plantType, primaryPhotoUrl }: PlantTypeCardProps
           )}
           
           <div className="flex flex-wrap gap-2">
-            {plantType.light_requirement && (
+            {plantType.location_preference && (
+              (() => {
+                const LocationIcon = locationIcons[plantType.location_preference] || Home;
+                return (
+                  <Badge variant="secondary" className="gap-1">
+                    <LocationIcon className="h-3 w-3" />
+                    {plantType.location_preference === "both" ? "Indoor/Outdoor" : 
+                      plantType.location_preference.charAt(0).toUpperCase() + plantType.location_preference.slice(1)}
+                  </Badge>
+                );
+              })()
+            )}
+            {(plantType.light_min || plantType.light_max) && (
               <Badge variant="secondary" className="gap-1">
                 <Sun className="h-3 w-3" />
-                {lightLabels[plantType.light_requirement] || plantType.light_requirement}
+                {formatRange(plantType.light_min, plantType.light_max, lightLabels)}
               </Badge>
             )}
             {plantType.watering_frequency_days && (
@@ -76,10 +106,10 @@ export function PlantTypeCard({ plantType, primaryPhotoUrl }: PlantTypeCardProps
                 Every {plantType.watering_frequency_days}d
               </Badge>
             )}
-            {plantType.size_category && (
+            {(plantType.size_min || plantType.size_max) && (
               <Badge variant="secondary" className="gap-1">
                 <Ruler className="h-3 w-3" />
-                {sizeLabels[plantType.size_category] || plantType.size_category}
+                {formatRange(plantType.size_min, plantType.size_max, sizeLabels)}
               </Badge>
             )}
           </div>

@@ -33,9 +33,9 @@ An app for journaling your plants
 - [x] Bootstrap Next.js (App Router + TS)
 - [x] Supabase client setup (SSR + client)
 - [x] Auth UI (sign in/up) + protected routes
-- [ ] Marketing pages:
+- [x] Marketing pages:
   - [x] Landing `/` (explains Leafbook + feature highlights + CTAs)
-  - [ ] About `/about` (philosophy: journaling-first; tasks shouldn't feel like chores)
+  - [x] About `/about` (philosophy: journaling-first; tasks shouldn't feel like chores)
 
 ### Phase 2 — Plant Types catalog + discovery (read-only first)
 - [x] Plant Types index `/plant-types`:
@@ -68,7 +68,7 @@ An app for journaling your plants
 - [x] One-tap logging for:
   - [x] Watered
   - [x] Fertilized
-  - [ ] Repotted
+  - [x] Repotted
 - [x] Task logging UX requirements:
   - [x] no mandatory forms
   - [x] default timestamp = now
@@ -81,31 +81,33 @@ An app for journaling your plants
 - [x] Plant detail page `/plants/[plantId]` — view/edit plant info, care history timeline
 - [x] Quick backdate option for care logging
 - [x] Photo uploads via Vercel Blob (Phase 9)
-- [ ] Repot workflow (Phase 6)
-- [ ] Journal entries (Phase 7)
-- [ ] Issues + tracking (Phase 8)
+- [x] Repot workflow (Phase 6)
+- [x] Journal entries (Phase 7)
+- [x] Issues + tracking (Phase 8)
 
 ### Phase 6 — Pots inventory + repot workflow
-- [ ] Pots page `/pots` (or in Settings)
-  - [ ] add/edit/retire `user_pots`
-- [ ] Plant has a `current_pot_id`
-- [ ] Repot workflow:
-  - [ ] choose date
-  - [ ] choose pot from inventory or add new pot
-  - [ ] write `plant_events(type=repotted, metadata={from_pot_id,to_pot_id})`
-  - [ ] update `plants.current_pot_id`
+- [x] Pots page `/pots` (or in Settings)
+  - [x] add/edit/retire `user_pots`
+  - [x] optional pot photo upload via Vercel Blob
+- [x] Plant has a `current_pot_id`
+- [x] Repot workflow:
+  - [x] choose date
+  - [x] choose pot from inventory or add new pot
+  - [x] write `plant_events(type=repotted, metadata={from_pot_id,to_pot_id})`
+  - [x] update `plants.current_pot_id`
 
 ### Phase 7 — Journal (long-form, personal)
-- [ ] Add journal entry from UserPlant detail:
-  - [ ] title optional, content required, backdating allowed
-- [ ] Global journal feed `/journal` (filter by plant)
-- [ ] Timeline presentation on plant detail:
-  - [ ] interleave events + journal entries + issues
+- [x] Add journal entry from UserPlant detail:
+  - [x] title optional, content required, backdating allowed
+- [x] Global journal feed `/journal` (filter by plant)
+- [x] Timeline presentation on plant detail:
+  - [x] interleave events + journal entries
+  - [x] include issues (Phase 8)
 
 ### Phase 8 — Issues + tracking
-- [ ] Create issue flow (type + notes + date)
-- [ ] Resolve issue flow
-- [ ] Issue appears in timeline + plant health context
+- [x] Create issue flow (type + notes + date)
+- [x] Resolve issue flow
+- [x] Issue appears in timeline + plant health context
 
 ### Phase 9 — Photos (Vercel Blob) for users + catalog
 - [x] Vercel Blob integration via Next.js signed uploads:

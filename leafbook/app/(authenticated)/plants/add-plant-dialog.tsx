@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Home, TreePine, Search } from "lucide-react";
+import { Plus, Home, TreePine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,7 +22,7 @@ export function AddPlantDialog() {
   const [isPending, startTransition] = useTransition();
   const [isOpen, setIsOpen] = useState(false);
   const [name, setName] = useState("");
-  const [isIndoor, setIsIndoor] = useState(true);
+  const [plantLocation, setPlantLocation] = useState<"indoor" | "outdoor">("indoor");
   const [location, setLocation] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -31,7 +31,7 @@ export function AddPlantDialog() {
     if (isOpen) {
       setName("");
       setLocation("");
-      setIsIndoor(true);
+      setPlantLocation("indoor");
       setError(null);
     }
   }, [isOpen]);
@@ -41,7 +41,7 @@ export function AddPlantDialog() {
     
     const formData = new FormData();
     formData.set("name", name);
-    formData.set("isIndoor", isIndoor.toString());
+    formData.set("plant_location", plantLocation);
     if (location) formData.set("location", location);
 
     startTransition(async () => {
@@ -102,9 +102,9 @@ export function AddPlantDialog() {
             <div className="flex gap-2">
               <Button
                 type="button"
-                variant={isIndoor ? "secondary" : "outline"}
+                variant={plantLocation === "indoor" ? "secondary" : "outline"}
                 size="sm"
-                onClick={() => setIsIndoor(true)}
+                onClick={() => setPlantLocation("indoor")}
                 className="flex-1 gap-2"
               >
                 <Home className="h-4 w-4" />
@@ -112,9 +112,9 @@ export function AddPlantDialog() {
               </Button>
               <Button
                 type="button"
-                variant={!isIndoor ? "secondary" : "outline"}
+                variant={plantLocation === "outdoor" ? "secondary" : "outline"}
                 size="sm"
-                onClick={() => setIsIndoor(false)}
+                onClick={() => setPlantLocation("outdoor")}
                 className="flex-1 gap-2"
               >
                 <TreePine className="h-4 w-4" />
