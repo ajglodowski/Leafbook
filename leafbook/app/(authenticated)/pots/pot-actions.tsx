@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { MoreHorizontal, Pencil, Archive, ArchiveRestore, Trash2, ImagePlus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -66,11 +66,11 @@ export function PotActions({ pot }: PotActionsProps) {
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-8">
-            <MoreHorizontal className="h-4 w-4" />
-            <span className="sr-only">Actions</span>
-          </Button>
+        <DropdownMenuTrigger
+          className={buttonVariants({ variant: "ghost", size: "icon", className: "h-8 w-8" })}
+        >
+          <MoreHorizontal className="h-4 w-4" />
+          <span className="sr-only">Actions</span>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={() => setShowEditDialog(true)}>

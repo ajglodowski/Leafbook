@@ -13,6 +13,7 @@ import { createPlantType, updatePlantType } from "./actions";
 import type { Tables } from "@/lib/supabase/database.types";
 
 type PlantType = Tables<"plant_types">;
+type LocationPreference = "indoor" | "outdoor" | "both";
 
 // Light options with numeric values for ordering
 const lightOptions = [
@@ -31,7 +32,7 @@ const sizeOptions = [
   { value: "extra_large", label: "Extra Large", numeric: 4 },
 ];
 
-const locationOptions = [
+const locationOptions: Array<{ value: LocationPreference; label: string; icon: typeof Home }> = [
   { value: "indoor", label: "Indoor", icon: Home },
   { value: "outdoor", label: "Outdoor", icon: TreePine },
   { value: "both", label: "Both", icon: Combine },
@@ -55,7 +56,7 @@ function getSizeNumeric(value: string): number {
 }
 
 interface PlantTypeFormProps {
-  plantType?: PlantType;
+  plantType?: Partial<PlantType>;
   mode: "create" | "edit";
   wikidataQid?: string | null;
   wikipediaTitle?: string | null;
@@ -80,7 +81,9 @@ export function PlantTypeForm({ plantType, mode, wikidataQid, wikipediaTitle }: 
   const [sizeMax, setSizeMax] = useState(plantType?.size_max || "");
   
   // Location preference
-  const [locationPreference, setLocationPreference] = useState(plantType?.location_preference || "indoor");
+  const [locationPreference, setLocationPreference] = useState<LocationPreference>(
+    plantType?.location_preference ?? "indoor"
+  );
   
   const [wateringDays, setWateringDays] = useState(plantType?.watering_frequency_days?.toString() || "");
   const [fertilizingDays, setFertilizingDays] = useState(plantType?.fertilizing_frequency_days?.toString() || "");
@@ -126,12 +129,18 @@ export function PlantTypeForm({ plantType, mode, wikidataQid, wikipediaTitle }: 
       formData.set("wikipedia_title", wikipediaTitle);
     }
 
+    const plantTypeId = plantType?.id;
+    if (mode === "edit" && !plantTypeId) {
+      setError("Missing plant type ID for edit");
+      return;
+    }
+
     startTransition(async () => {
       let result;
       if (mode === "create") {
         result = await createPlantType(formData);
       } else {
-        result = await updatePlantType(plantType!.id, formData);
+        result = await updatePlantType(plantTypeId!, formData);
       }
 
       if (result.success) {

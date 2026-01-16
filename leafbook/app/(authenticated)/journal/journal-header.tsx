@@ -42,12 +42,12 @@ export function JournalHeader({
     router.push(`/journal${queryString ? `?${queryString}` : ""}`);
   }
 
-  function handlePlantChange(plantId: string) {
-    updateParams({ plant: plantId === "all" ? null : plantId });
+  function handlePlantChange(plantId: string | null) {
+    updateParams({ plant: !plantId || plantId === "all" ? null : plantId });
   }
 
-  function handleTypeChange(type: string) {
-    updateParams({ type: type === "all" ? null : type });
+  function handleTypeChange(type: FeedType | null) {
+    updateParams({ type: !type || type === "all" ? null : type });
   }
 
   function clearFilters() {

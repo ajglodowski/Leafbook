@@ -25,10 +25,7 @@ export default async function WishlistPage() {
         id,
         name,
         scientific_name,
-        description,
-        light_requirement,
-        watering_frequency_days,
-        size_category
+        description
       )
     `)
     .eq("user_id", user!.id)

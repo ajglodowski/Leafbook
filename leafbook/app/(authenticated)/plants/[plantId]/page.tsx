@@ -210,8 +210,20 @@ export default async function PlantDetailPage({
   const activeIssues = issues?.filter(i => i.status === "active") || [];
   
   // Get light info
-  const lightLevel = plant.light_exposure || plantType?.light_requirement || "";
-  const lightVibe = lightVibes[lightLevel] || null;
+  const plantTypeLightMin = plantType?.light_min ?? null;
+  const plantTypeLightMax = plantType?.light_max ?? null;
+  const lightRangeLabel =
+    plantTypeLightMin && plantTypeLightMax
+      ? (plantTypeLightMin === plantTypeLightMax
+        ? lightLabels[plantTypeLightMin]
+        : `${lightLabels[plantTypeLightMin]} to ${lightLabels[plantTypeLightMax]}`)
+      : null;
+  const lightLevel =
+    plant.light_exposure || (plantTypeLightMin === plantTypeLightMax ? plantTypeLightMin : "");
+  const lightBadgeLabel = plant.light_exposure
+    ? lightLabels[plant.light_exposure]
+    : lightRangeLabel;
+  const lightVibe = lightLevel ? lightVibes[lightLevel] : null;
 
   return (
     <div className="space-y-8 pb-12">
@@ -312,10 +324,10 @@ export default async function PlantDetailPage({
                     {plant.location}
                   </Badge>
                 )}
-                {lightLevel && (
+                {lightBadgeLabel && (
                   <Badge variant="secondary" className="gap-1.5 py-1.5 px-3">
                     <Sun className="h-3.5 w-3.5 text-amber-500" />
-                    {lightLabels[lightLevel]}
+                    {lightBadgeLabel}
                   </Badge>
                 )}
               </div>
@@ -468,7 +480,7 @@ export default async function PlantDetailPage({
           </Card>
 
           {/* Light Preferences */}
-          {lightLevel && (
+          {lightBadgeLabel && (
             <Card className="relative overflow-hidden group hover:shadow-md transition-shadow">
               <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
               <CardHeader className="pb-2">
@@ -480,17 +492,13 @@ export default async function PlantDetailPage({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="font-medium">{lightLabels[lightLevel]}</p>
+                <p className="font-medium">{lightBadgeLabel}</p>
                 {lightVibe && (
                   <p className="text-sm text-muted-foreground mt-1">{lightVibe}</p>
                 )}
-                {plant.light_exposure && plantType?.light_min && plantType?.light_max && (
+                {plant.light_exposure && lightRangeLabel && (
                   <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
-                    <span>💡</span> Species prefers {
-                      plantType.light_min === plantType.light_max 
-                        ? lightLabels[plantType.light_min] 
-                        : `${lightLabels[plantType.light_min]} to ${lightLabels[plantType.light_max]}`
-                    }
+                    <span>💡</span> Species prefers {lightRangeLabel}
                   </p>
                 )}
               </CardContent>

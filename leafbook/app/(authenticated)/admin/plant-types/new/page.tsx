@@ -6,6 +6,9 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PlantTypeForm } from "../plant-type-form";
 import { WikidataSearch } from "./wikidata-search";
+import type { Tables } from "@/lib/supabase/database.types";
+
+type PlantType = Tables<"plant_types">;
 
 interface WikidataData {
   name: string;
@@ -26,22 +29,24 @@ export default function NewPlantTypePage() {
   }
 
   // Create a partial plant type object to pass to the form
-  const initialPlantType = wikidataData
+  const initialPlantType: Partial<PlantType> | undefined = wikidataData
     ? {
         id: "",
         name: wikidataData.name,
         scientific_name: wikidataData.scientificName,
         description: wikidataData.description,
-        light_requirement: null,
+        light_min: null,
+        light_max: null,
+        size_min: null,
+        size_max: null,
+        location_preference: "indoor",
         watering_frequency_days: null,
         fertilizing_frequency_days: null,
-        size_category: null,
         care_notes: null,
-        created_at: "",
-        updated_at: "",
         // Wikidata fields to be set after creation
         wikidata_qid: wikidataData.qid,
         wikipedia_title: wikidataData.wikipediaTitle,
+        wikipedia_lang: "en",
       }
     : undefined;
 
@@ -71,7 +76,7 @@ export default function NewPlantTypePage() {
       <PlantTypeForm 
         key={formKey} 
         mode="create" 
-        plantType={initialPlantType as any}
+        plantType={initialPlantType}
         wikidataQid={wikidataData?.qid}
         wikipediaTitle={wikidataData?.wikipediaTitle}
       />

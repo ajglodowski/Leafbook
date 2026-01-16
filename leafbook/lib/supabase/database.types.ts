@@ -390,46 +390,79 @@ export type Database = {
           care_notes: string | null
           created_at: string
           description: string | null
+          enriched_at: string | null
+          enriched_by: string | null
+          external_raw: Json | null
           fertilizing_frequency_days: number | null
           id: string
-          light_requirement:
-            | Database["public"]["Enums"]["light_requirement"]
-            | null
+          light_max: Database["public"]["Enums"]["light_requirement"] | null
+          light_max_numeric: number | null
+          light_min: Database["public"]["Enums"]["light_requirement"] | null
+          light_min_numeric: number | null
+          location_preference: Database["public"]["Enums"]["plant_type_location"]
           name: string
           scientific_name: string | null
-          size_category: Database["public"]["Enums"]["size_category"] | null
+          size_max: Database["public"]["Enums"]["size_category"] | null
+          size_max_numeric: number | null
+          size_min: Database["public"]["Enums"]["size_category"] | null
+          size_min_numeric: number | null
           updated_at: string
           watering_frequency_days: number | null
+          wikidata_qid: string | null
+          wikipedia_lang: string
+          wikipedia_title: string | null
         }
         Insert: {
           care_notes?: string | null
           created_at?: string
           description?: string | null
+          enriched_at?: string | null
+          enriched_by?: string | null
+          external_raw?: Json | null
           fertilizing_frequency_days?: number | null
           id?: string
-          light_requirement?:
-            | Database["public"]["Enums"]["light_requirement"]
-            | null
+          light_max?: Database["public"]["Enums"]["light_requirement"] | null
+          light_max_numeric?: number | null
+          light_min?: Database["public"]["Enums"]["light_requirement"] | null
+          light_min_numeric?: number | null
+          location_preference?: Database["public"]["Enums"]["plant_type_location"]
           name: string
           scientific_name?: string | null
-          size_category?: Database["public"]["Enums"]["size_category"] | null
+          size_max?: Database["public"]["Enums"]["size_category"] | null
+          size_max_numeric?: number | null
+          size_min?: Database["public"]["Enums"]["size_category"] | null
+          size_min_numeric?: number | null
           updated_at?: string
           watering_frequency_days?: number | null
+          wikidata_qid?: string | null
+          wikipedia_lang?: string
+          wikipedia_title?: string | null
         }
         Update: {
           care_notes?: string | null
           created_at?: string
           description?: string | null
+          enriched_at?: string | null
+          enriched_by?: string | null
+          external_raw?: Json | null
           fertilizing_frequency_days?: number | null
           id?: string
-          light_requirement?:
-            | Database["public"]["Enums"]["light_requirement"]
-            | null
+          light_max?: Database["public"]["Enums"]["light_requirement"] | null
+          light_max_numeric?: number | null
+          light_min?: Database["public"]["Enums"]["light_requirement"] | null
+          light_min_numeric?: number | null
+          location_preference?: Database["public"]["Enums"]["plant_type_location"]
           name?: string
           scientific_name?: string | null
-          size_category?: Database["public"]["Enums"]["size_category"] | null
+          size_max?: Database["public"]["Enums"]["size_category"] | null
+          size_max_numeric?: number | null
+          size_min?: Database["public"]["Enums"]["size_category"] | null
+          size_min_numeric?: number | null
           updated_at?: string
           watering_frequency_days?: number | null
+          wikidata_qid?: string | null
+          wikipedia_lang?: string
+          wikipedia_title?: string | null
         }
         Relationships: []
       }
@@ -443,14 +476,17 @@ export type Database = {
           how_acquired: string | null
           id: string
           is_active: boolean
-          is_indoor: boolean
           light_exposure:
             | Database["public"]["Enums"]["light_requirement"]
             | null
+          light_numeric: number | null
           location: string | null
           name: string
           nickname: string | null
+          plant_location: Database["public"]["Enums"]["plant_location"]
           plant_type_id: string | null
+          size_category: Database["public"]["Enums"]["size_category"] | null
+          size_numeric: number | null
           updated_at: string
           user_id: string
         }
@@ -463,14 +499,17 @@ export type Database = {
           how_acquired?: string | null
           id?: string
           is_active?: boolean
-          is_indoor?: boolean
           light_exposure?:
             | Database["public"]["Enums"]["light_requirement"]
             | null
+          light_numeric?: number | null
           location?: string | null
           name: string
           nickname?: string | null
+          plant_location?: Database["public"]["Enums"]["plant_location"]
           plant_type_id?: string | null
+          size_category?: Database["public"]["Enums"]["size_category"] | null
+          size_numeric?: number | null
           updated_at?: string
           user_id: string
         }
@@ -483,14 +522,17 @@ export type Database = {
           how_acquired?: string | null
           id?: string
           is_active?: boolean
-          is_indoor?: boolean
           light_exposure?:
             | Database["public"]["Enums"]["light_requirement"]
             | null
+          light_numeric?: number | null
           location?: string | null
           name?: string
           nickname?: string | null
+          plant_location?: Database["public"]["Enums"]["plant_location"]
           plant_type_id?: string | null
+          size_category?: Database["public"]["Enums"]["size_category"] | null
+          size_numeric?: number | null
           updated_at?: string
           user_id?: string
         }
@@ -700,13 +742,13 @@ export type Database = {
         | "wilting"
         | "other"
       light_requirement:
-        | "low"
-        | "low_to_medium"
-        | "low_to_bright_indirect"
+        | "dark"
+        | "low_indirect"
         | "medium_indirect"
-        | "medium_to_bright_indirect"
         | "bright_indirect"
-        | "direct_sun"
+        | "direct"
+      plant_location: "indoor" | "outdoor"
+      plant_type_location: "indoor" | "outdoor" | "both"
       size_category: "small" | "medium" | "large" | "extra_large"
       user_role: "user" | "admin"
     }
@@ -868,14 +910,14 @@ export const Constants = {
         "other",
       ],
       light_requirement: [
-        "low",
-        "low_to_medium",
-        "low_to_bright_indirect",
+        "dark",
+        "low_indirect",
         "medium_indirect",
-        "medium_to_bright_indirect",
         "bright_indirect",
-        "direct_sun",
+        "direct",
       ],
+      plant_location: ["indoor", "outdoor"],
+      plant_type_location: ["indoor", "outdoor", "both"],
       size_category: ["small", "medium", "large", "extra_large"],
       user_role: ["user", "admin"],
     },
