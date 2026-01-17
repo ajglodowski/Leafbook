@@ -286,6 +286,124 @@ export async function logRepotEvent(
   return { success: true };
 }
 
+export async function updateRepotEvent(
+  eventId: string,
+  data: {
+    eventDate?: string;
+    fromPotId?: string | null;
+    toPotId?: string | null;
+  }
+) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/auth/login");
+  }
+
+  // Fetch the event and verify ownership + type
+  const { data: event, error: eventError } = await supabase
+    .from("plant_events")
+    .select("id, plant_id, event_type")
+    .eq("id", eventId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (eventError || !event) {
+    return { success: false, error: "Repot event not found" };
+  }
+
+  if (event.event_type !== "repotted") {
+    return { success: false, error: "Event is not a repot" };
+  }
+
+  // Verify the plant belongs to this user
+  const { data: plant, error: plantError } = await supabase
+    .from("plants")
+    .select("id")
+    .eq("id", event.plant_id)
+    .eq("user_id", user.id)
+    .single();
+
+  if (plantError || !plant) {
+    return { success: false, error: "Plant not found" };
+  }
+
+  // If a target pot is specified, verify user owns it
+  if (data.toPotId) {
+    const { data: pot, error: potError } = await supabase
+      .from("user_pots")
+      .select("id")
+      .eq("id", data.toPotId)
+      .eq("user_id", user.id)
+      .single();
+
+    if (potError || !pot) {
+      return { success: false, error: "Pot not found" };
+    }
+  }
+
+  // Build metadata updates
+  const metadata: Record<string, string | null> = {};
+  if (data.fromPotId !== undefined) {
+    metadata.from_pot_id = data.fromPotId;
+  }
+  if (data.toPotId !== undefined) {
+    metadata.to_pot_id = data.toPotId;
+  }
+
+  const updateData: Record<string, unknown> = {};
+  if (data.eventDate) {
+    updateData.event_date = new Date(data.eventDate).toISOString();
+  }
+  if (Object.keys(metadata).length > 0) {
+    updateData.metadata = metadata;
+  }
+
+  const { error: updateError } = await supabase
+    .from("plant_events")
+    .update(updateData)
+    .eq("id", eventId);
+
+  if (updateError) {
+    console.error("Error updating repot event:", updateError);
+    return { success: false, error: updateError.message };
+  }
+
+  // Update plant current pot to reflect the most recent repot event
+  const { data: latestRepot } = await supabase
+    .from("plant_events")
+    .select("metadata")
+    .eq("plant_id", event.plant_id)
+    .eq("event_type", "repotted")
+    .order("event_date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const latestMetadata = latestRepot?.metadata as { to_pot_id?: string | null } | null;
+  const latestPotId = latestMetadata?.to_pot_id ?? null;
+
+  const { error: plantUpdateError } = await supabase
+    .from("plants")
+    .update({
+      current_pot_id: latestPotId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", event.plant_id);
+
+  if (plantUpdateError) {
+    console.error("Error updating plant pot after repot edit:", plantUpdateError);
+  }
+
+  revalidatePath("/");
+  revalidatePath("/plants");
+  revalidatePath(`/plants/${event.plant_id}`);
+  revalidatePath("/pots");
+  revalidatePath("/journal");
+
+  return { success: true };
+}
+
 export async function updatePlant(
   plantId: string,
   data: {

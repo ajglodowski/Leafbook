@@ -1,50 +1,29 @@
 import Image from "next/image";
-import { Package, Droplet, Ruler, Palette, ArchiveRestore } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import Link from "next/link";
+import { Package, Droplet, Ruler, Palette, ArchiveRestore, Leaf, CheckCircle } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PotDialog } from "./pot-dialog";
 import { PotActions } from "./pot-actions";
+import { getPotsWithUsage, type PotWithUsage } from "./actions";
 
 export const metadata = {
   title: "Pots | Leafbook",
   description: "Manage your pot inventory",
 };
 
-interface Pot {
-  id: string;
-  name: string;
-  size_inches: number | null;
-  material: string | null;
-  has_drainage: boolean;
-  color: string | null;
-  notes: string | null;
-  photo_url: string | null;
-  is_retired: boolean;
-  created_at: string;
-}
-
 export default async function PotsPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const pots = await getPotsWithUsage(true);
 
-  // Fetch all pots (including retired)
-  const { data: pots, error } = await supabase
-    .from("user_pots")
-    .select("*")
-    .eq("user_id", user!.id)
-    .order("is_retired", { ascending: true })
-    .order("created_at", { ascending: false });
+  // Categorize pots
+  const availablePots = pots.filter((p) => !p.is_retired && !p.in_use);
+  const inUsePots = pots.filter((p) => !p.is_retired && p.in_use);
+  const retiredPots = pots.filter((p) => p.is_retired);
+  const hasPots = pots.length > 0;
 
-  if (error) {
-    console.error("Error fetching pots:", error);
-  }
-
-  const activePots = pots?.filter((p) => !p.is_retired) || [];
-  const retiredPots = pots?.filter((p) => p.is_retired) || [];
-  const hasPots = pots && pots.length > 0;
+  // Stats
+  const totalActive = availablePots.length + inUsePots.length;
 
   return (
     <div className="space-y-8">
@@ -59,14 +38,64 @@ export default async function PotsPage() {
         <PotDialog />
       </div>
 
-      {/* Active pots */}
-      {activePots.length > 0 && (
+      {/* Inventory summary */}
+      {hasPots && (
+        <div className="flex flex-wrap gap-3">
+          <Badge variant="secondary" className="gap-1.5 py-1.5 px-3 text-sm">
+            <Package className="h-3.5 w-3.5" />
+            {totalActive} active pot{totalActive !== 1 ? "s" : ""}
+          </Badge>
+          <Badge variant="outline" className="gap-1.5 py-1.5 px-3 text-sm text-green-600 border-green-200 bg-green-50 dark:bg-green-950/30 dark:border-green-800">
+            <CheckCircle className="h-3.5 w-3.5" />
+            {availablePots.length} available
+          </Badge>
+          <Badge variant="outline" className="gap-1.5 py-1.5 px-3 text-sm text-blue-600 border-blue-200 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-800">
+            <Leaf className="h-3.5 w-3.5" />
+            {inUsePots.length} in use
+          </Badge>
+          {retiredPots.length > 0 && (
+            <Badge variant="outline" className="gap-1.5 py-1.5 px-3 text-sm">
+              <ArchiveRestore className="h-3.5 w-3.5" />
+              {retiredPots.length} retired
+            </Badge>
+          )}
+        </div>
+      )}
+
+      {/* Available pots */}
+      {availablePots.length > 0 && (
         <section className="space-y-4">
-          <h2 className="font-medium text-muted-foreground">
-            Active ({activePots.length})
-          </h2>
+          <div className="flex items-center gap-2">
+            <CheckCircle className="h-4 w-4 text-green-500" />
+            <h2 className="font-medium">
+              Available ({availablePots.length})
+            </h2>
+          </div>
+          <p className="text-sm text-muted-foreground -mt-2">
+            Ready to use for repotting
+          </p>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {activePots.map((pot: Pot) => (
+            {availablePots.map((pot) => (
+              <PotCard key={pot.id} pot={pot} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* In-use pots */}
+      {inUsePots.length > 0 && (
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Leaf className="h-4 w-4 text-blue-500" />
+            <h2 className="font-medium">
+              In Use ({inUsePots.length})
+            </h2>
+          </div>
+          <p className="text-sm text-muted-foreground -mt-2">
+            Currently assigned to plants
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {inUsePots.map((pot) => (
               <PotCard key={pot.id} pot={pot} />
             ))}
           </div>
@@ -76,12 +105,14 @@ export default async function PotsPage() {
       {/* Retired pots */}
       {retiredPots.length > 0 && (
         <section className="space-y-4">
-          <h2 className="flex items-center gap-2 font-medium text-muted-foreground">
-            <ArchiveRestore className="h-4 w-4" />
-            Retired ({retiredPots.length})
-          </h2>
+          <div className="flex items-center gap-2">
+            <ArchiveRestore className="h-4 w-4 text-muted-foreground" />
+            <h2 className="font-medium text-muted-foreground">
+              Retired ({retiredPots.length})
+            </h2>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {retiredPots.map((pot: Pot) => (
+            {retiredPots.map((pot) => (
               <PotCard key={pot.id} pot={pot} />
             ))}
           </div>
@@ -102,7 +133,7 @@ export default async function PotsPage() {
   );
 }
 
-function PotCard({ pot }: { pot: Pot }) {
+function PotCard({ pot }: { pot: PotWithUsage }) {
   return (
     <Card className={pot.is_retired ? "opacity-60" : ""}>
       <CardHeader className="pb-2">
@@ -136,7 +167,19 @@ function PotCard({ pot }: { pot: Pot }) {
           </div>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-2">
+        {/* Usage status */}
+        {pot.in_use && pot.used_by_plant_name && (
+          <Link 
+            href={`/plants/${pot.used_by_plant_id}`}
+            className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+          >
+            <Leaf className="h-3.5 w-3.5" />
+            <span>In use by {pot.used_by_plant_name}</span>
+          </Link>
+        )}
+        
+        {/* Attributes */}
         <div className="flex flex-wrap gap-2">
           {pot.size_inches && (
             <Badge variant="secondary" className="gap-1">
@@ -158,8 +201,9 @@ function PotCard({ pot }: { pot: Pot }) {
             <Badge variant="outline">Retired</Badge>
           )}
         </div>
+        
         {pot.notes && (
-          <p className="mt-2 text-sm text-muted-foreground line-clamp-2">
+          <p className="text-sm text-muted-foreground line-clamp-2">
             {pot.notes}
           </p>
         )}

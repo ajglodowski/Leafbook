@@ -35,6 +35,12 @@ export default async function PlantsPage() {
     .eq("is_active", true)
     .order("created_at", { ascending: false });
 
+  // Fetch all plant types for the add dialog
+  const { data: plantTypes } = await supabase
+    .from("plant_types")
+    .select("id, name, scientific_name")
+    .order("name", { ascending: true });
+
   // Fetch due task statuses
   const { data: dueTasks } = await supabase
     .from("v_plant_due_tasks")
@@ -96,7 +102,7 @@ export default async function PlantsPage() {
             {hasPlants && ` · ${plants.length} plant${plants.length > 1 ? "s" : ""}`}
           </p>
         </div>
-        <AddPlantDialog />
+        <AddPlantDialog plantTypes={plantTypes || []} />
       </div>
 
       {/* Plants grid */}
@@ -201,7 +207,7 @@ export default async function PlantsPage() {
             <Button variant="outline" render={<Link href="/plant-types" />}>
               Browse catalog
             </Button>
-            <AddPlantDialog />
+            <AddPlantDialog plantTypes={plantTypes || []} />
           </div>
         </EmptyState>
       )}

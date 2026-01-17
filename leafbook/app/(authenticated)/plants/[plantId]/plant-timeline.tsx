@@ -4,6 +4,8 @@ import { History, BookOpen, Pencil, AlertTriangle, CheckCircle, Sparkles } from 
 import { Badge } from "@/components/ui/badge";
 import { JournalEntryDialog } from "./journal-entry-dialog";
 import { IssueDialog } from "./issue-dialog";
+import { PotWithUsage } from "../../pots/actions";
+import { RepotDialog } from "./repot-dialog";
 
 // Human-friendly labels for event types with fun icons and colors
 const eventConfig: Record<string, { label: string; emoji: string; color: string; bgColor: string }> = {
@@ -157,6 +159,10 @@ interface PlantTimelineProps {
   issues: PlantIssue[];
   plantId: string;
   plantName: string;
+  currentPotId: string | null;
+  currentPotSize: number | null;
+  pots: PotWithUsage[];
+  unusedPots: PotWithUsage[];
 }
 
 export function PlantTimeline({
@@ -165,6 +171,10 @@ export function PlantTimeline({
   issues,
   plantId,
   plantName,
+  currentPotId,
+  currentPotSize,
+  pots,
+  unusedPots,
 }: PlantTimelineProps) {
   // Merge and sort timeline items by date (descending)
   const timelineItems: TimelineItem[] = [
@@ -247,6 +257,27 @@ export function PlantTimeline({
                     {formatDate(item.data.event_date)}
                   </p>
                 </div>
+                {item.data.event_type === "repotted" && (
+                  <RepotDialog
+                    plantId={plantId}
+                    plantName={plantName}
+                    currentPotId={currentPotId}
+                    currentPotSize={currentPotSize}
+                    pots={pots}
+                    unusedPots={unusedPots}
+                    initialEvent={{
+                      id: item.data.id,
+                      eventDate: item.data.event_date,
+                      fromPotId: item.data.metadata?.from_pot_id ?? null,
+                      toPotId: item.data.metadata?.to_pot_id ?? null,
+                    }}
+                    trigger={
+                      <button className="shrink-0 rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                    }
+                  />
+                )}
               </div>
             );
           } else if (item.type === "journal") {

@@ -1,5 +1,19 @@
 import Link from "next/link";
-import { CalendarCheck, Droplets, Sparkles, Check, Leaf } from "lucide-react";
+import Image from "next/image";
+import {
+  CalendarCheck,
+  Droplets,
+  Sparkles,
+  Check,
+  Leaf,
+  BookOpen,
+  Heart,
+  Plus,
+  Compass,
+  PenLine,
+  Camera,
+  Sprout,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
@@ -21,6 +35,25 @@ interface PlantTask {
   last_fertilized_at: string | null;
 }
 
+interface SpotlightPlant {
+  id: string;
+  name: string;
+  nickname: string | null;
+  description: string | null;
+  how_acquired: string | null;
+  plant_type_name: string | null;
+  photo_url: string | null;
+}
+
+interface RecentJournalEntry {
+  id: string;
+  title: string | null;
+  content: string;
+  entry_date: string;
+  plant_id: string;
+  plant_name: string;
+}
+
 function formatTimeAgo(dateString: string | null): string {
   if (!dateString) return "Never";
 
@@ -35,6 +68,43 @@ function formatTimeAgo(dateString: string | null): string {
   return `${Math.floor(diffDays / 30)} month${diffDays >= 60 ? "s" : ""} ago`;
 }
 
+function formatJournalDate(dateString: string): string {
+  const date = new Date(dateString);
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function getGreeting(): { greeting: string; subtext: string } {
+  const hour = new Date().getHours();
+  
+  if (hour < 6) {
+    return { greeting: "Burning the midnight oil?", subtext: "Your plants are sleeping soundly." };
+  } else if (hour < 12) {
+    return { greeting: "Good morning", subtext: "A new day to watch things grow." };
+  } else if (hour < 17) {
+    return { greeting: "Good afternoon", subtext: "Perfect light for a quick check-in." };
+  } else if (hour < 21) {
+    return { greeting: "Good evening", subtext: "Time to unwind with your leafy friends." };
+  } else {
+    return { greeting: "Evening", subtext: "The plants are winding down too." };
+  }
+}
+
+function getSpotlightMessage(plant: SpotlightPlant): string {
+  const messages = [
+    `How's ${plant.name} doing today?`,
+    `${plant.name} could use some attention`,
+    `Check in on ${plant.name}`,
+    `${plant.name} is waiting for you`,
+    `Time for a moment with ${plant.name}?`,
+  ];
+  // Use plant id to get consistent message per plant
+  const index = plant.id.charCodeAt(0) % messages.length;
+  return messages[index];
+}
+
 export async function TodayDashboard({ userId }: { userId: string }) {
   if (!userId) {
     return null;
@@ -42,17 +112,100 @@ export async function TodayDashboard({ userId }: { userId: string }) {
 
   const supabase = await createClient();
 
-  // Fetch due tasks for user's plants
-  const { data: dueTasks, error } = await supabase
-    .from("v_plant_due_tasks")
-    .select("*")
-    .eq("user_id", userId);
+  // Fetch all data in parallel
+  const [
+    { data: profile },
+    { data: dueTasks, error: dueTasksError },
+    { count: plantCount },
+    { count: wishlistCount },
+    { data: journalEntries },
+    { data: plantsForSpotlight },
+    { count: activeIssueCount },
+  ] = await Promise.all([
+    // Profile for greeting
+    supabase.from("profiles").select("display_name").eq("id", userId).single(),
+    // Due tasks
+    supabase.from("v_plant_due_tasks").select("*").eq("user_id", userId),
+    // Plant count
+    supabase.from("plants").select("*", { count: "exact", head: true }).eq("user_id", userId).eq("is_active", true),
+    // Wishlist count
+    supabase.from("wishlist_items").select("*", { count: "exact", head: true }).eq("user_id", userId),
+    // Recent journal entries
+    supabase
+      .from("journal_entries")
+      .select(`
+        id,
+        title,
+        content,
+        entry_date,
+        plant_id,
+        plants!inner (name)
+      `)
+      .eq("user_id", userId)
+      .order("entry_date", { ascending: false })
+      .limit(3),
+    // Plants for spotlight (with photos)
+    supabase
+      .from("plants")
+      .select(`
+        id,
+        name,
+        nickname,
+        description,
+        how_acquired,
+        active_photo_id,
+        plant_types (name),
+        plant_photos (url)
+      `)
+      .eq("user_id", userId)
+      .eq("is_active", true)
+      .limit(10),
+    // Active issues count
+    supabase
+      .from("plant_issues")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("status", "active"),
+  ]);
 
-  if (error) {
-    console.error("Error fetching due tasks:", error);
+  if (dueTasksError) {
+    console.error("Error fetching due tasks:", dueTasksError);
   }
 
-  // Separate into categories
+  // Pick a random plant for spotlight
+  const spotlightPlant: SpotlightPlant | null = plantsForSpotlight && plantsForSpotlight.length > 0
+    ? (() => {
+        // Use current date to get a "random" but consistent plant for the day
+        const dayIndex = new Date().getDate() % plantsForSpotlight.length;
+        const plant = plantsForSpotlight[dayIndex];
+        const plantType = Array.isArray(plant.plant_types) ? plant.plant_types[0] : plant.plant_types;
+        const photos = plant.plant_photos as { url: string }[] | null;
+        return {
+          id: plant.id,
+          name: plant.name,
+          nickname: plant.nickname,
+          description: plant.description,
+          how_acquired: plant.how_acquired,
+          plant_type_name: plantType?.name || null,
+          photo_url: photos && photos.length > 0 ? photos[0].url : null,
+        };
+      })()
+    : null;
+
+  // Transform journal entries
+  const recentJournal: RecentJournalEntry[] = (journalEntries || []).map((entry) => {
+    const plant = Array.isArray(entry.plants) ? entry.plants[0] : entry.plants;
+    return {
+      id: entry.id,
+      title: entry.title,
+      content: entry.content,
+      entry_date: entry.entry_date,
+      plant_id: entry.plant_id,
+      plant_name: plant?.name || "Unknown",
+    };
+  });
+
+  // Separate tasks into categories
   const needsWater = dueTasks?.filter(
     (t: PlantTask) =>
       t.watering_status === "overdue" ||
@@ -65,159 +218,324 @@ export async function TodayDashboard({ userId }: { userId: string }) {
   ) || [];
 
   const allCaughtUp = needsWater.length === 0 && needsFertilizer.length === 0;
-  const hasPlants = dueTasks && dueTasks.length > 0;
+  const hasPlants = plantCount !== null && plantCount > 0;
+  const totalCareTasks = needsWater.length + needsFertilizer.length;
 
   // Count stats
   const overdueWaterCount = needsWater.filter((t: PlantTask) => t.watering_status === "overdue").length;
-  const dueSoonWaterCount = needsWater.filter((t: PlantTask) => t.watering_status === "due_soon").length;
-  const notStartedCount = needsWater.filter((t: PlantTask) => t.watering_status === "not_started").length;
+
+  // Get greeting
+  const { greeting, subtext } = getGreeting();
+  const displayName = profile?.display_name;
 
   return (
     <div className="space-y-8">
-      {/* Page header */}
-      <div>
-        <h1 className="font-serif text-3xl font-semibold tracking-tight">Today</h1>
-        <p className="mt-1 text-muted-foreground">
-          {allCaughtUp && hasPlants ? "All your plants are happy!" : "Your plants' care tasks at a glance"}
-        </p>
+      {/* Welcome Header */}
+      <div className="space-y-4">
+        <div>
+          <h1 className="font-serif text-3xl font-semibold tracking-tight">
+            {greeting}{displayName ? `, ${displayName}` : ""}
+          </h1>
+          <p className="mt-1 text-muted-foreground">{subtext}</p>
+        </div>
+
+        {/* Collection Stats */}
+        {hasPlants && (
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <Link 
+              href="/plants" 
+              className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-primary hover:bg-primary/20 transition-colors"
+            >
+              <Leaf className="h-4 w-4" />
+              <span className="font-medium">{plantCount}</span> plant{plantCount !== 1 ? "s" : ""}
+            </Link>
+            {(wishlistCount ?? 0) > 0 && (
+              <Link 
+                href="/wishlist"
+                className="inline-flex items-center gap-1.5 rounded-full bg-pink-500/10 px-3 py-1 text-pink-600 dark:text-pink-400 hover:bg-pink-500/20 transition-colors"
+              >
+                <Heart className="h-4 w-4" />
+                <span className="font-medium">{wishlistCount}</span> on wishlist
+              </Link>
+            )}
+            {(activeIssueCount ?? 0) > 0 && (
+              <Link 
+                href="/journal"
+                className="inline-flex items-center gap-1.5 rounded-full bg-orange-500/10 px-3 py-1 text-orange-600 dark:text-orange-400 hover:bg-orange-500/20 transition-colors"
+              >
+                <span className="font-medium">{activeIssueCount}</span> active issue{activeIssueCount !== 1 ? "s" : ""}
+              </Link>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Stats summary */}
-      {hasPlants && (
-        <div className="flex flex-wrap gap-3">
-          <Badge variant="secondary" className="gap-1.5 px-3 py-1.5">
-            <Leaf className="h-4 w-4" />
-            {dueTasks.length} plant{dueTasks.length !== 1 ? "s" : ""}
-          </Badge>
-          {overdueWaterCount > 0 && (
-            <Badge variant="destructive" className="gap-1.5 px-3 py-1.5">
-              <Droplets className="h-4 w-4" />
-              {overdueWaterCount} need{overdueWaterCount === 1 ? "s" : ""} water
-            </Badge>
-          )}
-          {dueSoonWaterCount > 0 && (
-            <Badge variant="outline" className="gap-1.5 px-3 py-1.5">
-              <Droplets className="h-4 w-4" />
-              {dueSoonWaterCount} due soon
-            </Badge>
-          )}
-          {notStartedCount > 0 && (
-            <Badge variant="outline" className="gap-1.5 px-3 py-1.5">
-              {notStartedCount} not yet tracked
-            </Badge>
-          )}
-        </div>
-      )}
-
-      {/* Watering tasks */}
-      {needsWater.length > 0 && (
+      {/* Care Tasks Section */}
+      {totalCareTasks > 0 && (
         <section className="space-y-4">
-          <h2 className="flex items-center gap-2 font-medium">
-            <Droplets className="h-5 w-5 text-blue-500" />
-            Watering
-          </h2>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {needsWater.map((task: PlantTask) => (
-              <Card key={`water-${task.plant_id}`} size="sm">
-                <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <CardTitle className="truncate text-base">
-                        <Link href={`/plants/${task.plant_id}`} className="hover:text-primary hover:underline">
+          <div className="flex items-center justify-between">
+            <h2 className="flex items-center gap-2 font-serif text-xl font-semibold">
+              <Sprout className="h-5 w-5 text-primary" />
+              Needs Attention
+            </h2>
+            {overdueWaterCount > 0 && (
+              <Badge variant="destructive" className="gap-1">
+                <Droplets className="h-3 w-3" />
+                {overdueWaterCount} thirsty
+              </Badge>
+            )}
+          </div>
+
+          {/* Watering tasks */}
+          {needsWater.length > 0 && (
+            <div className="space-y-2">
+              <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <Droplets className="h-4 w-4 text-blue-500" />
+                Water
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {needsWater.slice(0, 6).map((task: PlantTask) => (
+                  <Card key={`water-${task.plant_id}`} size="sm" className="group">
+                    <CardContent className="flex items-center justify-between gap-2 py-3">
+                      <div className="min-w-0 flex-1">
+                        <Link 
+                          href={`/plants/${task.plant_id}`} 
+                          className="font-medium truncate block hover:text-primary transition-colors"
+                        >
                           {task.plant_name}
                         </Link>
-                      </CardTitle>
-                      {task.plant_type_name && (
-                        <p className="text-xs text-muted-foreground truncate">{task.plant_type_name}</p>
-                      )}
-                    </div>
-                    <Badge
-                      variant={task.watering_status === "overdue" ? "destructive" : "outline"}
-                      className="shrink-0"
-                    >
-                      {task.watering_status === "overdue"
-                        ? "Overdue"
-                        : task.watering_status === "not_started"
-                          ? "Not tracked"
-                          : "Due soon"}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="flex items-center justify-between gap-2">
-                  <p className="text-xs text-muted-foreground">Last: {formatTimeAgo(task.last_watered_at)}</p>
-                  <CareButton plantId={task.plant_id!} eventType="watered" variant="water" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </section>
-      )}
+                        <p className="text-xs text-muted-foreground">
+                          {task.watering_status === "overdue" 
+                            ? `${formatTimeAgo(task.last_watered_at)}` 
+                            : task.watering_status === "not_started"
+                              ? "Not tracked yet"
+                              : "Due soon"}
+                        </p>
+                      </div>
+                      <CareButton plantId={task.plant_id!} eventType="watered" variant="water" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+              {needsWater.length > 6 && (
+                <p className="text-sm text-muted-foreground">
+                  +{needsWater.length - 6} more plants need water
+                </p>
+              )}
+            </div>
+          )}
 
-      {/* Fertilizing tasks */}
-      {needsFertilizer.length > 0 && (
-        <section className="space-y-4">
-          <h2 className="flex items-center gap-2 font-medium">
-            <Sparkles className="h-5 w-5 text-amber-500" />
-            Fertilizing
-          </h2>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {needsFertilizer.map((task: PlantTask) => (
-              <Card key={`fert-${task.plant_id}`} size="sm">
-                <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <CardTitle className="truncate text-base">
-                        <Link href={`/plants/${task.plant_id}`} className="hover:text-primary hover:underline">
+          {/* Fertilizing tasks */}
+          {needsFertilizer.length > 0 && (
+            <div className="space-y-2">
+              <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <Sparkles className="h-4 w-4 text-amber-500" />
+                Fertilize
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {needsFertilizer.slice(0, 3).map((task: PlantTask) => (
+                  <Card key={`fert-${task.plant_id}`} size="sm" className="group">
+                    <CardContent className="flex items-center justify-between gap-2 py-3">
+                      <div className="min-w-0 flex-1">
+                        <Link 
+                          href={`/plants/${task.plant_id}`} 
+                          className="font-medium truncate block hover:text-primary transition-colors"
+                        >
                           {task.plant_name}
                         </Link>
-                      </CardTitle>
-                      {task.plant_type_name && (
-                        <p className="text-xs text-muted-foreground truncate">{task.plant_type_name}</p>
-                      )}
-                    </div>
-                    <Badge
-                      variant={task.fertilizing_status === "overdue" ? "destructive" : "outline"}
-                      className="shrink-0"
-                    >
-                      {task.fertilizing_status === "overdue" ? "Overdue" : "Due soon"}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="flex items-center justify-between gap-2">
-                  <p className="text-xs text-muted-foreground">Last: {formatTimeAgo(task.last_fertilized_at)}</p>
-                  <CareButton plantId={task.plant_id!} eventType="fertilized" variant="fertilize" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                        <p className="text-xs text-muted-foreground">
+                          {task.fertilizing_status === "overdue" ? "Overdue" : "Due soon"}
+                        </p>
+                      </div>
+                      <CareButton plantId={task.plant_id!} eventType="fertilized" variant="fertilize" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+              {needsFertilizer.length > 3 && (
+                <p className="text-sm text-muted-foreground">
+                  +{needsFertilizer.length - 3} more plants need fertilizer
+                </p>
+              )}
+            </div>
+          )}
         </section>
       )}
 
       {/* All caught up state */}
       {allCaughtUp && hasPlants && (
         <Card className="border-green-500/20 bg-green-500/5">
-          <CardContent className="flex items-center gap-4 pt-6">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-green-500/10">
-              <Check className="h-6 w-6 text-green-600" />
+          <CardContent className="flex items-center gap-4 py-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-500/10">
+              <Check className="h-5 w-5 text-green-600" />
             </div>
             <div>
               <p className="font-medium text-green-700 dark:text-green-400">All caught up!</p>
               <p className="text-sm text-muted-foreground">
-                Your plants are well cared for. Check back later for new tasks.
+                Your plants are well cared for. Maybe write a journal entry?
               </p>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* No plants state */}
+      {/* Spotlight & Quick Actions Row */}
+      {hasPlants && (
+        <div className="grid gap-4 md:grid-cols-2">
+          {/* Plant Spotlight */}
+          {spotlightPlant && (
+            <Card className="overflow-hidden">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Camera className="h-4 w-4 text-muted-foreground" />
+                  Plant Spotlight
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-sm text-muted-foreground italic">
+                  {getSpotlightMessage(spotlightPlant)}
+                </p>
+                <div className="flex gap-3">
+                  {spotlightPlant.photo_url && (
+                    <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-muted">
+                      <Image
+                        src={spotlightPlant.photo_url}
+                        alt={spotlightPlant.name}
+                        fill
+                        className="object-cover"
+                        sizes="80px"
+                      />
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <Link 
+                      href={`/plants/${spotlightPlant.id}`}
+                      className="font-serif text-lg font-semibold hover:text-primary transition-colors"
+                    >
+                      {spotlightPlant.name}
+                    </Link>
+                    {spotlightPlant.plant_type_name && (
+                      <p className="text-sm text-muted-foreground">{spotlightPlant.plant_type_name}</p>
+                    )}
+                    {spotlightPlant.description && (
+                      <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
+                        {spotlightPlant.description}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <Button size="sm" variant="outline" render={<Link href={`/plants/${spotlightPlant.id}`} />}>
+                    View
+                  </Button>
+                  <Button size="sm" variant="ghost" render={<Link href={`/plants/${spotlightPlant.id}#journal`} />}>
+                    <PenLine className="mr-1.5 h-3.5 w-3.5" />
+                    Write
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Quick Actions */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Compass className="h-4 w-4 text-muted-foreground" />
+                Quick Actions
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 gap-2">
+              <Button variant="outline" className="h-auto flex-col gap-1 py-3" render={<Link href="/plants?new=true" />}>
+                <Plus className="h-5 w-5" />
+                <span className="text-xs">Add Plant</span>
+              </Button>
+              <Button variant="outline" className="h-auto flex-col gap-1 py-3" render={<Link href="/plant-types" />}>
+                <Compass className="h-5 w-5" />
+                <span className="text-xs">Browse Catalog</span>
+              </Button>
+              <Button variant="outline" className="h-auto flex-col gap-1 py-3" render={<Link href="/journal" />}>
+                <BookOpen className="h-5 w-5" />
+                <span className="text-xs">Journal</span>
+              </Button>
+              <Button variant="outline" className="h-auto flex-col gap-1 py-3" render={<Link href="/wishlist" />}>
+                <Heart className="h-5 w-5" />
+                <span className="text-xs">Wishlist</span>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Recent Journal Entries */}
+      {recentJournal.length > 0 && (
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="flex items-center gap-2 font-serif text-xl font-semibold">
+              <BookOpen className="h-5 w-5 text-primary" />
+              Recent Journal Entries
+            </h2>
+            <Button variant="ghost" size="sm" render={<Link href="/journal" />}>
+              View all
+            </Button>
+          </div>
+
+          <div className="space-y-3">
+            {recentJournal.map((entry) => (
+              <Card key={entry.id} className="group">
+                <CardContent className="py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 text-sm">
+                        <Link 
+                          href={`/plants/${entry.plant_id}`}
+                          className="font-medium text-primary hover:underline"
+                        >
+                          {entry.plant_name}
+                        </Link>
+                        <span className="text-muted-foreground">·</span>
+                        <time className="text-muted-foreground">{formatJournalDate(entry.entry_date)}</time>
+                      </div>
+                      {entry.title && (
+                        <p className="mt-1 font-serif font-medium">{entry.title}</p>
+                      )}
+                      <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
+                        {entry.content}
+                      </p>
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                      render={<Link href={`/plants/${entry.plant_id}`} />}
+                    >
+                      View
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Empty state for new users */}
       {!hasPlants && (
         <EmptyState
           icon={CalendarCheck}
-          title="No plants to track yet"
-          description="Add your first plant to start tracking care tasks. No chores here — just gentle reminders when your plants need attention."
+          title="Welcome to your plant journal"
+          description="Add your first plant to start your collection. Track care with one tap, write journal entries, and build a story for every leaf."
         >
-          <Button render={<Link href="/plants" />}>Add your first plant</Button>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button render={<Link href="/plants" />}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add your first plant
+            </Button>
+            <Button variant="outline" render={<Link href="/plant-types" />}>
+              <Compass className="mr-2 h-4 w-4" />
+              Browse catalog
+            </Button>
+          </div>
         </EmptyState>
       )}
     </div>

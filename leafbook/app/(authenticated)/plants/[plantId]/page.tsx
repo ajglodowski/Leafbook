@@ -30,6 +30,7 @@ import { JournalEntryDialog } from "./journal-entry-dialog";
 import { IssueDialog } from "./issue-dialog";
 import { PlantTimeline } from "./plant-timeline";
 import { RepotDialog } from "./repot-dialog";
+import { PotWithUsage } from "../../pots/actions";
 
 // Human-friendly labels for light requirement enum
 const lightLabels: Record<string, string> = {
@@ -167,13 +168,47 @@ export default async function PlantDetailPage({
   // Fetch user's pots for repot dialog
   const { data: pots } = await supabase
     .from("user_pots")
-    .select("id, name, size_inches, material, photo_url, is_retired")
+    .select("id, name, size_inches, material, photo_url, is_retired, has_drainage, color")
     .eq("user_id", user!.id)
     .order("is_retired", { ascending: true })
+    .order("size_inches", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: false });
+
+  // Fetch active plants to determine which pots are in use
+  const { data: activePlants } = await supabase
+    .from("plants")
+    .select("id, name, current_pot_id")
+    .eq("user_id", user!.id)
+    .eq("is_active", true)
+    .not("current_pot_id", "is", null);
+
+  // Build a map of pot_id -> plant info for usage tracking
+  const potUsageMap = new Map<string, { plantId: string; plantName: string }>();
+  if (activePlants) {
+    for (const p of activePlants) {
+      if (p.current_pot_id) {
+        potUsageMap.set(p.current_pot_id, { plantId: p.id, plantName: p.name });
+      }
+    }
+  }
+
+  // Build pots with usage info for repot dialog
+  const potsWithUsage = (pots || []).map((pot) => {
+    const usage = potUsageMap.get(pot.id);
+    return {
+      ...pot,
+      in_use: !!usage,
+      used_by_plant_id: usage?.plantId ?? null,
+      used_by_plant_name: usage?.plantName ?? null,
+    };
+  }) as PotWithUsage[];
+
+  // Filter to unused pots (not retired, not in use)
+  const unusedPots = potsWithUsage.filter((p) => !p.is_retired && !p.in_use);
 
   const plantType = Array.isArray(plant.plant_types) ? plant.plant_types[0] : plant.plant_types;
   const currentPot = plant.current_pot_id ? pots?.find(p => p.id === plant.current_pot_id) : null;
+  const currentPotSize = currentPot?.size_inches ?? null;
 
   // Enrich repot events with pot names (after pots are fetched)
   const events = rawEvents?.map(event => {
@@ -520,11 +555,13 @@ export default async function PlantDetailPage({
                   plantId={plant.id}
                   plantName={plant.name}
                   currentPotId={plant.current_pot_id}
+                  currentPotSize={currentPotSize}
                   pots={pots || []}
+                  unusedPots={unusedPots}
                 />
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-3">
               {currentPot ? (
                 <div className="flex items-center gap-3">
                   {currentPot.photo_url ? (
@@ -561,6 +598,12 @@ export default async function PlantDetailPage({
                   Not in a pot yet — time to find the perfect home! 🏺
                 </p>
               )}
+              <Link 
+                href="/pots" 
+                className="text-xs text-muted-foreground hover:text-primary transition-colors inline-flex items-center gap-1"
+              >
+                Manage pot inventory
+              </Link>
             </CardContent>
           </Card>
         </div>
@@ -627,12 +670,16 @@ export default async function PlantDetailPage({
             </div>
           </CardHeader>
           <CardContent>
-            <PlantTimeline
-              events={events || []}
-              journalEntries={journalEntries || []}
-              issues={issues || []}
-              plantId={plant.id}
-              plantName={plant.name}
+  <PlantTimeline
+    events={events || []}
+    journalEntries={journalEntries || []}
+    issues={issues || []}
+    plantId={plant.id}
+    plantName={plant.name}
+    currentPotId={plant.current_pot_id}
+    currentPotSize={currentPotSize}
+    pots={potsWithUsage}
+    unusedPots={unusedPots}
             />
           </CardContent>
         </Card>

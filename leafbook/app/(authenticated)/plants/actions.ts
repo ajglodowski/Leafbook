@@ -71,11 +71,18 @@ export async function createPlant(formData: FormData) {
 
   const name = formData.get("name") as string;
   const plantTypeId = formData.get("plantTypeId") as string | null;
+  const nickname = formData.get("nickname") as string | null;
   const plantLocation = (formData.get("plant_location") as "indoor" | "outdoor") || "indoor";
   const location = formData.get("location") as string | null;
+  const lightExposure = formData.get("light_exposure") as string | null;
+  const sizeCategory = formData.get("size_category") as string | null;
   const howAcquired = formData.get("how_acquired") as string | null;
   const acquiredAt = formData.get("acquired_at") as string | null;
   const description = formData.get("description") as string | null;
+
+  if (!plantTypeId?.trim()) {
+    return { success: false, error: "Plant type is required" };
+  }
 
   if (!name?.trim()) {
     return { success: false, error: "Name is required" };
@@ -88,9 +95,12 @@ export async function createPlant(formData: FormData) {
     .insert({
       user_id: user.id,
       name: name.trim(),
-      plant_type_id: plantTypeId || null,
+      nickname: nickname?.trim() || null,
+      plant_type_id: plantTypeId,
       plant_location: plantLocation,
       location: location?.trim() || null,
+      light_exposure: lightExposure || null,
+      size_category: sizeCategory || null,
       how_acquired: howAcquired?.trim() || null,
       acquired_at: acquiredAt || null,
       description: description?.trim() || null,

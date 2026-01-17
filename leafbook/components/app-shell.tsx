@@ -11,6 +11,7 @@ import {
   Settings,
   LogOut,
   Shield,
+  Package,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -23,6 +24,7 @@ const navItems = [
   { href: "/", label: "Today", icon: CalendarCheck },
   { href: "/plants", label: "Plants", icon: Leaf },
   { href: "/plant-types", label: "Catalog", icon: Library },
+  { href: "/pots", label: "Pots", icon: Package },
   { href: "/wishlist", label: "Wishlist", icon: Heart },
   { href: "/journal", label: "Journal", icon: BookOpen },
 ];
@@ -97,6 +99,17 @@ export function AppShell({ children, isAdmin = false }: { children: React.ReactN
               </>
             )}
             <ThemeSwitcher />
+            <Button 
+              variant={pathname === "/pots" ? "secondary" : "ghost"} 
+              size="icon-sm" 
+              render={<Link href="/pots" />}
+              title="Pot inventory"
+              className={cn(
+                pathname === "/pots" && "bg-orange-500/10 text-orange-600 hover:bg-orange-500/15"
+              )}
+            >
+              <Package className="h-4 w-4" />
+            </Button>
             <Button variant="ghost" size="icon-sm" render={<Link href="/settings" />}>
               <Settings className="h-4 w-4 text-muted-foreground" />
             </Button>
