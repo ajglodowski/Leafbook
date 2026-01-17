@@ -98,7 +98,7 @@ export async function addPlant(formData: FormData) {
   }
 
   revalidatePath("/plants");
-  revalidatePath("/today");
+  revalidatePath("/");
   if (plantTypeId) {
     revalidatePath(`/plant-types/${plantTypeId}`);
   }
@@ -140,7 +140,7 @@ export async function convertWishlistToPlant(wishlistItemId: string, plantTypeId
 
   revalidatePath("/plants");
   revalidatePath("/wishlist");
-  revalidatePath("/today");
+  revalidatePath("/");
   revalidatePath(`/plant-types/${plantTypeId}`);
 
   return { success: true, plantId: plant.id };

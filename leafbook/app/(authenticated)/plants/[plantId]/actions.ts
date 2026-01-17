@@ -144,7 +144,7 @@ export async function logCareEvent(
     return { success: false, error: error.message };
   }
 
-  revalidatePath("/today");
+  revalidatePath("/");
   revalidatePath("/plants");
   revalidatePath(`/plants/${plantId}`);
   
@@ -277,7 +277,7 @@ export async function logRepotEvent(
     // Don't fail the whole operation if journal entry fails
   }
 
-  revalidatePath("/today");
+  revalidatePath("/");
   revalidatePath("/plants");
   revalidatePath(`/plants/${plantId}`);
   revalidatePath("/pots");
@@ -411,7 +411,7 @@ export async function deletePlant(plantId: string) {
   }
 
   revalidatePath("/plants");
-  revalidatePath("/today");
+  revalidatePath("/");
   
   return { success: true };
 }
@@ -473,7 +473,7 @@ export async function upsertPlantCarePreferences(
     }
   }
 
-  revalidatePath("/today");
+  revalidatePath("/");
   revalidatePath("/plants");
   revalidatePath(`/plants/${plantId}`);
 

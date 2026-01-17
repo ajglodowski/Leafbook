@@ -128,7 +128,7 @@ export async function createPlant(formData: FormData) {
   }
 
   revalidatePath("/plants");
-  revalidatePath("/today");
+  revalidatePath("/");
   revalidatePath("/journal");
   
   return { success: true, plantId: plant.id };
@@ -159,7 +159,7 @@ export async function logCareEvent(
     return { success: false, error: error.message };
   }
 
-  revalidatePath("/today");
+  revalidatePath("/");
   revalidatePath("/plants");
   revalidatePath(`/plants/${plantId}`);
   

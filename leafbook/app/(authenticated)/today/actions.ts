@@ -45,7 +45,7 @@ export async function logCareEvent(
     return { success: false, error: error.message };
   }
 
-  revalidatePath("/today");
+  revalidatePath("/");
   revalidatePath("/plants");
   revalidatePath(`/plants/${plantId}`);
   

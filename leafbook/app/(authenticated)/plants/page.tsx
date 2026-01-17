@@ -1,10 +1,10 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Leaf, Plus, Home, TreePine, Droplets, Sparkles } from "lucide-react";
+import { Leaf, Plus, Home, TreePine, MapPin, Droplets, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AddPlantDialog } from "./add-plant-dialog";
 
@@ -101,7 +101,7 @@ export default async function PlantsPage() {
 
       {/* Plants grid */}
       {hasPlants ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2">
           {plants.map((plant) => {
             const plantType = Array.isArray(plant.plant_types) ? plant.plant_types[0] : plant.plant_types;
             const taskStatus = dueTaskMap.get(plant.id);
@@ -111,82 +111,79 @@ export default async function PlantsPage() {
 
             return (
               <Link key={plant.id} href={`/plants/${plant.id}`}>
-                <Card className="h-full overflow-hidden transition-all hover:ring-2 hover:ring-primary/20 hover:shadow-md">
-                  <div className="flex h-full">
-                    {/* Thumbnail on left */}
-                    {thumbnailUrl && (
-                      <div className="relative w-28 shrink-0 self-stretch bg-muted">
-                        <Image
-                          src={thumbnailUrl}
-                          alt={plant.name}
-                          fill
-                          className="object-cover"
-                          sizes="112px"
-                        />
+                <Card className="gap-0 h-44 overflow-hidden transition-all hover:ring-2 hover:ring-primary/20 hover:shadow-md p-0 flex flex-row">
+                  {thumbnailUrl && (
+                    <div className="relative h-full aspect-square shrink-0 overflow-hidden rounded-xl bg-muted">
+                      <Image
+                        src={thumbnailUrl}
+                        alt={plant.name}
+                        fill
+                        className="object-cover"
+                        sizes="176px"
+                      />
+                    </div>
+                  )}
+                  <div className="flex-1 flex flex-col justify-center p-4 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <h3 className="font-serif text-lg font-medium">{plant.name}</h3>
+                        {plant.nickname && (
+                          <p className="text-sm text-muted-foreground truncate">"{plant.nickname}"</p>
+                        )}
                       </div>
-                    )}
-                    {/* Content on right */}
-                    <div className="flex-1">
-                      <CardHeader>
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <CardTitle className="font-serif text-lg">{plant.name}</CardTitle>
-                            {plant.nickname && (
-                              <CardDescription>"{plant.nickname}"</CardDescription>
-                            )}
-                          </div>
-                          <Badge variant="secondary" className="gap-1 shrink-0">
-                            {plant.plant_location === "indoor" ? (
-                              <>
-                                <Home className="h-3 w-3" />
-                                Indoor
-                              </>
-                            ) : (
-                              <>
-                                <TreePine className="h-3 w-3" />
-                                Outdoor
-                              </>
-                            )}
-                          </Badge>
+                      <Badge variant="secondary" className="gap-1 shrink-0 my-auto">
+                        {plant.plant_location === "indoor" ? (
+                          <>
+                            <Home className="h-3 w-3" />
+                            Indoor
+                          </>
+                        ) : (
+                          <>
+                            <TreePine className="h-3 w-3" />
+                            Outdoor
+                          </>
+                        )}
+                      </Badge>
+                    </div>
+                    <div className="mt-2 space-y-1">
+                      {plantType && (
+                        <p className="text-sm text-muted-foreground">
+                          {plantType.name}
+                          {plantType.scientific_name && (
+                            <span className="italic"> · {plantType.scientific_name}</span>
+                          )}
+                        </p>
+                      )}
+                      {plant.location && (
+                        <p className="flex items-center gap-1 text-sm text-muted-foreground">
+                          <MapPin className="h-3 w-3 shrink-0" />
+                          {plant.location}
+                        </p>
+                      )}
+                      
+                      {/* Care status indicators */}
+                      {(needsWater || needsFertilizer) && (
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {needsWater && (
+                            <Badge 
+                              variant={taskStatus?.watering_status === "overdue" ? "destructive" : "outline"}
+                              className="gap-1"
+                            >
+                              <Droplets className="h-3 w-3" />
+                              {taskStatus?.watering_status === "overdue" ? "Needs water" : "Water soon"}
+                            </Badge>
+                          )}
+                          {needsFertilizer && (
+                            <Badge 
+                              variant={taskStatus?.fertilizing_status === "overdue" ? "destructive" : "outline"}
+                              className="gap-1"
+                            >
+                              <Sparkles className="h-3 w-3" />
+                              {taskStatus?.fertilizing_status === "overdue" ? "Needs fertilizer" : "Fertilize soon"}
+                            </Badge>
+                          )}
                         </div>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        {plantType && (
-                          <p className="text-sm text-muted-foreground">
-                            {plantType.name}
-                            {plantType.scientific_name && (
-                              <span className="italic"> · {plantType.scientific_name}</span>
-                            )}
-                          </p>
-                        )}
-                        {plant.location && (
-                          <p className="text-sm text-muted-foreground">{plant.location}</p>
-                        )}
-                        
-                        {/* Care status indicators */}
-                        {(needsWater || needsFertilizer) && (
-                          <div className="flex flex-wrap gap-2 pt-1">
-                            {needsWater && (
-                              <Badge 
-                                variant={taskStatus?.watering_status === "overdue" ? "destructive" : "outline"}
-                                className="gap-1"
-                              >
-                                <Droplets className="h-3 w-3" />
-                                {taskStatus?.watering_status === "overdue" ? "Needs water" : "Water soon"}
-                              </Badge>
-                            )}
-                            {needsFertilizer && (
-                              <Badge 
-                                variant={taskStatus?.fertilizing_status === "overdue" ? "destructive" : "outline"}
-                                className="gap-1"
-                              >
-                                <Sparkles className="h-3 w-3" />
-                                {taskStatus?.fertilizing_status === "overdue" ? "Needs fertilizer" : "Fertilize soon"}
-                              </Badge>
-                            )}
-                          </div>
-                        )}
-                      </CardContent>
+                      )}
                     </div>
                   </div>
                 </Card>

@@ -188,6 +188,7 @@ An app for journaling your plants
 
 ## Future Features
 
+- **Detect water schedule**: Allow user to automatically adjust their set watering schedule based on their past history of watering.
 - **Global Origin Visualizer**: Track the origin location for plant types and provide a visualizer for users to see where on a globe their plants are from.
 - **Custom User Lists**: Allow users to create custom lists to group their plants together.
 - **Legacy Plant Logging**: Ability for users to log plants no longer in their collection (e.g., died or given away).

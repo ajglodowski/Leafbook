@@ -70,7 +70,7 @@ export async function convertWishlistToPlant(
 
   revalidatePath("/plants");
   revalidatePath("/wishlist");
-  revalidatePath("/today");
+  revalidatePath("/");
   if (plantTypeId) {
     revalidatePath(`/plant-types/${plantTypeId}`);
   }

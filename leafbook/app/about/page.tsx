@@ -1,37 +1,20 @@
+import { BookOpen, Droplets, Camera, Heart, Sparkles } from "lucide-react";
 import Link from "next/link";
-import { Leaf, BookOpen, Droplets, Camera, Heart, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { MarketingHeader } from "@/components/marketing-header";
 
 export const metadata = {
   title: "About | Leafbook",
   description: "Learn about Leafbook — a journaling-first plant care app where tasks don't feel like chores.",
 };
 
+export const dynamic = "force-static";
+
 export default function AboutPage() {
   return (
     <div className="flex min-h-screen flex-col">
       {/* Header */}
-      <header className="border-b">
-        <div className="mx-auto flex h-14 w-full max-w-7xl items-center justify-between px-4">
-          <Link
-            href="/"
-            className="flex items-center gap-2 font-serif text-lg font-semibold tracking-tight text-primary"
-          >
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-              <Leaf className="h-5 w-5 text-primary" />
-            </div>
-            <span>Leafbook</span>
-          </Link>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" render={<Link href="/auth/login" />}>
-              Sign in
-            </Button>
-            <Button size="sm" render={<Link href="/auth/sign-up" />}>
-              Get started
-            </Button>
-          </div>
-        </div>
-      </header>
+      <MarketingHeader />
 
       {/* Main content */}
       <main className="flex-1">
@@ -121,7 +104,7 @@ export default function AboutPage() {
               </div>
 
               {/* CTA */}
-              <div className="mx-auto flex max-w-xl flex-col items-center gap-6 rounded-xl border-2 border-primary/20 bg-gradient-to-b from-muted/50 to-muted/30 p-10 md:p-12">
+              <div className="mx-auto flex max-w-xl flex-col items-center gap-6 rounded-xl border-2 border-primary/20 bg-linear-to-b from-muted/50 to-muted/30 p-10 md:p-12">
                 <div className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-500/10">
                   <Sparkles className="h-8 w-8 text-amber-500" />
                 </div>

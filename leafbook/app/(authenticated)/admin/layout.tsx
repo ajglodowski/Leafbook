@@ -24,7 +24,7 @@ export default async function AdminLayout({
     .single();
 
   if (error || profile?.role !== "admin") {
-    redirect("/today");
+    redirect("/");
   }
 
   return (
@@ -40,7 +40,7 @@ export default async function AdminLayout({
             <p className="text-sm text-muted-foreground">Manage catalog and settings</p>
           </div>
         </div>
-        <Button variant="ghost" size="sm" render={<Link href="/today" />} className="gap-1">
+        <Button variant="ghost" size="sm" render={<Link href="/" />} className="gap-1">
           <ArrowLeft className="h-4 w-4" />
           Back to app
         </Button>

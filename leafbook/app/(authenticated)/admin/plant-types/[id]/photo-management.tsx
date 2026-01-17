@@ -677,7 +677,7 @@ export function PhotoManagement({ plantTypeId, plantTypeName, wikipediaTitle, ph
                         }`}
                       >
                         {/* Image thumbnail */}
-                        <div className="relative aspect-video w-full overflow-hidden rounded bg-muted">
+                        <div className="relative aspect-square w-full overflow-hidden rounded bg-muted">
                           {image.thumbUrl ? (
                             <Image
                               src={image.thumbUrl}

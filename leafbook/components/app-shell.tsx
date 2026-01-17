@@ -20,7 +20,7 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { href: "/today", label: "Today", icon: CalendarCheck },
+  { href: "/", label: "Today", icon: CalendarCheck },
   { href: "/plants", label: "Plants", icon: Leaf },
   { href: "/plant-types", label: "Catalog", icon: Library },
   { href: "/wishlist", label: "Wishlist", icon: Heart },
@@ -42,11 +42,11 @@ export function AppShell({ children, isAdmin = false }: { children: React.ReactN
   return (
     <div className="min-h-screen flex flex-col">
       {/* Top navigation */}
-      <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
         <div className="flex h-14 items-center px-4 md:px-6">
           {/* Logo */}
           <Link
-            href="/today"
+            href="/"
             className="flex items-center gap-2 font-serif text-lg font-semibold tracking-tight text-primary mr-6"
           >
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">

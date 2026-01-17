@@ -142,7 +142,7 @@ export default async function PlantTypeDetailPage({
         <div className="space-y-4">
           {/* Primary photo */}
           {primaryPhoto && (
-            <div className="relative aspect-4/3 w-full overflow-hidden rounded-xl bg-muted">
+            <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-muted">
               <Image
                 src={primaryPhoto.url}
                 alt={primaryPhoto.caption || plantType.name}

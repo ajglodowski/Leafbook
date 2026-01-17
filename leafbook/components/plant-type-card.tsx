@@ -49,15 +49,15 @@ interface PlantTypeCardProps {
 export function PlantTypeCard({ plantType, primaryPhotoUrl }: PlantTypeCardProps) {
   return (
     <Link href={`/plant-types/${plantType.id}`} className="block">
-      <Card className="h-full overflow-hidden transition-all hover:ring-2 hover:ring-primary/20 hover:shadow-md">
+      <Card className="h-full pt-0 overflow-hidden transition-all hover:ring-2 hover:ring-primary/20 hover:shadow-md">
         {/* Photo thumbnail */}
-        <div className="relative aspect-4/3 w-full bg-muted">
+        <div className="relative aspect-square w-full">
           {primaryPhotoUrl ? (
             <Image
               src={primaryPhotoUrl}
               alt={plantType.name}
               fill
-              className="object-cover"
+              className="object-cover rounded-b-2xl"
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
             />
           ) : (

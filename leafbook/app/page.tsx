@@ -1,8 +1,10 @@
-import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { Leaf } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AppShell } from "@/components/app-shell";
+import { TodayDashboard } from "@/components/today-dashboard";
+import { MarketingHeader } from "@/components/marketing-header";
 
 // Force dynamic rendering since we check auth state
 export const dynamic = "force-dynamic";
@@ -11,36 +13,28 @@ export default async function HomePage() {
   const supabase = await createClient();
   const { data } = await supabase.auth.getUser();
 
-  // Authenticated users go straight to Today
+  // Authenticated users see the Today dashboard at root
   if (data?.user) {
-    redirect("/today");
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", data.user.id)
+      .single();
+
+    const isAdmin = profile?.role === "admin";
+
+    return (
+      <AppShell isAdmin={isAdmin}>
+        <TodayDashboard userId={data.user.id} />
+      </AppShell>
+    );
   }
 
   // Simple landing for unauthenticated users (full marketing page comes later)
   return (
     <div className="flex min-h-screen flex-col">
       {/* Simple header */}
-      <header className="border-b">
-        <div className="container flex h-14 items-center justify-between">
-          <div className="flex items-center gap-2 font-serif text-lg font-semibold tracking-tight text-primary">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-              <Leaf className="h-5 w-5 text-primary" />
-            </div>
-            <span>Leafbook</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" render={<Link href="/about" />}>
-              About
-            </Button>
-            <Button variant="ghost" size="sm" render={<Link href="/auth/login" />}>
-              Sign in
-            </Button>
-            <Button size="sm" render={<Link href="/auth/sign-up" />}>
-              Get started
-            </Button>
-          </div>
-        </div>
-      </header>
+      <MarketingHeader />
 
       {/* Hero */}
       <main className="flex flex-1 flex-col items-center justify-center px-4 text-center">
