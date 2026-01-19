@@ -5,27 +5,28 @@ import { Button } from "@/components/ui/button";
 import { AppShell } from "@/components/app-shell";
 import { TodayDashboard } from "@/components/today-dashboard";
 import { MarketingHeader } from "@/components/marketing-header";
+import { getCurrentUserId } from "@/lib/supabase/server";
 
 // Force dynamic rendering since we check auth state
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const supabase = await createClient();
-  const { data } = await supabase.auth.getUser();
+  const userId = await getCurrentUserId();
 
   // Authenticated users see the Today dashboard at root
-  if (data?.user) {
+  if (userId) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("role")
-      .eq("id", data.user.id)
+      .eq("id", userId)
       .single();
 
     const isAdmin = profile?.role === "admin";
 
     return (
       <AppShell isAdmin={isAdmin}>
-        <TodayDashboard userId={data.user.id} />
+        <TodayDashboard userId={userId} />
       </AppShell>
     );
   }

@@ -1,6 +1,6 @@
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getCurrentUserId } from "@/lib/supabase/server";
 
 export async function POST(request: Request): Promise<NextResponse> {
   const body = (await request.json()) as HandleUploadBody;
@@ -12,11 +12,9 @@ export async function POST(request: Request): Promise<NextResponse> {
       onBeforeGenerateToken: async (pathname, clientPayload) => {
         // Validate Supabase session and plant ownership
         const supabase = await createClient();
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+        const userId = await getCurrentUserId();
 
-        if (!user) {
+        if (!userId) {
           throw new Error("Unauthorized: Not logged in");
         }
 
@@ -33,7 +31,7 @@ export async function POST(request: Request): Promise<NextResponse> {
           .from("plants")
           .select("id")
           .eq("id", plantId)
-          .eq("user_id", user.id)
+          .eq("user_id", userId)
           .single();
 
         if (error || !plant) {
@@ -46,7 +44,7 @@ export async function POST(request: Request): Promise<NextResponse> {
           maximumSizeInBytes: 15 * 1024 * 1024, // 15MB
           addRandomSuffix: true,
           // Store in user-specific directory: user-uploads/{userId}/plant-photos/
-          pathname: `user-uploads/${user.id}/plant-photos/${pathname}`,
+          pathname: `user-uploads/${userId}/plant-photos/${pathname}`,
         };
       },
       // Note: onUploadCompleted is a webhook callback that may not work in dev

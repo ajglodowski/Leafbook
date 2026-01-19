@@ -2,13 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getCurrentUserId } from "@/lib/supabase/server";
 
 export async function addToWishlist(plantTypeId: string) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const userId = await getCurrentUserId();
 
-  if (!user) {
+  if (!userId) {
     redirect("/auth/login");
   }
 
@@ -16,7 +16,7 @@ export async function addToWishlist(plantTypeId: string) {
   const { data: existing } = await supabase
     .from("wishlist_items")
     .select("id")
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .eq("plant_type_id", plantTypeId)
     .single();
 
@@ -27,7 +27,7 @@ export async function addToWishlist(plantTypeId: string) {
   const { error } = await supabase
     .from("wishlist_items")
     .insert({
-      user_id: user.id,
+      user_id: userId,
       plant_type_id: plantTypeId,
     });
 
@@ -43,9 +43,9 @@ export async function addToWishlist(plantTypeId: string) {
 
 export async function removeFromWishlist(wishlistItemId: string, plantTypeId: string) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const userId = await getCurrentUserId();
 
-  if (!user) {
+  if (!userId) {
     redirect("/auth/login");
   }
 
@@ -53,7 +53,7 @@ export async function removeFromWishlist(wishlistItemId: string, plantTypeId: st
     .from("wishlist_items")
     .delete()
     .eq("id", wishlistItemId)
-    .eq("user_id", user.id);
+    .eq("user_id", userId);
 
   if (error) {
     console.error("Error removing from wishlist:", error);
@@ -67,9 +67,9 @@ export async function removeFromWishlist(wishlistItemId: string, plantTypeId: st
 
 export async function addPlant(formData: FormData) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const userId = await getCurrentUserId();
 
-  if (!user) {
+  if (!userId) {
     redirect("/auth/login");
   }
 
@@ -84,7 +84,7 @@ export async function addPlant(formData: FormData) {
   const { data: plant, error } = await supabase
     .from("plants")
     .insert({
-      user_id: user.id,
+      user_id: userId,
       plant_type_id: plantTypeId || null,
       name: name.trim(),
       plant_location: plantLocation,
@@ -108,9 +108,9 @@ export async function addPlant(formData: FormData) {
 
 export async function convertWishlistToPlant(wishlistItemId: string, plantTypeId: string, plantTypeName: string) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const userId = await getCurrentUserId();
 
-  if (!user) {
+  if (!userId) {
     redirect("/auth/login");
   }
 
@@ -118,7 +118,7 @@ export async function convertWishlistToPlant(wishlistItemId: string, plantTypeId
   const { data: plant, error: plantError } = await supabase
     .from("plants")
     .insert({
-      user_id: user.id,
+      user_id: userId,
       plant_type_id: plantTypeId,
       name: plantTypeName,
       plant_location: "indoor",
@@ -136,7 +136,7 @@ export async function convertWishlistToPlant(wishlistItemId: string, plantTypeId
     .from("wishlist_items")
     .delete()
     .eq("id", wishlistItemId)
-    .eq("user_id", user.id);
+    .eq("user_id", userId);
 
   revalidatePath("/plants");
   revalidatePath("/wishlist");

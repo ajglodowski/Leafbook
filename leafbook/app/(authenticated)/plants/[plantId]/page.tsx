@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { 
@@ -18,7 +18,7 @@ import {
   Heart,
   Camera
 } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getCurrentUserId } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -30,7 +30,10 @@ import { JournalEntryDialog } from "./journal-entry-dialog";
 import { IssueDialog } from "./issue-dialog";
 import { PlantTimeline } from "./plant-timeline";
 import { RepotDialog } from "./repot-dialog";
+import { ScheduleSuggestionCard } from "./schedule-suggestion-card";
 import { PotWithUsage } from "../../pots/actions";
+import { createScheduleSuggestion } from "./actions";
+import { analyzeWateringSchedule } from "@/lib/watering-analysis";
 
 // Human-friendly labels for light requirement enum
 const lightLabels: Record<string, string> = {
@@ -80,7 +83,11 @@ export default async function PlantDetailPage({
 }) {
   const { plantId } = await params;
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const userId = await getCurrentUserId();
+
+  if (!userId) {
+    redirect("/auth/login");
+  }
 
   // Fetch plant with plant type info and active photo
   const { data: plant, error } = await supabase
@@ -113,7 +120,7 @@ export default async function PlantDetailPage({
       )
     `)
     .eq("id", plantId)
-    .eq("user_id", user!.id)
+    .eq("user_id", userId)
     .single();
 
   if (error || !plant) {
@@ -158,6 +165,24 @@ export default async function PlantDetailPage({
     .eq("plant_id", plantId)
     .maybeSingle();
 
+  // Fetch watering events for schedule analysis (need more history)
+  const { data: wateringEvents } = await supabase
+    .from("plant_events")
+    .select("event_date")
+    .eq("plant_id", plantId)
+    .eq("event_type", "watered")
+    .order("event_date", { ascending: false })
+    .limit(15);
+
+  // Fetch existing active schedule suggestion
+  const { data: activeSuggestion } = await supabase
+    .from("watering_schedule_suggestions")
+    .select("*")
+    .eq("plant_id", plantId)
+    .is("dismissed_at", null)
+    .is("accepted_at", null)
+    .maybeSingle();
+
   // Fetch photos for this plant
   const { data: photos } = await supabase
     .from("plant_photos")
@@ -169,7 +194,7 @@ export default async function PlantDetailPage({
   const { data: pots } = await supabase
     .from("user_pots")
     .select("id, name, size_inches, material, photo_url, is_retired, has_drainage, color")
-    .eq("user_id", user!.id)
+    .eq("user_id", userId)
     .order("is_retired", { ascending: true })
     .order("size_inches", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: false });
@@ -178,7 +203,7 @@ export default async function PlantDetailPage({
   const { data: activePlants } = await supabase
     .from("plants")
     .select("id, name, current_pot_id")
-    .eq("user_id", user!.id)
+    .eq("user_id", userId)
     .eq("is_active", true)
     .not("current_pot_id", "is", null);
 
@@ -243,6 +268,43 @@ export default async function PlantDetailPage({
   
   // Count active issues
   const activeIssues = issues?.filter(i => i.status === "active") || [];
+
+  // Analyze watering schedule and manage suggestions
+  let scheduleSuggestion = activeSuggestion;
+  const currentWateringInterval = dueTask?.watering_frequency_days ?? null;
+  
+  // Only run analysis if we have enough events and a current schedule
+  if (wateringEvents && wateringEvents.length >= 5 && currentWateringInterval) {
+    const analysis = analyzeWateringSchedule(wateringEvents, currentWateringInterval);
+    
+    // If analysis suggests a change and we don't have an active suggestion, create one
+    if (analysis.shouldSuggest && analysis.suggestedDays && !activeSuggestion) {
+      // Create suggestion in the background (don't await to not block render)
+      createScheduleSuggestion(plantId, {
+        suggestedIntervalDays: analysis.suggestedDays,
+        currentIntervalDays: currentWateringInterval,
+        confidenceScore: analysis.confidence,
+      }).then(result => {
+        if (result.success && result.suggestionId) {
+          // The page will show the suggestion on next visit or revalidation
+        }
+      });
+      
+      // Create a temporary suggestion object for immediate display
+      scheduleSuggestion = {
+        id: "pending",
+        plant_id: plantId,
+        user_id: userId,
+        suggested_interval_days: analysis.suggestedDays,
+        current_interval_days: currentWateringInterval,
+        confidence_score: analysis.confidence,
+        detected_at: new Date().toISOString(),
+        dismissed_at: null,
+        accepted_at: null,
+        created_at: new Date().toISOString(),
+      };
+    }
+  }
   
   // Get light info
   const plantTypeLightMin = plantType?.light_min ?? null;
@@ -383,8 +445,8 @@ export default async function PlantDetailPage({
               )}
             </div>
 
-            {/* Edit button */}
-            <div className="mt-6 flex justify-center lg:justify-start">
+            {/* Quick Actions */}
+            <div className="mt-6 flex flex-wrap gap-2 justify-center lg:justify-start">
               <EditPlantDialog
                 plant={{
                   id: plant.id,
@@ -399,6 +461,18 @@ export default async function PlantDetailPage({
                   acquired_at: plant.acquired_at,
                 }}
               />
+              <CareButton
+                plantId={plant.id}
+                eventType="watered"
+                variant="water"
+                status={dueTask?.watering_status}
+              />
+              <CareButton
+                plantId={plant.id}
+                eventType="fertilized"
+                variant="fertilize"
+                status={dueTask?.fertilizing_status}
+              />
             </div>
           </div>
         </div>
@@ -409,32 +483,27 @@ export default async function PlantDetailPage({
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════════
-          CARE ACTION STRIP - Compact inline actions
+          CARE STATUS STRIP - Shows overdue reminders and active issues
       ═══════════════════════════════════════════════════════════════════ */}
       {(needsWater || needsFertilizer || activeIssues.length > 0) && (
         <div className="flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-primary/5 via-transparent to-orange-500/5 border border-primary/10">
-          {(needsWater || needsFertilizer) && (
-            <>
-              <span className="text-sm font-medium text-primary flex items-center gap-1.5">
-                <span>🌿</span> Care time:
-              </span>
-              {needsWater && (
-                <CareButton
-                  plantId={plant.id}
-                  eventType="watered"
-                  variant="water"
-                  status={dueTask?.watering_status}
-                />
-              )}
-              {needsFertilizer && (
-                <CareButton
-                  plantId={plant.id}
-                  eventType="fertilized"
-                  variant="fertilize"
-                  status={dueTask?.fertilizing_status}
-                />
-              )}
-            </>
+          {needsWater && dueTask?.watering_status === "overdue" && (
+            <span className="text-sm font-medium text-blue-600 dark:text-blue-400 flex items-center gap-1.5">
+              <Droplets className="h-4 w-4" />
+              Thirsty! Time to water
+            </span>
+          )}
+          {needsWater && dueTask?.watering_status === "due_soon" && (
+            <span className="text-sm font-medium text-blue-500 dark:text-blue-400 flex items-center gap-1.5">
+              <Droplets className="h-4 w-4" />
+              Water soon
+            </span>
+          )}
+          {needsFertilizer && dueTask?.fertilizing_status === "overdue" && (
+            <span className="text-sm font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+              <Sparkles className="h-4 w-4" />
+              Ready for fertilizer
+            </span>
           )}
           {activeIssues.length > 0 && (
             <>
@@ -607,6 +676,20 @@ export default async function PlantDetailPage({
             </CardContent>
           </Card>
         </div>
+
+        {/* Schedule Suggestion Card */}
+        {scheduleSuggestion && scheduleSuggestion.id !== "pending" && (
+          <div className="mt-4">
+            <ScheduleSuggestionCard
+              suggestionId={scheduleSuggestion.id}
+              plantId={plant.id}
+              plantName={plant.name}
+              currentIntervalDays={scheduleSuggestion.current_interval_days}
+              suggestedIntervalDays={scheduleSuggestion.suggested_interval_days}
+              confidenceScore={scheduleSuggestion.confidence_score}
+            />
+          </div>
+        )}
       </section>
 
       {/* ═══════════════════════════════════════════════════════════════════

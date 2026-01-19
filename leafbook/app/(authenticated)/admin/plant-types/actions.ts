@@ -3,32 +3,32 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { del } from "@vercel/blob";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getCurrentUserId } from "@/lib/supabase/server";
 
 // Helper to verify admin role
 async function verifyAdmin() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const userId = await getCurrentUserId();
 
-  if (!user) {
+  if (!userId) {
     redirect("/auth/login");
   }
 
   const { data: profile } = await supabase
     .from("profiles")
     .select("role")
-    .eq("id", user.id)
+    .eq("id", userId)
     .single();
 
   if (profile?.role !== "admin") {
     throw new Error("Unauthorized: Admin access required");
   }
 
-  return { supabase, user };
+  return { supabase, userId };
 }
 
 export async function createPlantType(formData: FormData) {
-  const { supabase, user } = await verifyAdmin();
+  const { supabase, userId } = await verifyAdmin();
 
   const name = formData.get("name") as string;
   const scientific_name = formData.get("scientific_name") as string | null;
@@ -73,7 +73,7 @@ export async function createPlantType(formData: FormData) {
     insertData.wikipedia_title = wikipedia_title || null;
     insertData.wikipedia_lang = "en";
     insertData.enriched_at = new Date().toISOString();
-    insertData.enriched_by = user.id;
+    insertData.enriched_by = userId;
   }
 
   const { data, error } = await supabase

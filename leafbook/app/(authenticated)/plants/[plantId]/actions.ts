@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { del } from "@vercel/blob";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getCurrentUserId } from "@/lib/supabase/server";
 
 // ============================================================================
 // Journal Entry Helpers for Auto-Generated Entries
@@ -11,6 +11,16 @@ import { createClient } from "@/lib/supabase/server";
 
 const ACQUISITION_JOURNAL_TITLE = "New plant";
 const REPOT_JOURNAL_TITLE = "Repotted";
+
+async function getRequiredUserId() {
+  const userId = await getCurrentUserId();
+
+  if (!userId) {
+    redirect("/auth/login");
+  }
+
+  return userId;
+}
 
 function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return "";
@@ -109,11 +119,7 @@ export async function logCareEvent(
   eventDate?: string // ISO date string for backdating
 ) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/auth/login");
-  }
+  const user = { id: await getRequiredUserId() };
 
   // Verify the plant belongs to this user
   const { data: plant, error: plantError } = await supabase
@@ -160,11 +166,7 @@ export async function logRepotEvent(
   }
 ) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/auth/login");
-  }
+  const user = { id: await getRequiredUserId() };
 
   // Verify the plant belongs to this user
   const { data: plant, error: plantError } = await supabase
@@ -295,7 +297,7 @@ export async function updateRepotEvent(
   }
 ) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = { id: await getRequiredUserId() };
 
   if (!user) {
     redirect("/auth/login");
@@ -419,7 +421,7 @@ export async function updatePlant(
   }
 ) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = { id: await getRequiredUserId() };
 
   if (!user) {
     redirect("/auth/login");
@@ -510,7 +512,7 @@ export async function updatePlant(
 
 export async function deletePlant(plantId: string) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = { id: await getRequiredUserId() };
 
   if (!user) {
     redirect("/auth/login");
@@ -542,7 +544,7 @@ export async function upsertPlantCarePreferences(
   }
 ) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = { id: await getRequiredUserId() };
 
   if (!user) {
     redirect("/auth/login");
@@ -607,7 +609,7 @@ export async function createPlantPhoto(
   }
 ) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = { id: await getRequiredUserId() };
 
   if (!user) {
     redirect("/auth/login");
@@ -646,7 +648,7 @@ export async function createPlantPhoto(
 
 export async function deletePlantPhoto(photoId: string) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = { id: await getRequiredUserId() };
 
   if (!user) {
     redirect("/auth/login");
@@ -696,7 +698,7 @@ export async function updatePlantPhotoMetadata(
   }
 ) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = { id: await getRequiredUserId() };
 
   if (!user) {
     redirect("/auth/login");
@@ -738,7 +740,7 @@ export async function setPlantActivePhoto(
   photoId: string | null
 ) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = { id: await getRequiredUserId() };
 
   if (!user) {
     redirect("/auth/login");
@@ -804,7 +806,7 @@ export async function createJournalEntry(
   }
 ) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = { id: await getRequiredUserId() };
 
   if (!user) {
     redirect("/auth/login");
@@ -857,7 +859,7 @@ export async function updateJournalEntry(
   }
 ) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = { id: await getRequiredUserId() };
 
   if (!user) {
     redirect("/auth/login");
@@ -906,7 +908,7 @@ export async function updateJournalEntry(
 
 export async function deleteJournalEntry(entryId: string) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = { id: await getRequiredUserId() };
 
   if (!user) {
     redirect("/auth/login");
@@ -973,7 +975,7 @@ export async function createPlantIssue(
   }
 ) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = { id: await getRequiredUserId() };
 
   if (!user) {
     redirect("/auth/login");
@@ -1028,7 +1030,7 @@ export async function updatePlantIssue(
   }
 ) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = { id: await getRequiredUserId() };
 
   if (!user) {
     redirect("/auth/login");
@@ -1088,7 +1090,7 @@ export async function resolvePlantIssue(
   }
 ) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = { id: await getRequiredUserId() };
 
   if (!user) {
     redirect("/auth/login");
@@ -1132,7 +1134,7 @@ export async function resolvePlantIssue(
 
 export async function deletePlantIssue(issueId: string) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = { id: await getRequiredUserId() };
 
   if (!user) {
     redirect("/auth/login");
@@ -1164,4 +1166,227 @@ export async function deletePlantIssue(issueId: string) {
   revalidatePath("/journal");
 
   return { success: true };
+}
+
+// ============================================================================
+// Schedule Suggestion Actions
+// ============================================================================
+
+export async function createScheduleSuggestion(
+  plantId: string,
+  data: {
+    suggestedIntervalDays: number;
+    currentIntervalDays: number;
+    confidenceScore?: number;
+  }
+) {
+  const supabase = await createClient();
+  const user = { id: await getRequiredUserId() };
+
+  if (!user) {
+    redirect("/auth/login");
+  }
+
+  // Verify the plant belongs to this user
+  const { data: plant, error: plantError } = await supabase
+    .from("plants")
+    .select("id")
+    .eq("id", plantId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (plantError || !plant) {
+    return { success: false, error: "Plant not found" };
+  }
+
+  // Check if there's already an active suggestion for this plant
+  const { data: existingSuggestion } = await supabase
+    .from("watering_schedule_suggestions")
+    .select("id")
+    .eq("plant_id", plantId)
+    .is("dismissed_at", null)
+    .is("accepted_at", null)
+    .maybeSingle();
+
+  if (existingSuggestion) {
+    // Update existing suggestion instead of creating a new one
+    const { error: updateError } = await supabase
+      .from("watering_schedule_suggestions")
+      .update({
+        suggested_interval_days: data.suggestedIntervalDays,
+        current_interval_days: data.currentIntervalDays,
+        confidence_score: data.confidenceScore ?? null,
+        detected_at: new Date().toISOString(),
+      })
+      .eq("id", existingSuggestion.id);
+
+    if (updateError) {
+      console.error("Error updating schedule suggestion:", updateError);
+      return { success: false, error: updateError.message };
+    }
+
+    return { success: true, suggestionId: existingSuggestion.id };
+  }
+
+  // Create new suggestion
+  const { data: newSuggestion, error } = await supabase
+    .from("watering_schedule_suggestions")
+    .insert({
+      plant_id: plantId,
+      user_id: user.id,
+      suggested_interval_days: data.suggestedIntervalDays,
+      current_interval_days: data.currentIntervalDays,
+      confidence_score: data.confidenceScore ?? null,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    console.error("Error creating schedule suggestion:", error);
+    return { success: false, error: error.message };
+  }
+
+  return { success: true, suggestionId: newSuggestion.id };
+}
+
+export async function acceptScheduleSuggestion(
+  suggestionId: string,
+  plantId: string,
+  suggestedIntervalDays: number
+) {
+  const supabase = await createClient();
+  const user = { id: await getRequiredUserId() };
+
+  if (!user) {
+    redirect("/auth/login");
+  }
+
+  // Verify the suggestion belongs to this user
+  const { data: suggestion, error: suggestionError } = await supabase
+    .from("watering_schedule_suggestions")
+    .select("id, plant_id")
+    .eq("id", suggestionId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (suggestionError || !suggestion) {
+    return { success: false, error: "Suggestion not found" };
+  }
+
+  // Mark suggestion as accepted
+  const { error: updateError } = await supabase
+    .from("watering_schedule_suggestions")
+    .update({ accepted_at: new Date().toISOString() })
+    .eq("id", suggestionId);
+
+  if (updateError) {
+    console.error("Error accepting schedule suggestion:", updateError);
+    return { success: false, error: updateError.message };
+  }
+
+  // Update the plant's care preferences with the new watering interval
+  // First, check if care preferences exist
+  const { data: existingPrefs } = await supabase
+    .from("plant_care_preferences")
+    .select("id, fertilizing_frequency_days")
+    .eq("plant_id", plantId)
+    .maybeSingle();
+
+  if (existingPrefs) {
+    // Update existing preferences
+    const { error: prefsError } = await supabase
+      .from("plant_care_preferences")
+      .update({
+        watering_frequency_days: suggestedIntervalDays,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("plant_id", plantId);
+
+    if (prefsError) {
+      console.error("Error updating care preferences:", prefsError);
+      return { success: false, error: prefsError.message };
+    }
+  } else {
+    // Create new preferences
+    const { error: prefsError } = await supabase
+      .from("plant_care_preferences")
+      .insert({
+        plant_id: plantId,
+        watering_frequency_days: suggestedIntervalDays,
+      });
+
+    if (prefsError) {
+      console.error("Error creating care preferences:", prefsError);
+      return { success: false, error: prefsError.message };
+    }
+  }
+
+  revalidatePath("/");
+  revalidatePath("/plants");
+  revalidatePath(`/plants/${plantId}`);
+
+  return { success: true };
+}
+
+export async function dismissScheduleSuggestion(suggestionId: string) {
+  const supabase = await createClient();
+  const user = { id: await getRequiredUserId() };
+
+  if (!user) {
+    redirect("/auth/login");
+  }
+
+  // Verify the suggestion belongs to this user
+  const { data: suggestion, error: suggestionError } = await supabase
+    .from("watering_schedule_suggestions")
+    .select("id, plant_id")
+    .eq("id", suggestionId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (suggestionError || !suggestion) {
+    return { success: false, error: "Suggestion not found" };
+  }
+
+  // Mark suggestion as dismissed
+  const { error } = await supabase
+    .from("watering_schedule_suggestions")
+    .update({ dismissed_at: new Date().toISOString() })
+    .eq("id", suggestionId);
+
+  if (error) {
+    console.error("Error dismissing schedule suggestion:", error);
+    return { success: false, error: error.message };
+  }
+
+  revalidatePath("/");
+  revalidatePath("/plants");
+  revalidatePath(`/plants/${suggestion.plant_id}`);
+
+  return { success: true };
+}
+
+export async function getActiveSuggestionForPlant(plantId: string) {
+  const supabase = await createClient();
+  const user = { id: await getRequiredUserId() };
+
+  if (!user) {
+    return { success: false, error: "Not authenticated", suggestion: null };
+  }
+
+  const { data: suggestion, error } = await supabase
+    .from("watering_schedule_suggestions")
+    .select("*")
+    .eq("plant_id", plantId)
+    .eq("user_id", user.id)
+    .is("dismissed_at", null)
+    .is("accepted_at", null)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Error fetching suggestion:", error);
+    return { success: false, error: error.message, suggestion: null };
+  }
+
+  return { success: true, suggestion };
 }

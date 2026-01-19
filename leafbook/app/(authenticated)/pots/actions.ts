@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { del } from "@vercel/blob";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getCurrentUserId } from "@/lib/supabase/server";
 
 export interface PotData {
   name: string;
@@ -16,9 +16,9 @@ export interface PotData {
 
 export async function createPot(data: PotData) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const userId = await getCurrentUserId();
 
-  if (!user) {
+  if (!userId) {
     redirect("/auth/login");
   }
 
@@ -29,7 +29,7 @@ export async function createPot(data: PotData) {
   const { data: pot, error } = await supabase
     .from("user_pots")
     .insert({
-      user_id: user.id,
+      user_id: userId,
       name: data.name.trim(),
       size_inches: data.size_inches,
       material: data.material?.trim() || null,
@@ -51,9 +51,9 @@ export async function createPot(data: PotData) {
 
 export async function updatePot(potId: string, data: Partial<PotData>) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const userId = await getCurrentUserId();
 
-  if (!user) {
+  if (!userId) {
     redirect("/auth/login");
   }
 
@@ -62,7 +62,7 @@ export async function updatePot(potId: string, data: Partial<PotData>) {
     .from("user_pots")
     .select("id")
     .eq("id", potId)
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .single();
 
   if (potError || !pot) {
@@ -99,9 +99,9 @@ export async function updatePot(potId: string, data: Partial<PotData>) {
 
 export async function retirePot(potId: string) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const userId = await getCurrentUserId();
 
-  if (!user) {
+  if (!userId) {
     redirect("/auth/login");
   }
 
@@ -109,7 +109,7 @@ export async function retirePot(potId: string) {
     .from("user_pots")
     .update({ is_retired: true })
     .eq("id", potId)
-    .eq("user_id", user.id);
+    .eq("user_id", userId);
 
   if (error) {
     console.error("Error retiring pot:", error);
@@ -122,9 +122,9 @@ export async function retirePot(potId: string) {
 
 export async function unretirePot(potId: string) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const userId = await getCurrentUserId();
 
-  if (!user) {
+  if (!userId) {
     redirect("/auth/login");
   }
 
@@ -132,7 +132,7 @@ export async function unretirePot(potId: string) {
     .from("user_pots")
     .update({ is_retired: false })
     .eq("id", potId)
-    .eq("user_id", user.id);
+    .eq("user_id", userId);
 
   if (error) {
     console.error("Error unretiring pot:", error);
@@ -145,9 +145,9 @@ export async function unretirePot(potId: string) {
 
 export async function deletePot(potId: string) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const userId = await getCurrentUserId();
 
-  if (!user) {
+  if (!userId) {
     redirect("/auth/login");
   }
 
@@ -156,7 +156,7 @@ export async function deletePot(potId: string) {
     .from("user_pots")
     .select("id, photo_url")
     .eq("id", potId)
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .single();
 
   if (potError || !pot) {
@@ -189,9 +189,9 @@ export async function deletePot(potId: string) {
 
 export async function setPotPhoto(potId: string, photoUrl: string | null) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const userId = await getCurrentUserId();
 
-  if (!user) {
+  if (!userId) {
     redirect("/auth/login");
   }
 
@@ -200,7 +200,7 @@ export async function setPotPhoto(potId: string, photoUrl: string | null) {
     .from("user_pots")
     .select("id, photo_url")
     .eq("id", potId)
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .single();
 
   if (potError || !pot) {
@@ -232,16 +232,16 @@ export async function setPotPhoto(potId: string, photoUrl: string | null) {
 
 export async function getUserPots(includeRetired = false) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const userId = await getCurrentUserId();
 
-  if (!user) {
+  if (!userId) {
     redirect("/auth/login");
   }
 
   let query = supabase
     .from("user_pots")
     .select("*")
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .order("created_at", { ascending: false });
 
   if (!includeRetired) {
@@ -285,9 +285,9 @@ export interface PotWithUsage {
  */
 export async function getPotsWithUsage(includeRetired = true): Promise<PotWithUsage[]> {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const userId = await getCurrentUserId();
 
-  if (!user) {
+  if (!userId) {
     redirect("/auth/login");
   }
 
@@ -295,7 +295,7 @@ export async function getPotsWithUsage(includeRetired = true): Promise<PotWithUs
   let potsQuery = supabase
     .from("user_pots")
     .select("*")
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .order("is_retired", { ascending: true })
     .order("size_inches", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: false });
@@ -319,7 +319,7 @@ export async function getPotsWithUsage(includeRetired = true): Promise<PotWithUs
   const { data: activePlants } = await supabase
     .from("plants")
     .select("id, name, current_pot_id")
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .eq("is_active", true)
     .not("current_pot_id", "is", null);
 

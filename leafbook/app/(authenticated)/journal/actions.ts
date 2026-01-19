@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getCurrentUserId } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
 export interface JournalEntryWithPlant {
@@ -26,9 +26,9 @@ export async function getJournalEntries(options?: {
   limit?: number;
 }): Promise<{ entries: JournalEntryWithPlant[]; error: string | null }> {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const userId = await getCurrentUserId();
 
-  if (!user) {
+  if (!userId) {
     redirect("/auth/login");
   }
 
@@ -51,7 +51,7 @@ export async function getJournalEntries(options?: {
         )
       )
     `)
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .order("entry_date", { ascending: false });
 
   if (options?.plantId) {
@@ -100,16 +100,16 @@ export async function getUserPlants(): Promise<{
   error: string | null;
 }> {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const userId = await getCurrentUserId();
 
-  if (!user) {
+  if (!userId) {
     redirect("/auth/login");
   }
 
   const { data, error } = await supabase
     .from("plants")
     .select("id, name")
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .eq("is_active", true)
     .order("name");
 
@@ -153,9 +153,9 @@ export async function getPlantIssues(options?: {
   limit?: number;
 }): Promise<{ issues: PlantIssueWithPlant[]; error: string | null }> {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const userId = await getCurrentUserId();
 
-  if (!user) {
+  if (!userId) {
     redirect("/auth/login");
   }
 
@@ -182,7 +182,7 @@ export async function getPlantIssues(options?: {
         )
       )
     `)
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .order("started_at", { ascending: false });
 
   if (options?.plantId) {

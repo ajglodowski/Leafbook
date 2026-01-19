@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getCurrentUserId } from "@/lib/supabase/server";
 import {
   fetchEntity,
   fetchTaxonomyLineage,
@@ -38,18 +38,16 @@ export async function POST(request: Request) {
   try {
     // Verify admin role
     const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const userId = await getCurrentUserId();
 
-    if (!user) {
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { data: profile } = await supabase
       .from("profiles")
       .select("role")
-      .eq("id", user.id)
+      .eq("id", userId)
       .single();
 
     if (profile?.role !== "admin") {
@@ -152,7 +150,7 @@ export async function POST(request: Request) {
       wikipedia_title: entity.wikipediaTitle,
       wikipedia_lang: wikipediaLang,
       enriched_at: new Date().toISOString(),
-      enriched_by: user.id,
+      enriched_by: userId,
       taxon_id: linkedTaxon?.id || null,
       external_raw: {
         wikidata: entity,

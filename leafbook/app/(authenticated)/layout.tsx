@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/app-shell";
+import { getCurrentUserId } from "@/lib/supabase/server";
 
 // Force dynamic rendering for all authenticated routes
 export const dynamic = "force-dynamic";
@@ -11,9 +12,9 @@ export default async function AuthenticatedLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createClient();
-  const { data, error } = await supabase.auth.getUser();
+  const userId = await getCurrentUserId();
 
-  if (error || !data?.user) {
+  if (!userId) {
     redirect("/auth/login");
   }
 
@@ -21,7 +22,7 @@ export default async function AuthenticatedLayout({
   const { data: profile } = await supabase
     .from("profiles")
     .select("role")
-    .eq("id", data.user.id)
+    .eq("id", userId)
     .single();
 
   const isAdmin = profile?.role === "admin";

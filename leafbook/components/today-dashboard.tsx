@@ -13,13 +13,24 @@ import {
   PenLine,
   Camera,
   Sprout,
+  Clock,
 } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CareButton } from "@/app/(authenticated)/today/care-button";
+import { ScheduleSuggestionBanner } from "@/components/schedule-suggestion-banner";
+import {
+  getActiveIssueCountForUser,
+  getDueTasksForUser,
+  getPlantCountForUser,
+  getPlantsForSpotlight,
+  getProfileForUser,
+  getRecentJournalEntriesForUser,
+  getScheduleSuggestionsForUser,
+  getWishlistCountForUser,
+} from "@/app/(authenticated)/today/actions";
 
 type TaskStatus = "overdue" | "due_soon" | "not_started" | "ok";
 
@@ -30,9 +41,15 @@ interface PlantTask {
   watering_status: TaskStatus;
   watering_frequency_days: number;
   last_watered_at: string | null;
+  water_due_at: string | null;
   fertilizing_status: TaskStatus;
   fertilizing_frequency_days: number;
   last_fertilized_at: string | null;
+  fertilize_due_at: string | null;
+}
+
+interface UpcomingTask extends PlantTask {
+  days_until_water: number;
 }
 
 interface SpotlightPlant {
@@ -109,8 +126,7 @@ export async function TodayDashboard({ userId }: { userId: string }) {
   if (!userId) {
     return null;
   }
-
-  const supabase = await createClient();
+  const start = Date.now();
 
   // Fetch all data in parallel
   const [
@@ -121,56 +137,33 @@ export async function TodayDashboard({ userId }: { userId: string }) {
     { data: journalEntries },
     { data: plantsForSpotlight },
     { count: activeIssueCount },
+    { data: scheduleSuggestions },
   ] = await Promise.all([
-    // Profile for greeting
-    supabase.from("profiles").select("display_name").eq("id", userId).single(),
-    // Due tasks
-    supabase.from("v_plant_due_tasks").select("*").eq("user_id", userId),
-    // Plant count
-    supabase.from("plants").select("*", { count: "exact", head: true }).eq("user_id", userId).eq("is_active", true),
-    // Wishlist count
-    supabase.from("wishlist_items").select("*", { count: "exact", head: true }).eq("user_id", userId),
-    // Recent journal entries
-    supabase
-      .from("journal_entries")
-      .select(`
-        id,
-        title,
-        content,
-        entry_date,
-        plant_id,
-        plants!inner (name)
-      `)
-      .eq("user_id", userId)
-      .order("entry_date", { ascending: false })
-      .limit(3),
-    // Plants for spotlight (with photos)
-    supabase
-      .from("plants")
-      .select(`
-        id,
-        name,
-        nickname,
-        description,
-        how_acquired,
-        active_photo_id,
-        plant_types (name),
-        plant_photos (url)
-      `)
-      .eq("user_id", userId)
-      .eq("is_active", true)
-      .limit(10),
-    // Active issues count
-    supabase
-      .from("plant_issues")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .eq("status", "active"),
+    getProfileForUser(userId),
+    getDueTasksForUser(userId),
+    getPlantCountForUser(userId),
+    getWishlistCountForUser(userId),
+    getRecentJournalEntriesForUser(userId),
+    getPlantsForSpotlight(userId),
+    getActiveIssueCountForUser(userId),
+    getScheduleSuggestionsForUser(userId),
   ]);
-
   if (dueTasksError) {
     console.error("Error fetching due tasks:", dueTasksError);
   }
+
+  // Transform schedule suggestions for the banner
+  const transformedSuggestions = (scheduleSuggestions || []).map((s) => {
+    const plant = Array.isArray(s.plants) ? s.plants[0] : s.plants;
+    return {
+      id: s.id,
+      plant_id: s.plant_id,
+      plant_name: plant?.name || "Unknown",
+      suggested_interval_days: s.suggested_interval_days,
+      current_interval_days: s.current_interval_days,
+      confidence_score: s.confidence_score,
+    };
+  });
 
   // Pick a random plant for spotlight
   const spotlightPlant: SpotlightPlant | null = plantsForSpotlight && plantsForSpotlight.length > 0
@@ -205,6 +198,14 @@ export async function TodayDashboard({ userId }: { userId: string }) {
     };
   });
 
+  // Helper to calculate days until due
+  function getDaysUntilDue(dueDate: string | null): number {
+    if (!dueDate) return Infinity;
+    const due = new Date(dueDate);
+    const now = new Date();
+    return Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  }
+
   // Separate tasks into categories
   const needsWater = dueTasks?.filter(
     (t: PlantTask) =>
@@ -216,6 +217,16 @@ export async function TodayDashboard({ userId }: { userId: string }) {
   const needsFertilizer = dueTasks?.filter(
     (t: PlantTask) => t.fertilizing_status === "overdue" || t.fertilizing_status === "due_soon"
   ) || [];
+
+  // Calculate upcoming waterings (status is "ok" but due within 7 days)
+  const upcomingWater: UpcomingTask[] = (dueTasks?.filter((t: PlantTask) => {
+    if (t.watering_status !== "ok" || !t.water_due_at) return false;
+    const daysUntil = getDaysUntilDue(t.water_due_at);
+    return daysUntil > 0 && daysUntil <= 7;
+  }) || []).map((t: PlantTask) => ({
+    ...t,
+    days_until_water: getDaysUntilDue(t.water_due_at),
+  })).sort((a, b) => a.days_until_water - b.days_until_water);
 
   const allCaughtUp = needsWater.length === 0 && needsFertilizer.length === 0;
   const hasPlants = plantCount !== null && plantCount > 0;
@@ -269,6 +280,11 @@ export async function TodayDashboard({ userId }: { userId: string }) {
           </div>
         )}
       </div>
+
+      {/* Schedule Suggestions Banner */}
+      {transformedSuggestions.length > 0 && (
+        <ScheduleSuggestionBanner suggestions={transformedSuggestions} />
+      )}
 
       {/* Care Tasks Section */}
       {totalCareTasks > 0 && (
@@ -377,6 +393,56 @@ export async function TodayDashboard({ userId }: { userId: string }) {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Coming Up This Week Section */}
+      {upcomingWater.length > 0 && (
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="flex items-center gap-2 font-serif text-xl font-semibold">
+              <Clock className="h-5 w-5 text-blue-500" />
+              Coming Up This Week
+            </h2>
+            <Badge variant="secondary" className="gap-1">
+              <Droplets className="h-3 w-3" />
+              {upcomingWater.length} upcoming
+            </Badge>
+          </div>
+
+          <div className="space-y-2">
+            <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Droplets className="h-4 w-4 text-blue-400" />
+              Water soon
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {upcomingWater.slice(0, 6).map((task) => (
+                <Card key={`upcoming-${task.plant_id}`} size="sm" className="group border-blue-200/50 dark:border-blue-800/50 bg-blue-50/30 dark:bg-blue-950/20">
+                  <CardContent className="flex items-center justify-between gap-2 py-3">
+                    <div className="min-w-0 flex-1">
+                      <Link 
+                        href={`/plants/${task.plant_id}`} 
+                        className="font-medium truncate block hover:text-primary transition-colors"
+                      >
+                        {task.plant_name}
+                      </Link>
+                      <p className="text-xs text-muted-foreground">
+                        {task.days_until_water === 1 
+                          ? "Water tomorrow"
+                          : `Water in ${task.days_until_water} days`}
+                      </p>
+                    </div>
+                    <CareButton plantId={task.plant_id!} eventType="watered" variant="water" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+            {upcomingWater.length > 6 && (
+              <p className="text-sm text-muted-foreground">
+                +{upcomingWater.length - 6} more plants need water this week
+              </p>
+            )}
+          </div>
+        </section>
       )}
 
       {/* Spotlight & Quick Actions Row */}

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { Shield, Library, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getCurrentUserId } from "@/lib/supabase/server";
 
 export default async function AdminLayout({
   children,
@@ -10,9 +11,9 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const userId = await getCurrentUserId();
 
-  if (!user) {
+  if (!userId) {
     redirect("/auth/login");
   }
 
@@ -20,7 +21,7 @@ export default async function AdminLayout({
   const { data: profile, error } = await supabase
     .from("profiles")
     .select("role")
-    .eq("id", user.id)
+    .eq("id", userId)
     .single();
 
   if (error || profile?.role !== "admin") {

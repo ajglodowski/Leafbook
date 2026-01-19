@@ -2,13 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getCurrentUserId } from "@/lib/supabase/server";
 
 export async function removeFromWishlist(wishlistItemId: string) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const userId = await getCurrentUserId();
 
-  if (!user) {
+  if (!userId) {
     redirect("/auth/login");
   }
 
@@ -16,7 +16,7 @@ export async function removeFromWishlist(wishlistItemId: string) {
     .from("wishlist_items")
     .delete()
     .eq("id", wishlistItemId)
-    .eq("user_id", user.id);
+    .eq("user_id", userId);
 
   if (error) {
     console.error("Error removing from wishlist:", error);
@@ -33,9 +33,9 @@ export async function convertWishlistToPlant(
   plantName: string
 ) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const userId = await getCurrentUserId();
 
-  if (!user) {
+  if (!userId) {
     redirect("/auth/login");
   }
 
@@ -43,7 +43,7 @@ export async function convertWishlistToPlant(
   const { data: plant, error: plantError } = await supabase
     .from("plants")
     .insert({
-      user_id: user.id,
+      user_id: userId,
       plant_type_id: plantTypeId,
       name: plantName,
       plant_location: "indoor",
@@ -61,7 +61,7 @@ export async function convertWishlistToPlant(
     .from("wishlist_items")
     .delete()
     .eq("id", wishlistItemId)
-    .eq("user_id", user.id);
+    .eq("user_id", userId);
 
   if (deleteError) {
     console.error("Error removing wishlist item:", deleteError);

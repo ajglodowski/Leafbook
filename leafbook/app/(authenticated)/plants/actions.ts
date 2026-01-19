@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getCurrentUserId } from "@/lib/supabase/server";
 
 // ============================================================================
 // Journal Entry Helpers for Acquisition
@@ -63,9 +63,9 @@ function buildAcquisitionJournalContent(details: AcquisitionDetails): string {
 
 export async function createPlant(formData: FormData) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const userId = await getCurrentUserId();
 
-  if (!user) {
+  if (!userId) {
     redirect("/auth/login");
   }
 
@@ -93,7 +93,7 @@ export async function createPlant(formData: FormData) {
   const { data: plant, error } = await supabase
     .from("plants")
     .insert({
-      user_id: user.id,
+      user_id: userId,
       name: name.trim(),
       nickname: nickname?.trim() || null,
       plant_type_id: plantTypeId,
@@ -126,7 +126,7 @@ export async function createPlant(formData: FormData) {
 
   const { error: journalError } = await supabase.from("journal_entries").insert({
     plant_id: plant.id,
-    user_id: user.id,
+    user_id: userId,
     title: ACQUISITION_JOURNAL_TITLE,
     content: journalContent,
     entry_date: acquiredAt ? new Date(acquiredAt).toISOString() : now,
@@ -144,14 +144,130 @@ export async function createPlant(formData: FormData) {
   return { success: true, plantId: plant.id };
 }
 
+export type PlantWithTypes = {
+  id: string;
+  name: string;
+  nickname: string | null;
+  plant_location: "indoor" | "outdoor" | null;
+  location: string | null;
+  is_active: boolean;
+  created_at: string;
+  plant_type_id: string | null;
+  active_photo_id: string | null;
+  plant_types:
+    | {
+        id: string;
+        name: string;
+        scientific_name: string | null;
+      }[]
+    | null;
+};
+
+export type PlantTypeSummary = {
+  id: string;
+  name: string;
+  scientific_name: string | null;
+};
+
+export type PlantDueTask = {
+  plant_id: string;
+  watering_status: string | null;
+  fertilizing_status: string | null;
+};
+
+export type PlantPhoto = {
+  id: string;
+  plant_id: string;
+  url: string;
+};
+
+interface FetchResult<T> {
+  data: T[];
+  error?: string | null;
+}
+
+export async function getCurrentUser() {
+  const userId = await getCurrentUserId();
+
+  if (!userId) {
+    redirect("/auth/login");
+  }
+
+  return { id: userId };
+}
+
+export async function getPlantsForUser(userId: string): Promise<FetchResult<PlantWithTypes>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("plants")
+    .select(`
+      id,
+      name,
+      nickname,
+      plant_location,
+      location,
+      is_active,
+      created_at,
+      plant_type_id,
+      active_photo_id,
+      plant_types (
+        id,
+        name,
+        scientific_name
+      )
+    `)
+    .eq("user_id", userId)
+    .eq("is_active", true)
+    .order("created_at", { ascending: false });
+
+  return { data: data || [], error: error?.message };
+}
+
+export async function getPlantTypes(): Promise<FetchResult<PlantTypeSummary>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("plant_types")
+    .select("id, name, scientific_name")
+    .order("name", { ascending: true });
+
+  return { data: data || [], error: error?.message };
+}
+
+export async function getDueTasksForUser(userId: string): Promise<FetchResult<PlantDueTask>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("v_plant_due_tasks")
+    .select("plant_id, watering_status, fertilizing_status")
+    .eq("user_id", userId);
+
+  return { data: data || [], error: error?.message };
+}
+
+export async function getPlantPhotosForPlants(
+  plantIds: string[]
+): Promise<FetchResult<PlantPhoto>> {
+  if (plantIds.length === 0) {
+    return { data: [] };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("plant_photos")
+    .select("id, plant_id, url")
+    .in("plant_id", plantIds)
+    .order("taken_at", { ascending: false });
+
+  return { data: data || [], error: error?.message };
+}
+
 export async function logCareEvent(
   plantId: string, 
   eventType: "watered" | "fertilized" | "repotted"
 ) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const userId = await getCurrentUserId();
 
-  if (!user) {
+  if (!userId) {
     redirect("/auth/login");
   }
 
@@ -159,7 +275,7 @@ export async function logCareEvent(
     .from("plant_events")
     .insert({
       plant_id: plantId,
-      user_id: user.id,
+      user_id: userId,
       event_type: eventType,
       event_date: new Date().toISOString(),
     });

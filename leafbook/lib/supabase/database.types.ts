@@ -670,6 +670,74 @@ export type Database = {
           },
         ]
       }
+      watering_schedule_suggestions: {
+        Row: {
+          id: string
+          plant_id: string
+          user_id: string
+          suggested_interval_days: number
+          current_interval_days: number
+          confidence_score: number | null
+          detected_at: string
+          dismissed_at: string | null
+          accepted_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          plant_id: string
+          user_id: string
+          suggested_interval_days: number
+          current_interval_days: number
+          confidence_score?: number | null
+          detected_at?: string
+          dismissed_at?: string | null
+          accepted_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          plant_id?: string
+          user_id?: string
+          suggested_interval_days?: number
+          current_interval_days?: number
+          confidence_score?: number | null
+          detected_at?: string
+          dismissed_at?: string | null
+          accepted_at?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "watering_schedule_suggestions_plant_id_fkey"
+            columns: ["plant_id"]
+            isOneToOne: false
+            referencedRelation: "plants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "watering_schedule_suggestions_plant_id_fkey"
+            columns: ["plant_id"]
+            isOneToOne: false
+            referencedRelation: "v_plant_due_tasks"
+            referencedColumns: ["plant_id"]
+          },
+          {
+            foreignKeyName: "watering_schedule_suggestions_plant_id_fkey"
+            columns: ["plant_id"]
+            isOneToOne: false
+            referencedRelation: "v_plant_effective_care"
+            referencedColumns: ["plant_id"]
+          },
+          {
+            foreignKeyName: "watering_schedule_suggestions_plant_id_fkey"
+            columns: ["plant_id"]
+            isOneToOne: false
+            referencedRelation: "v_plant_last_actions"
+            referencedColumns: ["plant_id"]
+          },
+        ]
+      }
     }
     Views: {
       v_plant_due_tasks: {

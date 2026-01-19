@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Heart, Leaf, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { EmptyState } from "@/components/empty-state";
@@ -6,10 +7,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { WishlistItemActions } from "./wishlist-item-actions";
+import { getCurrentUserId } from "@/lib/supabase/server";
 
 export default async function WishlistPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const userId = await getCurrentUserId();
+
+  if (!userId) {
+    redirect("/auth/login");
+  }
 
   // Fetch wishlist items with plant type info
   const { data: wishlistItems, error } = await supabase
@@ -28,7 +34,7 @@ export default async function WishlistPage() {
         description
       )
     `)
-    .eq("user_id", user!.id)
+    .eq("user_id", userId)
     .order("created_at", { ascending: false });
 
   if (error) {

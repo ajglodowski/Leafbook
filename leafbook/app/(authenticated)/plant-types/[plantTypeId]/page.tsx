@@ -1,8 +1,8 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowLeft, Droplets, Sun, Ruler, Sparkles, Leaf, Home, TreePine, Combine } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getCurrentUserId } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -82,11 +82,15 @@ export default async function PlantTypeDetailPage({
   const galleryPhotos = photos?.filter((p) => p.id !== primaryPhoto?.id) || [];
 
   // Check if user has this in their wishlist
-  const { data: { user } } = await supabase.auth.getUser();
+  const userId = await getCurrentUserId();
+
+  if (!userId) {
+    redirect("/auth/login");
+  }
   const { data: wishlistItem } = await supabase
     .from("wishlist_items")
     .select("id")
-    .eq("user_id", user!.id)
+    .eq("user_id", userId)
     .eq("plant_type_id", plantTypeId)
     .single();
 
@@ -96,7 +100,7 @@ export default async function PlantTypeDetailPage({
   const { data: existingPlants } = await supabase
     .from("plants")
     .select("id, name")
-    .eq("user_id", user!.id)
+    .eq("user_id", userId)
     .eq("plant_type_id", plantTypeId)
     .eq("is_active", true);
 

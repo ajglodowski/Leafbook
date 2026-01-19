@@ -1,51 +1,29 @@
-import Link from "next/link";
-import Image from "next/image";
-import { Leaf, Plus, Home, TreePine, MapPin, Droplets, Sparkles } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
 import { EmptyState } from "@/components/empty-state";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Droplets, Home, Leaf, MapPin, Sparkles, TreePine } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import {
+  getCurrentUser,
+  getDueTasksForUser,
+  getPlantPhotosForPlants,
+  getPlantsForUser,
+  getPlantTypes,
+} from "./actions";
 import { AddPlantDialog } from "./add-plant-dialog";
 
 export default async function PlantsPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  // Fetch user's plants with plant type info and due task info
-  const { data: plants, error } = await supabase
-    .from("plants")
-    .select(`
-      id,
-      name,
-      nickname,
-      plant_location,
-      location,
-      is_active,
-      created_at,
-      plant_type_id,
-      active_photo_id,
-      plant_types (
-        id,
-        name,
-        scientific_name
-      )
-    `)
-    .eq("user_id", user!.id)
-    .eq("is_active", true)
-    .order("created_at", { ascending: false });
-
-  // Fetch all plant types for the add dialog
-  const { data: plantTypes } = await supabase
-    .from("plant_types")
-    .select("id, name, scientific_name")
-    .order("name", { ascending: true });
-
-  // Fetch due task statuses
-  const { data: dueTasks } = await supabase
-    .from("v_plant_due_tasks")
-    .select("plant_id, watering_status, fertilizing_status")
-    .eq("user_id", user!.id);
+  const user = await getCurrentUser();
+  const [plantsResult, plantTypesResult, dueTasksResult] = await Promise.all([
+    getPlantsForUser(user.id),
+    getPlantTypes(),
+    getDueTasksForUser(user.id),
+  ]);
+  const plants = plantsResult.data;
+  const plantTypes = plantTypesResult.data;
+  const dueTasks = dueTasksResult.data;
 
   // Create a map for quick lookup
   const dueTaskMap = new Map(
@@ -54,13 +32,7 @@ export default async function PlantsPage() {
 
   // Fetch all photos for the user's plants (for thumbnails)
   const plantIds = plants?.map(p => p.id) || [];
-  const { data: allPhotos } = plantIds.length > 0 
-    ? await supabase
-        .from("plant_photos")
-        .select("id, plant_id, url")
-        .in("plant_id", plantIds)
-        .order("taken_at", { ascending: false })
-    : { data: [] };
+  const { data: allPhotos } = await getPlantPhotosForPlants(plantIds);
 
   // Build a map of plant_id -> photos (ordered by taken_at desc)
   const photosByPlant = new Map<string, { id: string; url: string }[]>();
@@ -85,12 +57,11 @@ export default async function PlantsPage() {
     return photos[0].url;
   }
 
-  if (error) {
-    console.error("Error fetching plants:", error);
+  if (plantsResult.error) {
+    console.error("Error fetching plants:", plantsResult.error);
   }
 
   const hasPlants = plants && plants.length > 0;
-
   return (
     <div className="space-y-8">
       {/* Page header */}

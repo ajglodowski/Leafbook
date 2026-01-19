@@ -1,6 +1,6 @@
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getCurrentUserId } from "@/lib/supabase/server";
 
 export async function POST(request: Request): Promise<NextResponse> {
   const body = (await request.json()) as HandleUploadBody;
@@ -12,11 +12,9 @@ export async function POST(request: Request): Promise<NextResponse> {
       onBeforeGenerateToken: async (pathname, clientPayload) => {
         // Validate Supabase session and admin role
         const supabase = await createClient();
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+        const userId = await getCurrentUserId();
 
-        if (!user) {
+        if (!userId) {
           throw new Error("Unauthorized: Not logged in");
         }
 
@@ -24,7 +22,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
           .select("role")
-          .eq("id", user.id)
+          .eq("id", userId)
           .single();
 
         if (profileError || profile?.role !== "admin") {
