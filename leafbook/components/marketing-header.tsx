@@ -13,15 +13,21 @@ export function MarketingHeader() {
           <span>Leafbook</span>
         </Link>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" render={<Link href="/about" />}>
-            About
-          </Button>
-          <Button variant="ghost" size="sm" render={<Link href="/auth/login" />}>
-            Sign in
-          </Button>
-          <Button size="sm" render={<Link href="/auth/sign-up" />}>
-            Get started
-          </Button>
+          <Link href="/about">
+            <Button variant="ghost" size="sm">
+              About
+            </Button>
+          </Link>
+          <Link href="/auth/login">
+            <Button variant="ghost" size="sm">
+              Sign in
+            </Button>
+          </Link>
+          <Link href="/auth/sign-up">
+            <Button size="sm">
+              Get started
+            </Button>
+          </Link>
         </div>
       </div>
     </header>

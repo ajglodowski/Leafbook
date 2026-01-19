@@ -67,10 +67,12 @@ export default async function AdminPlantTypesPage() {
               : "Manage the plant catalog"}
           </p>
         </div>
-        <Button render={<Link href="/admin/plant-types/new" />} className="gap-1">
-          <Plus className="h-4 w-4" />
-          Add plant type
-        </Button>
+        <Link href="/admin/plant-types/new">
+          <Button className="gap-1">
+            <Plus className="h-4 w-4" />
+            Add plant type
+          </Button>
+        </Link>
       </div>
 
       {/* Plant types list */}
@@ -138,14 +140,15 @@ export default async function AdminPlantTypesPage() {
 
                 {/* Actions */}
                 <div className="flex items-center gap-1">
-                  <Button 
-                    variant="ghost" 
-                    size="icon-sm"
-                    render={<Link href={`/admin/plant-types/${plantType.id}`} />}
-                    title="Edit"
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
+                  <Link href={`/admin/plant-types/${plantType.id}`}>
+                    <Button 
+                      variant="ghost" 
+                      size="icon-sm"
+                      title="Edit"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  </Link>
                   <DeletePlantTypeButton 
                     plantTypeId={plantType.id} 
                     plantTypeName={plantType.name} 
@@ -161,10 +164,12 @@ export default async function AdminPlantTypesPage() {
           title="No plant types yet"
           description="Start building your catalog by adding plant types with care recommendations."
         >
-          <Button render={<Link href="/admin/plant-types/new" />} className="gap-1">
-            <Plus className="h-4 w-4" />
-            Add first plant type
-          </Button>
+          <Link href="/admin/plant-types/new">
+            <Button className="gap-1">
+              <Plus className="h-4 w-4" />
+              Add first plant type
+            </Button>
+          </Link>
         </EmptyState>
       )}
     </div>

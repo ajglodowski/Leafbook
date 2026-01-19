@@ -116,9 +116,11 @@ export default function AboutPage() {
                     Join plant lovers who've discovered a kinder way to care.
                   </p>
                 </div>
-                <Button size="lg" className="mt-2" render={<Link href="/auth/sign-up" />}>
-                  Create your journal
-                </Button>
+                <Link href="/auth/sign-up">
+                  <Button size="lg" className="mt-2">
+                    Create your journal
+                  </Button>
+                </Link>
               </div>
             </div>
           </div>

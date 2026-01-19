@@ -109,10 +109,12 @@ export default async function PlantTypeDetailPage({
   return (
     <div className="space-y-8">
       {/* Back link */}
-      <Button variant="ghost" size="sm" className="gap-1 -ml-2" render={<Link href="/plant-types" />}>
-        <ArrowLeft className="h-4 w-4" />
-        Back to catalog
-      </Button>
+      <Link href="/plant-types">
+        <Button variant="ghost" size="sm" className="gap-1 -ml-2">
+          <ArrowLeft className="h-4 w-4" />
+          Back to catalog
+        </Button>
+      </Link>
 
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -198,9 +200,11 @@ export default async function PlantTypeDetailPage({
                 You have {existingPlants.length} {plantType.name}{existingPlants.length > 1 ? "s" : ""} in your collection.
               </p>
             </div>
-            <Button variant="outline" size="sm" className="ml-auto" render={<Link href="/plants" />}>
-              View plants
-            </Button>
+            <Link href="/plants">
+              <Button variant="outline" size="sm" className="ml-auto">
+                View plants
+              </Button>
+            </Link>
           </CardContent>
         </Card>
       )}

@@ -491,13 +491,17 @@ export async function TodayDashboard({ userId }: { userId: string }) {
                   </div>
                 </div>
                 <div className="flex gap-2 pt-1">
-                  <Button size="sm" variant="outline" render={<Link href={`/plants/${spotlightPlant.id}`} />}>
-                    View
-                  </Button>
-                  <Button size="sm" variant="ghost" render={<Link href={`/plants/${spotlightPlant.id}#journal`} />}>
-                    <PenLine className="mr-1.5 h-3.5 w-3.5" />
-                    Write
-                  </Button>
+                  <Link href={`/plants/${spotlightPlant.id}`}>
+                    <Button size="sm" variant="outline">
+                      View
+                    </Button>
+                  </Link>
+                  <Link href={`/plants/${spotlightPlant.id}#journal`}>
+                    <Button size="sm" variant="ghost">
+                      <PenLine className="mr-1.5 h-3.5 w-3.5" />
+                      Write
+                    </Button>
+                  </Link>
                 </div>
               </CardContent>
             </Card>
@@ -512,22 +516,30 @@ export async function TodayDashboard({ userId }: { userId: string }) {
               </CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-2">
-              <Button variant="outline" className="h-auto flex-col gap-1 py-3" render={<Link href="/plants?new=true" />}>
-                <Plus className="h-5 w-5" />
-                <span className="text-xs">Add Plant</span>
-              </Button>
-              <Button variant="outline" className="h-auto flex-col gap-1 py-3" render={<Link href="/plant-types" />}>
-                <Compass className="h-5 w-5" />
-                <span className="text-xs">Browse Catalog</span>
-              </Button>
-              <Button variant="outline" className="h-auto flex-col gap-1 py-3" render={<Link href="/journal" />}>
-                <BookOpen className="h-5 w-5" />
-                <span className="text-xs">Journal</span>
-              </Button>
-              <Button variant="outline" className="h-auto flex-col gap-1 py-3" render={<Link href="/wishlist" />}>
-                <Heart className="h-5 w-5" />
-                <span className="text-xs">Wishlist</span>
-              </Button>
+              <Link href="/plants?new=true">
+                <Button variant="outline" className="h-auto flex-col gap-1 py-3">
+                  <Plus className="h-5 w-5" />
+                  <span className="text-xs">Add Plant</span>
+                </Button>
+              </Link>
+              <Link href="/plant-types">
+                <Button variant="outline" className="h-auto flex-col gap-1 py-3">
+                  <Compass className="h-5 w-5" />
+                  <span className="text-xs">Browse Catalog</span>
+                </Button>
+              </Link>
+              <Link href="/journal">
+                <Button variant="outline" className="h-auto flex-col gap-1 py-3">
+                  <BookOpen className="h-5 w-5" />
+                  <span className="text-xs">Journal</span>
+                </Button>
+              </Link>
+              <Link href="/wishlist">
+                <Button variant="outline" className="h-auto flex-col gap-1 py-3">
+                  <Heart className="h-5 w-5" />
+                  <span className="text-xs">Wishlist</span>
+                </Button>
+              </Link>
             </CardContent>
           </Card>
         </div>
@@ -541,9 +553,11 @@ export async function TodayDashboard({ userId }: { userId: string }) {
               <BookOpen className="h-5 w-5 text-primary" />
               Recent Journal Entries
             </h2>
-            <Button variant="ghost" size="sm" render={<Link href="/journal" />}>
-              View all
-            </Button>
+            <Link href="/journal">
+              <Button variant="ghost" size="sm">
+                View all
+              </Button>
+            </Link>
           </div>
 
           <div className="space-y-3">
@@ -569,14 +583,15 @@ export async function TodayDashboard({ userId }: { userId: string }) {
                         {entry.content}
                       </p>
                     </div>
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                      render={<Link href={`/plants/${entry.plant_id}`} />}
-                    >
-                      View
-                    </Button>
+                    <Link href={`/plants/${entry.plant_id}`}>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        View
+                      </Button>
+                    </Link>
                   </div>
                 </CardContent>
               </Card>
@@ -593,14 +608,18 @@ export async function TodayDashboard({ userId }: { userId: string }) {
           description="Add your first plant to start your collection. Track care with one tap, write journal entries, and build a story for every leaf."
         >
           <div className="flex flex-col gap-2 sm:flex-row">
-            <Button render={<Link href="/plants" />}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add your first plant
-            </Button>
-            <Button variant="outline" render={<Link href="/plant-types" />}>
-              <Compass className="mr-2 h-4 w-4" />
-              Browse catalog
-            </Button>
+            <Link href="/plants">
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Add your first plant
+              </Button>
+            </Link>
+            <Link href="/plant-types">
+              <Button variant="outline">
+                <Compass className="mr-2 h-4 w-4" />
+                Browse catalog
+              </Button>
+            </Link>
           </div>
         </EmptyState>
       )}

@@ -54,9 +54,11 @@ export default async function WishlistPage() {
           </p>
         </div>
         {hasItems && (
-          <Button variant="outline" render={<Link href="/plant-types" />}>
-            Browse more
-          </Button>
+          <Link href="/plant-types">
+            <Button variant="outline">
+              Browse more
+            </Button>
+          </Link>
         )}
       </div>
 
@@ -119,9 +121,11 @@ export default async function WishlistPage() {
           title="Your wishlist is empty"
           description="Browse the catalog and save plants you'd like to get someday. When you bring one home, convert it to your collection with one tap!"
         >
-          <Button render={<Link href="/plant-types" />}>
-            Browse catalog
-          </Button>
+          <Link href="/plant-types">
+            <Button>
+              Browse catalog
+            </Button>
+          </Link>
         </EmptyState>
       )}
     </div>

@@ -62,19 +62,19 @@ export function AppShell({ children, isAdmin = false }: { children: React.ReactN
             {navItems.map((item) => {
               const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
               return (
-                <Button
-                  key={item.href}
-                  variant={isActive ? "secondary" : "ghost"}
-                  size="sm"
-                  className={cn(
-                    "gap-1.5",
-                    isActive && "bg-primary/10 text-primary hover:bg-primary/15"
-                  )}
-                  render={<Link href={item.href} />}
-                >
-                  <item.icon className="h-4 w-4" />
-                  <span className="hidden md:inline">{item.label}</span>
-                </Button>
+                <Link key={item.href} href={item.href}>
+                  <Button
+                    variant={isActive ? "secondary" : "ghost"}
+                    size="sm"
+                    className={cn(
+                      "gap-1.5",
+                      isActive && "bg-primary/10 text-primary hover:bg-primary/15"
+                    )}
+                  >
+                    <item.icon className="h-4 w-4" />
+                    <span className="hidden md:inline">{item.label}</span>
+                  </Button>
+                </Link>
               );
             })}
           </nav>
@@ -83,36 +83,40 @@ export function AppShell({ children, isAdmin = false }: { children: React.ReactN
           <div className="ml-auto flex items-center gap-1">
             {isAdmin && (
               <>
-                <Button
-                  variant={isAdminSection ? "secondary" : "ghost"}
-                  size="sm"
-                  className={cn(
-                    "gap-1.5",
-                    isAdminSection && "bg-amber-500/10 text-amber-600 hover:bg-amber-500/15"
-                  )}
-                  render={<Link href="/admin" />}
-                >
-                  <Shield className="h-4 w-4" />
-                  <span className="hidden md:inline">Admin</span>
-                </Button>
+                <Link href="/admin">
+                  <Button
+                    variant={isAdminSection ? "secondary" : "ghost"}
+                    size="sm"
+                    className={cn(
+                      "gap-1.5",
+                      isAdminSection && "bg-amber-500/10 text-amber-600 hover:bg-amber-500/15"
+                    )}
+                  >
+                    <Shield className="h-4 w-4" />
+                    <span className="hidden md:inline">Admin</span>
+                  </Button>
+                </Link>
                 <Separator orientation="vertical" className="mx-1 h-6" />
               </>
             )}
             <ThemeSwitcher />
-            <Button 
-              variant={pathname === "/pots" ? "secondary" : "ghost"} 
-              size="icon-sm" 
-              render={<Link href="/pots" />}
-              title="Pot inventory"
-              className={cn(
-                pathname === "/pots" && "bg-orange-500/10 text-orange-600 hover:bg-orange-500/15"
-              )}
-            >
-              <Package className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon-sm" render={<Link href="/settings" />}>
-              <Settings className="h-4 w-4 text-muted-foreground" />
-            </Button>
+            <Link href="/pots">
+              <Button 
+                variant={pathname === "/pots" ? "secondary" : "ghost"} 
+                size="icon-sm" 
+                title="Pot inventory"
+                className={cn(
+                  pathname === "/pots" && "bg-orange-500/10 text-orange-600 hover:bg-orange-500/15"
+                )}
+              >
+                <Package className="h-4 w-4" />
+              </Button>
+            </Link>
+            <Link href="/settings">
+              <Button variant="ghost" size="icon-sm">
+                <Settings className="h-4 w-4 text-muted-foreground" />
+              </Button>
+            </Link>
             <Separator orientation="vertical" className="mx-1 h-6" />
             <Button
               variant="ghost"

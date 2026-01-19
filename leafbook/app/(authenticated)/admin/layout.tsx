@@ -41,18 +41,22 @@ export default async function AdminLayout({
             <p className="text-sm text-muted-foreground">Manage catalog and settings</p>
           </div>
         </div>
-        <Button variant="ghost" size="sm" render={<Link href="/" />} className="gap-1">
-          <ArrowLeft className="h-4 w-4" />
-          Back to app
-        </Button>
+        <Link href="/">
+          <Button variant="ghost" size="sm" className="gap-1">
+            <ArrowLeft className="h-4 w-4" />
+            Back to app
+          </Button>
+        </Link>
       </div>
 
       {/* Admin navigation */}
       <nav className="flex gap-2">
-        <Button variant="secondary" size="sm" render={<Link href="/admin/plant-types" />} className="gap-1.5">
-          <Library className="h-4 w-4" />
-          Plant Types
-        </Button>
+        <Link href="/admin/plant-types">
+          <Button variant="secondary" size="sm" className="gap-1.5">
+            <Library className="h-4 w-4" />
+            Plant Types
+          </Button>
+        </Link>
       </nav>
 
       {/* Content */}

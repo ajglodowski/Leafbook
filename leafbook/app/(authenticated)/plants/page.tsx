@@ -175,9 +175,11 @@ export default async function PlantsPage() {
           description="Start building your collection! Add a plant from the catalog or create one with a custom name."
         >
           <div className="flex gap-3">
-            <Button variant="outline" render={<Link href="/plant-types" />}>
-              Browse catalog
-            </Button>
+            <Link href="/plant-types">
+              <Button variant="outline">
+                Browse catalog
+              </Button>
+            </Link>
             <AddPlantDialog plantTypes={plantTypes || []} />
           </div>
         </EmptyState>

@@ -108,15 +108,16 @@ export function ScheduleSuggestionBanner({ suggestions: initialSuggestions }: Sc
           >
             <X className="h-4 w-4" />
           </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="gap-1"
-            render={<Link href={`/plants/${suggestion.plant_id}`} />}
-          >
-            View
-            <ChevronRight className="h-3.5 w-3.5" />
-          </Button>
+          <Link href={`/plants/${suggestion.plant_id}`}>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="gap-1"
+            >
+              View
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+          </Link>
         </div>
       </CardContent>
     </Card>

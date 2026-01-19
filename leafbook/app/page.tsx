@@ -49,12 +49,16 @@ export default async function HomePage() {
           Journal your plants. Track care with one tap. Build a story for every leaf.
         </p>
         <div className="flex gap-3">
-          <Button size="lg" render={<Link href="/auth/sign-up" />}>
-            Create your journal
-          </Button>
-          <Button variant="outline" size="lg" render={<Link href="/auth/login" />}>
-            Sign in
-          </Button>
+          <Link href="/auth/sign-up">
+            <Button size="lg">
+              Create your journal
+            </Button>
+          </Link>
+          <Link href="/auth/login">
+            <Button variant="outline" size="lg">
+              Sign in
+            </Button>
+          </Link>
         </div>
       </main>
 

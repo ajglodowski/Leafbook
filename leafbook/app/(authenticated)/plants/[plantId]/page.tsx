@@ -325,10 +325,12 @@ export default async function PlantDetailPage({
   return (
     <div className="space-y-8 pb-12">
       {/* Back link */}
-      <Button variant="ghost" size="sm" className="gap-1 -ml-2" render={<Link href="/plants" />}>
-        <ArrowLeft className="h-4 w-4" />
-        Back to plants
-      </Button>
+      <Link href="/plants">
+        <Button variant="ghost" size="sm" className="gap-1 -ml-2">
+          <ArrowLeft className="h-4 w-4" />
+          Back to plants
+        </Button>
+      </Link>
 
       {/* ═══════════════════════════════════════════════════════════════════
           HERO SECTION - The star of the show
@@ -790,10 +792,12 @@ export default async function PlantDetailPage({
               {plantType.description && (
                 <p className="text-muted-foreground leading-relaxed">{plantType.description}</p>
               )}
-              <Button variant="outline" size="sm" render={<Link href={`/plant-types/${plantType.id}`} />}>
-                Explore in catalog
-                <ExternalLink className="ml-1.5 h-3 w-3" />
-              </Button>
+              <Link href={`/plant-types/${plantType.id}`}>
+                <Button variant="outline" size="sm">
+                  Explore in catalog
+                  <ExternalLink className="ml-1.5 h-3 w-3" />
+                </Button>
+              </Link>
             </CardContent>
           </Card>
         </section>
