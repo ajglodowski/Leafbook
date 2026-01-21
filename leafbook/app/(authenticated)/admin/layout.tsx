@@ -1,11 +1,12 @@
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
-import { Shield, Library, ArrowLeft } from "lucide-react";
+import { Shield, Library, ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getCurrentUserId } from "@/lib/supabase/server";
 
-export default async function AdminLayout({
+async function AdminLayoutContent({
   children,
 }: {
   children: React.ReactNode;
@@ -62,5 +63,25 @@ export default async function AdminLayout({
       {/* Content */}
       {children}
     </div>
+  );
+}
+
+function AdminLayoutLoading() {
+  return (
+    <div className="flex items-center justify-center py-12">
+      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+    </div>
+  );
+}
+
+export default function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <Suspense fallback={<AdminLayoutLoading />}>
+      <AdminLayoutContent>{children}</AdminLayoutContent>
+    </Suspense>
   );
 }

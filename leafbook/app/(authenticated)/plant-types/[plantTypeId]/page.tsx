@@ -2,12 +2,18 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowLeft, Droplets, Sun, Ruler, Sparkles, Leaf, Home, TreePine, Combine } from "lucide-react";
-import { createClient, getCurrentUserId } from "@/lib/supabase/server";
+import { getCurrentUserId } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { WishlistButton } from "./wishlist-button";
 import { AddPlantButton } from "./add-plant-button";
+import {
+  getPlantTypeById,
+  getPlantTypePhotos,
+  getWishlistItemForPlantType,
+  getUserPlantsOfType,
+} from "@/lib/queries/plant-types";
 
 // Human-friendly labels for enums
 const lightLabels: Record<string, string> = {
@@ -56,54 +62,34 @@ export default async function PlantTypeDetailPage({
   params: Promise<{ plantTypeId: string }>;
 }) {
   const { plantTypeId } = await params;
-  const supabase = await createClient();
 
-  // Fetch plant type
-  const { data: plantType, error } = await supabase
-    .from("plant_types")
-    .select("*")
-    .eq("id", plantTypeId)
-    .single();
+  // Check auth first
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    redirect("/auth/login");
+  }
+
+  // Fetch all data in parallel using cached helpers
+  const [
+    { data: plantType, error },
+    { data: photos },
+    { data: wishlistItem },
+    { data: existingPlants },
+  ] = await Promise.all([
+    getPlantTypeById(plantTypeId),
+    getPlantTypePhotos(plantTypeId),
+    getWishlistItemForPlantType(userId, plantTypeId),
+    getUserPlantsOfType(userId, plantTypeId),
+  ]);
 
   if (error || !plantType) {
     notFound();
   }
 
-  // Fetch photos for this plant type
-  const { data: photos } = await supabase
-    .from("plant_type_photos")
-    .select("*")
-    .eq("plant_type_id", plantTypeId)
-    .order("is_primary", { ascending: false })
-    .order("display_order", { ascending: true })
-    .order("created_at", { ascending: true });
-
   const primaryPhoto = photos?.find((p) => p.is_primary) || photos?.[0];
   const galleryPhotos = photos?.filter((p) => p.id !== primaryPhoto?.id) || [];
 
-  // Check if user has this in their wishlist
-  const userId = await getCurrentUserId();
-
-  if (!userId) {
-    redirect("/auth/login");
-  }
-  const { data: wishlistItem } = await supabase
-    .from("wishlist_items")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("plant_type_id", plantTypeId)
-    .single();
-
   const isInWishlist = !!wishlistItem;
-
-  // Check if user already has this plant type
-  const { data: existingPlants } = await supabase
-    .from("plants")
-    .select("id, name")
-    .eq("user_id", userId)
-    .eq("plant_type_id", plantTypeId)
-    .eq("is_active", true);
-
   const userOwnsThisType = existingPlants && existingPlants.length > 0;
 
   return (

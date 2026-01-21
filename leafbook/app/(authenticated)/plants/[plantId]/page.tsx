@@ -18,7 +18,7 @@ import {
   Heart,
   Camera
 } from "lucide-react";
-import { createClient, getCurrentUserId } from "@/lib/supabase/server";
+import { getCurrentUserId } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -31,9 +31,25 @@ import { IssueDialog } from "./issue-dialog";
 import { PlantTimeline } from "./plant-timeline";
 import { RepotDialog } from "./repot-dialog";
 import { ScheduleSuggestionCard } from "./schedule-suggestion-card";
-import { PotWithUsage } from "../../pots/actions";
+import { PropagationSection } from "./propagation-section";
+import { PotWithUsage } from "@/lib/queries/pots";
 import { createScheduleSuggestion } from "./actions";
 import { analyzeWateringSchedule } from "@/lib/watering-analysis";
+import {
+  getPlantDetail,
+  getPlantEvents,
+  getPlantJournalEntries,
+  getPlantIssues,
+  getPlantDueTask,
+  getPlantCarePreferences,
+  getWateringEventsForAnalysis,
+  getActiveScheduleSuggestion,
+  getPlantPhotos,
+  getUserPotsWithPlantUsage,
+  getParentPlant,
+  getChildrenPlants,
+  getPlantsForParentSelection,
+} from "@/lib/queries/plants";
 
 // Human-friendly labels for light requirement enum
 const lightLabels: Record<string, string> = {
@@ -82,130 +98,55 @@ export default async function PlantDetailPage({
   params: Promise<{ plantId: string }>;
 }) {
   const { plantId } = await params;
-  const supabase = await createClient();
   const userId = await getCurrentUserId();
 
   if (!userId) {
     redirect("/auth/login");
   }
 
-  // Fetch plant with plant type info and active photo
-  const { data: plant, error } = await supabase
-    .from("plants")
-    .select(`
-      id,
-      name,
-      nickname,
-      plant_location,
-      location,
-      light_exposure,
-      size_category,
-      is_active,
-      created_at,
-      acquired_at,
-      how_acquired,
-      description,
-      plant_type_id,
-      active_photo_id,
-      current_pot_id,
-      plant_types (
-        id,
-        name,
-        scientific_name,
-        watering_frequency_days,
-        fertilizing_frequency_days,
-        light_min,
-        light_max,
-        description
-      )
-    `)
-    .eq("id", plantId)
-    .eq("user_id", userId)
-    .single();
+  // Fetch all data in parallel using cached helpers
+  const [
+    { data: plant, error },
+    { data: rawEvents },
+    { data: journalEntries },
+    { data: issues },
+    { data: dueTask },
+    { data: carePrefs },
+    { data: wateringEvents },
+    { data: activeSuggestion },
+    { data: photos },
+    { pots, activePlants },
+  ] = await Promise.all([
+    getPlantDetail(plantId, userId),
+    getPlantEvents(plantId),
+    getPlantJournalEntries(plantId),
+    getPlantIssues(plantId),
+    getPlantDueTask(plantId),
+    getPlantCarePreferences(plantId),
+    getWateringEventsForAnalysis(plantId),
+    getActiveScheduleSuggestion(plantId),
+    getPlantPhotos(plantId),
+    getUserPotsWithPlantUsage(userId),
+  ]);
 
   if (error || !plant) {
     notFound();
   }
 
-  // Fetch care events for timeline
-  const { data: rawEvents } = await supabase
-    .from("plant_events")
-    .select("id, event_type, event_date, notes, metadata")
-    .eq("plant_id", plantId)
-    .order("event_date", { ascending: false })
-    .limit(20);
+  // Fetch propagation data (depends on plant.parent_plant_id)
+  const [
+    parentPlantResult,
+    childrenPlantsResult,
+    availablePlantsResult,
+  ] = await Promise.all([
+    plant.parent_plant_id ? getParentPlant(plant.parent_plant_id, userId) : Promise.resolve({ data: null }),
+    getChildrenPlants(plantId, userId),
+    getPlantsForParentSelection(userId, plantId),
+  ]);
 
-  // Fetch journal entries for timeline
-  const { data: journalEntries } = await supabase
-    .from("journal_entries")
-    .select("id, title, content, entry_date")
-    .eq("plant_id", plantId)
-    .order("entry_date", { ascending: false })
-    .limit(20);
-
-  // Fetch plant issues for timeline
-  const { data: issues } = await supabase
-    .from("plant_issues")
-    .select("id, issue_type, severity, status, description, started_at, resolved_at, resolution_notes")
-    .eq("plant_id", plantId)
-    .order("started_at", { ascending: false })
-    .limit(20);
-
-  // Fetch due task status
-  const { data: dueTask } = await supabase
-    .from("v_plant_due_tasks")
-    .select("*")
-    .eq("plant_id", plantId)
-    .single();
-
-  // Fetch plant care preferences (user overrides)
-  const { data: carePrefs } = await supabase
-    .from("plant_care_preferences")
-    .select("watering_frequency_days, fertilizing_frequency_days")
-    .eq("plant_id", plantId)
-    .maybeSingle();
-
-  // Fetch watering events for schedule analysis (need more history)
-  const { data: wateringEvents } = await supabase
-    .from("plant_events")
-    .select("event_date")
-    .eq("plant_id", plantId)
-    .eq("event_type", "watered")
-    .order("event_date", { ascending: false })
-    .limit(15);
-
-  // Fetch existing active schedule suggestion
-  const { data: activeSuggestion } = await supabase
-    .from("watering_schedule_suggestions")
-    .select("*")
-    .eq("plant_id", plantId)
-    .is("dismissed_at", null)
-    .is("accepted_at", null)
-    .maybeSingle();
-
-  // Fetch photos for this plant
-  const { data: photos } = await supabase
-    .from("plant_photos")
-    .select("id, url, caption, taken_at")
-    .eq("plant_id", plantId)
-    .order("taken_at", { ascending: false });
-
-  // Fetch user's pots for repot dialog
-  const { data: pots } = await supabase
-    .from("user_pots")
-    .select("id, name, size_inches, material, photo_url, is_retired, has_drainage, color")
-    .eq("user_id", userId)
-    .order("is_retired", { ascending: true })
-    .order("size_inches", { ascending: true, nullsFirst: false })
-    .order("created_at", { ascending: false });
-
-  // Fetch active plants to determine which pots are in use
-  const { data: activePlants } = await supabase
-    .from("plants")
-    .select("id, name, current_pot_id")
-    .eq("user_id", userId)
-    .eq("is_active", true)
-    .not("current_pot_id", "is", null);
+  const parentPlant = parentPlantResult.data;
+  const childrenPlants = childrenPlantsResult.data || [];
+  const availablePlantsForParent = availablePlantsResult.data || [];
 
   // Build a map of pot_id -> plant info for usage tracking
   const potUsageMap = new Map<string, { plantId: string; plantName: string }>();
@@ -258,6 +199,11 @@ export default async function PlantDetailPage({
     ? photos?.find(p => p.id === plant.active_photo_id) ?? photos?.[0]
     : photos?.[0];
   const thumbnailUrl = activePhoto?.url ?? null;
+
+  // Build photo map for propagation section (parent + children thumbnails)
+  // For now, we'll use a simple approach - in a real app you might batch fetch these photos
+  const propagationPhotoMap = new Map<string, string>();
+  // We don't have photos for parent/children yet, they'll show the Leaf icon placeholder
 
   // Determine if using custom values
   const hasCustomWatering = carePrefs?.watering_frequency_days !== null && carePrefs?.watering_frequency_days !== undefined;
@@ -693,6 +639,19 @@ export default async function PlantDetailPage({
           </div>
         )}
       </section>
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          PROPAGATION - Plant lineage
+      ═══════════════════════════════════════════════════════════════════ */}
+      <PropagationSection
+        plantId={plant.id}
+        plantName={plant.name}
+        plantTypeId={plant.plant_type_id}
+        parentPlant={parentPlant}
+        childrenPlants={childrenPlants}
+        availablePlantsForParent={availablePlantsForParent}
+        photoMap={propagationPhotoMap}
+      />
 
       {/* ═══════════════════════════════════════════════════════════════════
           ABOUT THIS PLANT - Personal notes

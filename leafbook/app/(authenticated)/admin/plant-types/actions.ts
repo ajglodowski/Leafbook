@@ -1,9 +1,16 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { del } from "@vercel/blob";
 import { createClient, getCurrentUserId } from "@/lib/supabase/server";
+import {
+  plantTypeMutationTags,
+  plantTypePhotoMutationTags,
+  recordTag,
+  scopedListTag,
+  tableTag,
+} from "@/lib/cache-tags";
 
 // Helper to verify admin role
 async function verifyAdmin() {
@@ -27,6 +34,9 @@ async function verifyAdmin() {
   return { supabase, userId };
 }
 
+// Type for origin data
+type OriginData = { country_code: string; region: string | null };
+
 export async function createPlantType(formData: FormData) {
   const { supabase, userId } = await verifyAdmin();
 
@@ -40,6 +50,10 @@ export async function createPlantType(formData: FormData) {
   const size_min = formData.get("size_min") as string | null;
   const size_max = formData.get("size_max") as string | null;
   const location_preference = formData.get("location_preference") as string | null;
+  
+  // Origins (multi-country support)
+  const originsJson = formData.get("origins") as string | null;
+  const origins: OriginData[] = originsJson ? JSON.parse(originsJson) : [];
   
   const watering_frequency_days = formData.get("watering_frequency_days") as string | null;
   const fertilizing_frequency_days = formData.get("fertilizing_frequency_days") as string | null;
@@ -90,8 +104,25 @@ export async function createPlantType(formData: FormData) {
     return { success: false, error: error.message };
   }
 
-  revalidatePath("/admin/plant-types");
-  revalidatePath("/plant-types");
+  // Insert origins into join table
+  if (origins.length > 0) {
+    const originRows = origins.map(o => ({
+      plant_type_id: data.id,
+      country_code: o.country_code,
+      region: o.region,
+    }));
+    
+    const { error: originsError } = await supabase
+      .from("plant_type_origins")
+      .insert(originRows);
+    
+    if (originsError) {
+      console.error("Error inserting origins:", originsError);
+      // Don't fail the whole operation if origins fail
+    }
+  }
+
+  plantTypeMutationTags(data.id).forEach((tag) => updateTag(tag));
 
   return { success: true, plantTypeId: data.id };
 }
@@ -109,6 +140,10 @@ export async function updatePlantType(id: string, formData: FormData) {
   const size_min = formData.get("size_min") as string | null;
   const size_max = formData.get("size_max") as string | null;
   const location_preference = formData.get("location_preference") as string | null;
+  
+  // Origins (multi-country support)
+  const originsJson = formData.get("origins") as string | null;
+  const origins: OriginData[] = originsJson ? JSON.parse(originsJson) : [];
   
   const watering_frequency_days = formData.get("watering_frequency_days") as string | null;
   const fertilizing_frequency_days = formData.get("fertilizing_frequency_days") as string | null;
@@ -143,10 +178,33 @@ export async function updatePlantType(id: string, formData: FormData) {
     return { success: false, error: error.message };
   }
 
-  revalidatePath("/admin/plant-types");
-  revalidatePath(`/admin/plant-types/${id}`);
-  revalidatePath("/plant-types");
-  revalidatePath(`/plant-types/${id}`);
+  // Replace all origins: delete existing, then insert new ones
+  const { error: deleteError } = await supabase
+    .from("plant_type_origins")
+    .delete()
+    .eq("plant_type_id", id);
+  
+  if (deleteError) {
+    console.error("Error deleting old origins:", deleteError);
+  }
+
+  if (origins.length > 0) {
+    const originRows = origins.map(o => ({
+      plant_type_id: id,
+      country_code: o.country_code,
+      region: o.region,
+    }));
+    
+    const { error: originsError } = await supabase
+      .from("plant_type_origins")
+      .insert(originRows);
+    
+    if (originsError) {
+      console.error("Error inserting origins:", originsError);
+    }
+  }
+
+  plantTypeMutationTags(id).forEach((tag) => updateTag(tag));
 
   return { success: true };
 }
@@ -190,8 +248,7 @@ export async function deletePlantType(id: string) {
     return { success: false, error: error.message };
   }
 
-  revalidatePath("/admin/plant-types");
-  revalidatePath("/plant-types");
+  plantTypeMutationTags(id).forEach((tag) => updateTag(tag));
 
   return { success: true };
 }
@@ -226,9 +283,7 @@ export async function setPlantTypePrimaryPhoto(photoId: string, plantTypeId: str
     return { success: false, error: setError.message };
   }
 
-  revalidatePath(`/admin/plant-types/${plantTypeId}`);
-  revalidatePath(`/plant-types/${plantTypeId}`);
-  revalidatePath("/plant-types");
+  plantTypePhotoMutationTags(plantTypeId, photoId).forEach((tag) => updateTag(tag));
 
   return { success: true };
 }
@@ -250,9 +305,9 @@ export async function reorderPlantTypePhotos(plantTypeId: string, orderedPhotoId
     }
   }
 
-  revalidatePath(`/admin/plant-types/${plantTypeId}`);
-  revalidatePath(`/plant-types/${plantTypeId}`);
-  revalidatePath("/plant-types");
+  updateTag(scopedListTag("plant-type-photos", plantTypeId));
+  updateTag(recordTag("plant-type", plantTypeId));
+  updateTag(tableTag("plant-type-photos"));
 
   return { success: true };
 }
@@ -310,9 +365,7 @@ export async function deletePlantTypePhoto(photoId: string) {
     }
   }
 
-  revalidatePath(`/admin/plant-types/${plantTypeId}`);
-  revalidatePath(`/plant-types/${plantTypeId}`);
-  revalidatePath("/plant-types");
+  plantTypePhotoMutationTags(plantTypeId, photoId).forEach((tag) => updateTag(tag));
 
   return { success: true };
 }

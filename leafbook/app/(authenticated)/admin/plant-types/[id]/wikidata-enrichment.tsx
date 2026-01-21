@@ -119,6 +119,7 @@ export function WikidataEnrichment({ plantType }: WikidataEnrichmentProps) {
           fields: {
             scientificName: importScientificName,
             description: importDescription,
+            origin: true, // Always try to import origin data
           },
         }),
       });
@@ -161,6 +162,7 @@ export function WikidataEnrichment({ plantType }: WikidataEnrichmentProps) {
           fields: {
             scientificName: importScientificName,
             description: importDescription,
+            origin: true, // Always try to import origin data
           },
         }),
       });

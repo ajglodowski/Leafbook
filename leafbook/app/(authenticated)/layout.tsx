@@ -1,12 +1,11 @@
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/app-shell";
 import { getCurrentUserId } from "@/lib/supabase/server";
+import { Loader2 } from "lucide-react";
 
-// Force dynamic rendering for all authenticated routes
-export const dynamic = "force-dynamic";
-
-export default async function AuthenticatedLayout({
+async function AuthenticatedLayoutContent({
   children,
 }: {
   children: React.ReactNode;
@@ -28,4 +27,24 @@ export default async function AuthenticatedLayout({
   const isAdmin = profile?.role === "admin";
 
   return <AppShell isAdmin={isAdmin}>{children}</AppShell>;
+}
+
+function AuthenticatedLayoutLoading() {
+  return (
+    <div className="flex min-h-screen items-center justify-center">
+      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+    </div>
+  );
+}
+
+export default function AuthenticatedLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <Suspense fallback={<AuthenticatedLayoutLoading />}>
+      <AuthenticatedLayoutContent>{children}</AuthenticatedLayoutContent>
+    </Suspense>
+  );
 }

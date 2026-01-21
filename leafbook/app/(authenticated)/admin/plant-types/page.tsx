@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { Plus, Pencil, Trash2, Library, Droplets, Sun, Ruler, Sparkles, Home, TreePine, Combine } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/empty-state";
 import { DeletePlantTypeButton } from "./delete-button";
+import { getPlantTypesForAdmin } from "@/lib/queries/plant-types";
 
 // Human-friendly labels for enums
 const lightLabels: Record<string, string> = {
@@ -42,12 +42,7 @@ function formatRangeShort(min: string | null, max: string | null, labels: Record
 }
 
 export default async function AdminPlantTypesPage() {
-  const supabase = await createClient();
-
-  const { data: plantTypes, error } = await supabase
-    .from("plant_types")
-    .select("*")
-    .order("name");
+  const { data: plantTypes, error } = await getPlantTypesForAdmin();
 
   if (error) {
     console.error("Error fetching plant types:", error);

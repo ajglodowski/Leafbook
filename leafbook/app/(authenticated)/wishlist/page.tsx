@@ -1,41 +1,22 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Heart, Leaf, Trash2 } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { WishlistItemActions } from "./wishlist-item-actions";
+import { getWishlistItemsForUserById } from "@/lib/queries/wishlist";
 import { getCurrentUserId } from "@/lib/supabase/server";
 
 export default async function WishlistPage() {
-  const supabase = await createClient();
   const userId = await getCurrentUserId();
-
+  
   if (!userId) {
     redirect("/auth/login");
   }
-
-  // Fetch wishlist items with plant type info
-  const { data: wishlistItems, error } = await supabase
-    .from("wishlist_items")
-    .select(`
-      id,
-      notes,
-      priority,
-      created_at,
-      custom_name,
-      plant_type_id,
-      plant_types (
-        id,
-        name,
-        scientific_name,
-        description
-      )
-    `)
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false });
+  
+  const { data: wishlistItems, error } = await getWishlistItemsForUserById(userId);
 
   if (error) {
     console.error("Error fetching wishlist:", error);

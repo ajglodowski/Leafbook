@@ -8,8 +8,6 @@ export const metadata = {
   description: "Learn about Leafbook — a journaling-first plant care app where tasks don't feel like chores.",
 };
 
-export const dynamic = "force-static";
-
 export default function AboutPage() {
   return (
     <div className="flex min-h-screen flex-col">

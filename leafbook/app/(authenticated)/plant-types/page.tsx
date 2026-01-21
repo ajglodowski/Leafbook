@@ -1,8 +1,8 @@
 import { Library, Search } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
 import { EmptyState } from "@/components/empty-state";
 import { PlantTypeCard } from "@/components/plant-type-card";
 import { PlantTypesSearch } from "./search";
+import { getPlantTypesWithPhotos } from "@/lib/queries/plant-types";
 
 // Map light enum values to numeric for filtering
 const lightToNumeric: Record<string, number> = {
@@ -27,43 +27,16 @@ export default async function PlantTypesPage({
   searchParams: Promise<{ q?: string; light?: string; size?: string }>;
 }) {
   const params = await searchParams;
-  const supabase = await createClient();
 
-  // Build query - include primary photo
-  let query = supabase
-    .from("plant_types")
-    .select(`
-      *,
-      plant_type_photos!left (
-        id,
-        url,
-        is_primary
-      )
-    `)
-    .order("name");
+  // Build filter params
+  const lightNumeric = params.light ? lightToNumeric[params.light] : undefined;
+  const sizeNumeric = params.size ? sizeToNumeric[params.size] : undefined;
 
-  // Apply search filter
-  if (params.q) {
-    query = query.or(
-      `name.ilike.%${params.q}%,scientific_name.ilike.%${params.q}%,description.ilike.%${params.q}%`
-    );
-  }
-
-  // Apply light filter - find plant types where the filter value is within their min/max range
-  if (params.light && lightToNumeric[params.light]) {
-    const numericValue = lightToNumeric[params.light];
-    // Plant type matches if: light_min_numeric <= filter_value <= light_max_numeric
-    query = query.lte("light_min_numeric", numericValue).gte("light_max_numeric", numericValue);
-  }
-
-  // Apply size filter - find plant types where the filter value is within their min/max range
-  if (params.size && sizeToNumeric[params.size]) {
-    const numericValue = sizeToNumeric[params.size];
-    // Plant type matches if: size_min_numeric <= filter_value <= size_max_numeric
-    query = query.lte("size_min_numeric", numericValue).gte("size_max_numeric", numericValue);
-  }
-
-  const { data: plantTypes, error } = await query;
+  const { data: plantTypes, error } = await getPlantTypesWithPhotos({
+    q: params.q,
+    lightNumeric,
+    sizeNumeric,
+  });
 
   if (error) {
     console.error("Error fetching plant types:", error);

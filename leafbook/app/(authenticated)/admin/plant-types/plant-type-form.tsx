@@ -1,16 +1,20 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Home, TreePine, Combine } from "lucide-react";
+import { Home, TreePine, Combine, Globe, X, ChevronDown, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { createPlantType, updatePlantType } from "./actions";
 import type { Tables } from "@/lib/supabase/database.types";
+import { getAllCountries, getRegionForCountry, getCountryName, getCountriesGroupedByRegion } from "@/lib/origin-mapping";
 
 type PlantType = Tables<"plant_types">;
 type LocationPreference = "indoor" | "outdoor" | "both";
@@ -55,14 +59,20 @@ function getSizeNumeric(value: string): number {
   return sizeOptions.find((opt) => opt.value === value)?.numeric || 0;
 }
 
+export type OriginData = {
+  country_code: string;
+  region: string | null;
+};
+
 interface PlantTypeFormProps {
   plantType?: Partial<PlantType>;
   mode: "create" | "edit";
   wikidataQid?: string | null;
   wikipediaTitle?: string | null;
+  initialOrigins?: OriginData[];
 }
 
-export function PlantTypeForm({ plantType, mode, wikidataQid, wikipediaTitle }: PlantTypeFormProps) {
+export function PlantTypeForm({ plantType, mode, wikidataQid, wikipediaTitle, initialOrigins }: PlantTypeFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -85,8 +95,56 @@ export function PlantTypeForm({ plantType, mode, wikidataQid, wikipediaTitle }: 
     plantType?.location_preference ?? "indoor"
   );
   
+  // Origins (multiple countries with auto-derived regions)
+  const [selectedCountryCodes, setSelectedCountryCodes] = useState<string[]>(
+    initialOrigins?.map(o => o.country_code) || []
+  );
+  const [originSelectorOpen, setOriginSelectorOpen] = useState(false);
+  const [countrySearch, setCountrySearch] = useState("");
+  
+  // Derive unique regions from selected countries
+  const selectedRegions = useMemo(() => {
+    const regions = new Set<string>();
+    selectedCountryCodes.forEach(code => {
+      const region = getRegionForCountry(code);
+      if (region) regions.add(region);
+    });
+    return Array.from(regions).sort();
+  }, [selectedCountryCodes]);
+  
   const [wateringDays, setWateringDays] = useState(plantType?.watering_frequency_days?.toString() || "");
   const [fertilizingDays, setFertilizingDays] = useState(plantType?.fertilizing_frequency_days?.toString() || "");
+  
+  // Country selection helpers
+  const countriesGrouped = useMemo(() => getCountriesGroupedByRegion(), []);
+  
+  // Filter countries by search term
+  const filteredCountriesGrouped = useMemo(() => {
+    if (!countrySearch.trim()) return countriesGrouped;
+    
+    const searchLower = countrySearch.toLowerCase();
+    return countriesGrouped
+      .map(group => ({
+        ...group,
+        countries: group.countries.filter(country => 
+          country.name.toLowerCase().includes(searchLower) ||
+          country.code.toLowerCase().includes(searchLower)
+        )
+      }))
+      .filter(group => group.countries.length > 0);
+  }, [countriesGrouped, countrySearch]);
+  
+  function toggleCountry(code: string) {
+    setSelectedCountryCodes(prev => 
+      prev.includes(code) 
+        ? prev.filter(c => c !== code)
+        : [...prev, code]
+    );
+  }
+  
+  function removeCountry(code: string) {
+    setSelectedCountryCodes(prev => prev.filter(c => c !== code));
+  }
   const [careNotes, setCareNotes] = useState(plantType?.care_notes || "");
   
   // Validate that max >= min for light
@@ -120,6 +178,13 @@ export function PlantTypeForm({ plantType, mode, wikidataQid, wikipediaTitle }: 
     formData.set("watering_frequency_days", wateringDays);
     formData.set("fertilizing_frequency_days", fertilizingDays);
     formData.set("care_notes", careNotes);
+    
+    // Origins as JSON array with country codes and derived regions
+    const origins = selectedCountryCodes.map(code => ({
+      country_code: code,
+      region: getRegionForCountry(code) || null,
+    }));
+    formData.set("origins", JSON.stringify(origins));
     
     // Include Wikidata fields if provided (for create from Wikidata flow)
     if (wikidataQid) {
@@ -222,6 +287,111 @@ export function PlantTypeForm({ plantType, mode, wikidataQid, wikipediaTitle }: 
               })}
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Native Origin */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Globe className="h-5 w-5" />
+            Native Origins
+          </CardTitle>
+          <CardDescription>Where this plant type originates from in the wild (select multiple countries)</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Selected countries display */}
+          {selectedCountryCodes.length > 0 && (
+            <div className="space-y-2">
+              <Label>Selected Countries ({selectedCountryCodes.length})</Label>
+              <div className="flex flex-wrap gap-2">
+                {selectedCountryCodes.map(code => (
+                  <Badge key={code} variant="secondary" className="gap-1 pr-1">
+                    {getCountryName(code)}
+                    <button
+                      type="button"
+                      onClick={() => removeCountry(code)}
+                      className="ml-1 rounded-full p-0.5 hover:bg-muted-foreground/20"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {/* Derived regions display */}
+          {selectedRegions.length > 0 && (
+            <div className="space-y-2">
+              <Label>Regions</Label>
+              <div className="flex flex-wrap gap-2">
+                {selectedRegions.map(region => (
+                  <Badge key={region} variant="outline">
+                    {region}
+                  </Badge>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Automatically determined from selected countries
+              </p>
+            </div>
+          )}
+
+          {/* Country selector */}
+          <Collapsible open={originSelectorOpen} onOpenChange={setOriginSelectorOpen}>
+            <CollapsibleTrigger asChild>
+              <Button type="button" variant="outline" className="w-full justify-between">
+                {selectedCountryCodes.length === 0 ? "Select countries" : "Add more countries"}
+                <ChevronDown className={`h-4 w-4 transition-transform ${originSelectorOpen ? "rotate-180" : ""}`} />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-2">
+              <div className="rounded-md border">
+                {/* Search bar */}
+                <div className="sticky top-0 bg-background p-2 border-b">
+                  <div className="relative">
+                    <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder="Search countries..."
+                      value={countrySearch}
+                      onChange={(e) => setCountrySearch(e.target.value)}
+                      className="pl-8 h-8"
+                    />
+                  </div>
+                </div>
+                
+                {/* Country list */}
+                <div className="max-h-56 overflow-y-auto p-2 space-y-4">
+                  {filteredCountriesGrouped.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      No countries found matching "{countrySearch}"
+                    </p>
+                  ) : (
+                    filteredCountriesGrouped.map(group => (
+                      <div key={group.region} className="space-y-2">
+                        <p className="text-sm font-medium text-muted-foreground">{group.region}</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {group.countries.map(country => (
+                            <label 
+                              key={country.code} 
+                              className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded p-1"
+                            >
+                              <Checkbox
+                                checked={selectedCountryCodes.includes(country.code)}
+                                onCheckedChange={() => toggleCountry(country.code)}
+                              />
+                              {country.name}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
         </CardContent>
       </Card>
 

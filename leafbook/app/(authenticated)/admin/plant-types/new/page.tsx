@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PlantTypeForm } from "../plant-type-form";
+import { PlantTypeForm, type OriginData } from "../plant-type-form";
 import { WikidataSearch } from "./wikidata-search";
 import type { Tables } from "@/lib/supabase/database.types";
 
@@ -16,6 +16,7 @@ interface WikidataData {
   description: string | null;
   qid: string;
   wikipediaTitle: string | null;
+  origins: OriginData[];
 }
 
 export default function NewPlantTypePage() {
@@ -80,6 +81,7 @@ export default function NewPlantTypePage() {
         plantType={initialPlantType}
         wikidataQid={wikidataData?.qid}
         wikipediaTitle={wikidataData?.wikipediaTitle}
+        initialOrigins={wikidataData?.origins}
       />
     </div>
   );

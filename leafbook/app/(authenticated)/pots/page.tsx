@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { PotDialog } from "./pot-dialog";
 import { PotActions } from "./pot-actions";
-import { getPotsWithUsage, type PotWithUsage } from "./actions";
+import { getPotsWithUsage } from "./actions";
+import type { PotWithUsage } from "@/lib/queries/pots";
 
 export const metadata = {
   title: "Pots | Leafbook",

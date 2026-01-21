@@ -1,8 +1,14 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient, getCurrentUserId } from "@/lib/supabase/server";
+import {
+  plantMutationTags,
+  recordTag,
+  userTag,
+  wishlistMutationTags,
+} from "@/lib/cache-tags";
 
 export async function addToWishlist(plantTypeId: string) {
   const supabase = await createClient();
@@ -36,8 +42,8 @@ export async function addToWishlist(plantTypeId: string) {
     return { success: false, error: error.message };
   }
 
-  revalidatePath(`/plant-types/${plantTypeId}`);
-  revalidatePath("/wishlist");
+  updateTag(userTag(userId, "wishlist"));
+  updateTag(recordTag("plant-type", plantTypeId));
   return { success: true };
 }
 
@@ -60,8 +66,7 @@ export async function removeFromWishlist(wishlistItemId: string, plantTypeId: st
     return { success: false, error: error.message };
   }
 
-  revalidatePath(`/plant-types/${plantTypeId}`);
-  revalidatePath("/wishlist");
+  wishlistMutationTags(userId, wishlistItemId, plantTypeId).forEach((tag) => updateTag(tag));
   return { success: true };
 }
 
@@ -97,10 +102,9 @@ export async function addPlant(formData: FormData) {
     return { success: false, error: error.message };
   }
 
-  revalidatePath("/plants");
-  revalidatePath("/");
+  plantMutationTags(userId, plant.id).forEach((tag) => updateTag(tag));
   if (plantTypeId) {
-    revalidatePath(`/plant-types/${plantTypeId}`);
+    updateTag(recordTag("plant-type", plantTypeId));
   }
 
   return { success: true, plantId: plant.id };
@@ -138,10 +142,9 @@ export async function convertWishlistToPlant(wishlistItemId: string, plantTypeId
     .eq("id", wishlistItemId)
     .eq("user_id", userId);
 
-  revalidatePath("/plants");
-  revalidatePath("/wishlist");
-  revalidatePath("/");
-  revalidatePath(`/plant-types/${plantTypeId}`);
+  plantMutationTags(userId, plant.id).forEach((tag) => updateTag(tag));
+  wishlistMutationTags(userId, wishlistItemId, plantTypeId).forEach((tag) => updateTag(tag));
+  updateTag(recordTag("plant-type", plantTypeId));
 
   return { success: true, plantId: plant.id };
 }

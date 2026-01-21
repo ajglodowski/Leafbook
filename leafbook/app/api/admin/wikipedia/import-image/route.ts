@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { put } from "@vercel/blob";
+import { connection } from "next/server";
 import { createClient, getCurrentUserId } from "@/lib/supabase/server";
 import {
   fetchCommonsFileMetadata,
@@ -21,6 +22,9 @@ interface ImportImageRequest {
  */
 export async function POST(request: Request) {
   try {
+    // Opt into dynamic rendering
+    await connection();
+    
     // Verify admin role
     const supabase = await createClient();
     const userId = await getCurrentUserId();

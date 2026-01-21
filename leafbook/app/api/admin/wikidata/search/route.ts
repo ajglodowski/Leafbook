@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { connection } from "next/server";
 import { createClient, getCurrentUserId } from "@/lib/supabase/server";
 import { sparqlSearchPlantTaxa, searchPlantTaxa } from "@/lib/wikidata";
 
@@ -7,6 +8,14 @@ import { sparqlSearchPlantTaxa, searchPlantTaxa } from "@/lib/wikidata";
  * GET /api/admin/wikidata/search?q=monstera&lang=en
  */
 export async function GET(request: Request) {
+  // Opt into dynamic rendering - catch prerender rejection
+  try {
+    await connection();
+  } catch {
+    // During prerender, connection() rejects - return empty for prerender
+    return NextResponse.json({ results: [], query: "", lang: "en" });
+  }
+  
   try {
     // Verify admin role
     const supabase = await createClient();

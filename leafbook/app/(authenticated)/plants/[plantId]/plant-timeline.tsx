@@ -4,7 +4,7 @@ import { History, BookOpen, Pencil, AlertTriangle, CheckCircle, Sparkles } from 
 import { Badge } from "@/components/ui/badge";
 import { JournalEntryDialog } from "./journal-entry-dialog";
 import { IssueDialog } from "./issue-dialog";
-import { PotWithUsage } from "../../pots/actions";
+import { PotWithUsage } from "@/lib/queries/pots";
 import { RepotDialog } from "./repot-dialog";
 
 // Human-friendly labels for event types with fun icons and colors
@@ -127,6 +127,7 @@ interface CareEvent {
     to_pot_id?: string | null;
     from_pot_name?: string | null;
     to_pot_name?: string | null;
+    parent_plant_id?: string | null;
   } | null;
 }
 

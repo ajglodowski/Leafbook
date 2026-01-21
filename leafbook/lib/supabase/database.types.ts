@@ -385,6 +385,38 @@ export type Database = {
           },
         ]
       }
+      plant_type_origins: {
+        Row: {
+          id: string
+          plant_type_id: string
+          country_code: string
+          region: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          plant_type_id: string
+          country_code: string
+          region?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          plant_type_id?: string
+          country_code?: string
+          region?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plant_type_origins_plant_type_id_fkey"
+            columns: ["plant_type_id"]
+            isOneToOne: false
+            referencedRelation: "plant_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       plant_types: {
         Row: {
           care_notes: string | null
@@ -401,6 +433,8 @@ export type Database = {
           light_min_numeric: number | null
           location_preference: Database["public"]["Enums"]["plant_type_location"]
           name: string
+          origin_country_code: string | null
+          origin_region: string | null
           scientific_name: string | null
           size_max: Database["public"]["Enums"]["size_category"] | null
           size_max_numeric: number | null
@@ -427,6 +461,8 @@ export type Database = {
           light_min_numeric?: number | null
           location_preference?: Database["public"]["Enums"]["plant_type_location"]
           name: string
+          origin_country_code?: string | null
+          origin_region?: string | null
           scientific_name?: string | null
           size_max?: Database["public"]["Enums"]["size_category"] | null
           size_max_numeric?: number | null
@@ -453,6 +489,8 @@ export type Database = {
           light_min_numeric?: number | null
           location_preference?: Database["public"]["Enums"]["plant_type_location"]
           name?: string
+          origin_country_code?: string | null
+          origin_region?: string | null
           scientific_name?: string | null
           size_max?: Database["public"]["Enums"]["size_category"] | null
           size_max_numeric?: number | null
@@ -483,6 +521,7 @@ export type Database = {
           location: string | null
           name: string
           nickname: string | null
+          parent_plant_id: string | null
           plant_location: Database["public"]["Enums"]["plant_location"]
           plant_type_id: string | null
           size_category: Database["public"]["Enums"]["size_category"] | null
@@ -506,6 +545,7 @@ export type Database = {
           location?: string | null
           name: string
           nickname?: string | null
+          parent_plant_id?: string | null
           plant_location?: Database["public"]["Enums"]["plant_location"]
           plant_type_id?: string | null
           size_category?: Database["public"]["Enums"]["size_category"] | null
@@ -529,6 +569,7 @@ export type Database = {
           location?: string | null
           name?: string
           nickname?: string | null
+          parent_plant_id?: string | null
           plant_location?: Database["public"]["Enums"]["plant_location"]
           plant_type_id?: string | null
           size_category?: Database["public"]["Enums"]["size_category"] | null
@@ -549,6 +590,13 @@ export type Database = {
             columns: ["current_pot_id"]
             isOneToOne: false
             referencedRelation: "user_pots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plants_parent_plant_id_fkey"
+            columns: ["parent_plant_id"]
+            isOneToOne: false
+            referencedRelation: "plants"
             referencedColumns: ["id"]
           },
           {

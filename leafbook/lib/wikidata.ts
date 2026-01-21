@@ -15,6 +15,9 @@ const PROPS = {
   IMAGE: "P18", // image
   INSTANCE_OF: "P31", // instance of
   COMMON_NAME: "P1843", // taxon common name
+  ENDEMIC_TO: "P183", // endemic to (location)
+  NATIVE_RANGE: "P9714", // native range map
+  COUNTRY: "P17", // country
 };
 
 // Wikidata item IDs for taxonomic ranks
@@ -51,6 +54,8 @@ export interface WikidataEntity {
   rank: string | null;
   parentTaxonQid: string | null;
   imageFileName: string | null;
+  endemicToQid: string | null; // QID of location where endemic
+  nativeRangeQids: string[]; // QIDs of native range locations
   claims: Record<string, unknown>;
 }
 
@@ -171,6 +176,8 @@ export async function fetchEntities(
       rank: getRankFromClaims(e.claims),
       parentTaxonQid: getClaimEntityId(e.claims, PROPS.PARENT_TAXON),
       imageFileName: getClaimValue(e.claims, PROPS.IMAGE),
+      endemicToQid: getClaimEntityId(e.claims, PROPS.ENDEMIC_TO),
+      nativeRangeQids: getAllClaimEntityIds(e.claims, PROPS.NATIVE_RANGE),
       claims: e.claims || {},
     };
   }
@@ -279,6 +286,36 @@ function getClaimEntityId(
 }
 
 /**
+ * Extract all entity IDs from a Wikidata claim (for multi-value properties)
+ */
+function getAllClaimEntityIds(
+  claims: Record<string, unknown[]> | undefined,
+  prop: string
+): string[] {
+  if (!claims || !claims[prop]) return [];
+
+  const results: string[] = [];
+  
+  for (const claim of claims[prop] as Array<{
+    mainsnak?: {
+      datavalue?: {
+        value: { id?: string; "numeric-id"?: number };
+        type?: string;
+      };
+    };
+  }>) {
+    const value = claim?.mainsnak?.datavalue?.value;
+    if (value?.id) {
+      results.push(value.id);
+    } else if (value?.["numeric-id"]) {
+      results.push(`Q${value["numeric-id"]}`);
+    }
+  }
+
+  return results;
+}
+
+/**
  * Get the taxonomic rank from claims
  */
 function getRankFromClaims(
@@ -288,6 +325,97 @@ function getRankFromClaims(
   if (!rankQid) return null;
 
   return RANK_QIDS[rankQid] || null;
+}
+
+// Wikidata QIDs for countries (common plant origin countries)
+const COUNTRY_QIDS: Record<string, string> = {
+  Q17: "JP", // Japan
+  Q148: "CN", // China
+  Q668: "IN", // India
+  Q869: "TH", // Thailand
+  Q881: "VN", // Vietnam
+  Q833: "MY", // Malaysia
+  Q252: "ID", // Indonesia
+  Q928: "PH", // Philippines
+  Q884: "KR", // South Korea
+  Q865: "TW", // Taiwan
+  Q334: "SG", // Singapore
+  Q836: "MM", // Myanmar
+  Q837: "NP", // Nepal
+  Q902: "BD", // Bangladesh
+  Q843: "PK", // Pakistan
+  Q854: "LK", // Sri Lanka
+  Q155: "BR", // Brazil
+  Q414: "AR", // Argentina
+  Q739: "CO", // Colombia
+  Q419: "PE", // Peru
+  Q298: "CL", // Chile
+  Q736: "EC", // Ecuador
+  Q717: "VE", // Venezuela
+  Q750: "BO", // Bolivia
+  Q258: "ZA", // South Africa
+  Q1019: "MG", // Madagascar
+  Q114: "KE", // Kenya
+  Q924: "TZ", // Tanzania
+  Q79: "EG", // Egypt
+  Q1028: "MA", // Morocco
+  Q1033: "NG", // Nigeria
+  Q115: "ET", // Ethiopia
+  Q408: "AU", // Australia
+  Q664: "NZ", // New Zealand
+  Q691: "PG", // Papua New Guinea
+  Q712: "FJ", // Fiji
+  Q30: "US", // United States
+  Q16: "CA", // Canada
+  Q96: "MX", // Mexico
+  Q774: "GT", // Guatemala
+  Q800: "CR", // Costa Rica
+  Q804: "PA", // Panama
+  Q241: "CU", // Cuba
+  Q766: "JM", // Jamaica
+  Q145: "GB", // United Kingdom
+  Q142: "FR", // France
+  Q183: "DE", // Germany
+  Q38: "IT", // Italy
+  Q29: "ES", // Spain
+  Q45: "PT", // Portugal
+  Q159: "RU", // Russia
+  Q212: "UA", // Ukraine
+  Q41: "GR", // Greece
+  Q794: "IR", // Iran
+  Q43: "TR", // Turkey
+  Q801: "IL", // Israel
+};
+
+/**
+ * Resolve a Wikidata location QID to an ISO country code
+ * First checks direct mapping, then fetches the entity to look for country property
+ */
+export async function resolveLocationToCountryCode(
+  locationQid: string,
+  lang: string = "en"
+): Promise<string | null> {
+  // Check direct mapping first
+  if (COUNTRY_QIDS[locationQid]) {
+    return COUNTRY_QIDS[locationQid];
+  }
+
+  // Fetch the entity to check if it's a country or has a country property
+  try {
+    const entity = await fetchEntity(locationQid, lang);
+    if (!entity) return null;
+
+    // Check if the entity itself is a country (has P17 = self or is in our mapping)
+    const countryQid = getClaimEntityId(entity.claims as Record<string, unknown[]>, "P17");
+    if (countryQid && COUNTRY_QIDS[countryQid]) {
+      return COUNTRY_QIDS[countryQid];
+    }
+
+    return null;
+  } catch (error) {
+    console.error("Error resolving location to country:", error);
+    return null;
+  }
 }
 
 /**

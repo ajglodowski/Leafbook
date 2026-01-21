@@ -1,9 +1,22 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { del } from "@vercel/blob";
 import { createClient, getCurrentUserId } from "@/lib/supabase/server";
+import {
+  careEventMutationTags,
+  carePreferencesMutationTags,
+  issueMutationTags,
+  journalMutationTags,
+  plantMutationTags,
+  plantPhotoMutationTags,
+  potMutationTags,
+  recordTag,
+  scheduleSuggestionMutationTags,
+  scopedListTag,
+  userTag,
+} from "@/lib/cache-tags";
 
 // ============================================================================
 // Journal Entry Helpers for Auto-Generated Entries
@@ -150,9 +163,7 @@ export async function logCareEvent(
     return { success: false, error: error.message };
   }
 
-  revalidatePath("/");
-  revalidatePath("/plants");
-  revalidatePath(`/plants/${plantId}`);
+  careEventMutationTags(user.id, plantId).forEach((tag) => updateTag(tag));
   
   return { success: true };
 }
@@ -279,11 +290,13 @@ export async function logRepotEvent(
     // Don't fail the whole operation if journal entry fails
   }
 
-  revalidatePath("/");
-  revalidatePath("/plants");
-  revalidatePath(`/plants/${plantId}`);
-  revalidatePath("/pots");
-  revalidatePath("/journal");
+  // Invalidate plant, events, pots, and journal
+  careEventMutationTags(user.id, plantId).forEach((tag) => updateTag(tag));
+  updateTag(userTag(user.id, "pots"));
+  updateTag(userTag(user.id, "journal"));
+  updateTag(scopedListTag("journal-entries", plantId));
+  if (data.fromPotId) updateTag(recordTag("pot", data.fromPotId));
+  if (data.toPotId) updateTag(recordTag("pot", data.toPotId));
 
   return { success: true };
 }
@@ -397,11 +410,11 @@ export async function updateRepotEvent(
     console.error("Error updating plant pot after repot edit:", plantUpdateError);
   }
 
-  revalidatePath("/");
-  revalidatePath("/plants");
-  revalidatePath(`/plants/${event.plant_id}`);
-  revalidatePath("/pots");
-  revalidatePath("/journal");
+  // Invalidate plant, events, pots, and journal
+  careEventMutationTags(user.id, event.plant_id).forEach((tag) => updateTag(tag));
+  updateTag(userTag(user.id, "pots"));
+  updateTag(userTag(user.id, "journal"));
+  updateTag(scopedListTag("journal-entries", event.plant_id));
 
   return { success: true };
 }
@@ -500,12 +513,12 @@ export async function updatePlant(
         // Don't fail the whole operation
       }
 
-      revalidatePath("/journal");
+      updateTag(userTag(user.id, "journal"));
+      updateTag(scopedListTag("journal-entries", plantId));
     }
   }
 
-  revalidatePath("/plants");
-  revalidatePath(`/plants/${plantId}`);
+  plantMutationTags(user.id, plantId).forEach((tag) => updateTag(tag));
   
   return { success: true };
 }
@@ -530,8 +543,7 @@ export async function deletePlant(plantId: string) {
     return { success: false, error: error.message };
   }
 
-  revalidatePath("/plants");
-  revalidatePath("/");
+  plantMutationTags(user.id, plantId).forEach((tag) => updateTag(tag));
   
   return { success: true };
 }
@@ -593,9 +605,7 @@ export async function upsertPlantCarePreferences(
     }
   }
 
-  revalidatePath("/");
-  revalidatePath("/plants");
-  revalidatePath(`/plants/${plantId}`);
+  carePreferencesMutationTags(user.id, plantId).forEach((tag) => updateTag(tag));
 
   return { success: true };
 }
@@ -641,7 +651,8 @@ export async function createPlantPhoto(
     return { success: false, error: error.message };
   }
 
-  revalidatePath(`/plants/${plantId}`);
+  updateTag(scopedListTag("plant-photos", plantId));
+  updateTag(recordTag("plant", plantId));
 
   return { success: true };
 }
@@ -685,7 +696,7 @@ export async function deletePlantPhoto(photoId: string) {
     return { success: false, error: error.message };
   }
 
-  revalidatePath(`/plants/${photo.plant_id}`);
+  plantPhotoMutationTags(photo.plant_id, photoId).forEach((tag) => updateTag(tag));
 
   return { success: true };
 }
@@ -730,7 +741,7 @@ export async function updatePlantPhotoMetadata(
     return { success: false, error: error.message };
   }
 
-  revalidatePath(`/plants/${photo.plant_id}`);
+  plantPhotoMutationTags(photo.plant_id, photoId).forEach((tag) => updateTag(tag));
 
   return { success: true };
 }
@@ -787,8 +798,7 @@ export async function setPlantActivePhoto(
     return { success: false, error: error.message };
   }
 
-  revalidatePath("/plants");
-  revalidatePath(`/plants/${plantId}`);
+  plantMutationTags(user.id, plantId).forEach((tag) => updateTag(tag));
 
   return { success: true };
 }
@@ -844,8 +854,9 @@ export async function createJournalEntry(
     return { success: false, error: error.message };
   }
 
-  revalidatePath(`/plants/${plantId}`);
-  revalidatePath("/journal");
+  updateTag(userTag(user.id, "journal"));
+  updateTag(scopedListTag("journal-entries", plantId));
+  updateTag(recordTag("plant", plantId));
 
   return { success: true };
 }
@@ -900,8 +911,7 @@ export async function updateJournalEntry(
     return { success: false, error: error.message };
   }
 
-  revalidatePath(`/plants/${entry.plant_id}`);
-  revalidatePath("/journal");
+  journalMutationTags(user.id, entryId, entry.plant_id).forEach((tag) => updateTag(tag));
 
   return { success: true };
 }
@@ -936,8 +946,7 @@ export async function deleteJournalEntry(entryId: string) {
     return { success: false, error: error.message };
   }
 
-  revalidatePath(`/plants/${entry.plant_id}`);
-  revalidatePath("/journal");
+  journalMutationTags(user.id, entryId, entry.plant_id).forEach((tag) => updateTag(tag));
 
   return { success: true };
 }
@@ -1013,8 +1022,9 @@ export async function createPlantIssue(
     return { success: false, error: error.message };
   }
 
-  revalidatePath(`/plants/${plantId}`);
-  revalidatePath("/journal");
+  updateTag(userTag(user.id, "issues"));
+  updateTag(scopedListTag("plant-issues", plantId));
+  updateTag(recordTag("plant", plantId));
 
   return { success: true };
 }
@@ -1076,8 +1086,7 @@ export async function updatePlantIssue(
     return { success: false, error: error.message };
   }
 
-  revalidatePath(`/plants/${issue.plant_id}`);
-  revalidatePath("/journal");
+  issueMutationTags(user.id, issueId, issue.plant_id).forEach((tag) => updateTag(tag));
 
   return { success: true };
 }
@@ -1126,8 +1135,7 @@ export async function resolvePlantIssue(
     return { success: false, error: error.message };
   }
 
-  revalidatePath(`/plants/${issue.plant_id}`);
-  revalidatePath("/journal");
+  issueMutationTags(user.id, issueId, issue.plant_id).forEach((tag) => updateTag(tag));
 
   return { success: true };
 }
@@ -1162,8 +1170,7 @@ export async function deletePlantIssue(issueId: string) {
     return { success: false, error: error.message };
   }
 
-  revalidatePath(`/plants/${issue.plant_id}`);
-  revalidatePath("/journal");
+  issueMutationTags(user.id, issueId, issue.plant_id).forEach((tag) => updateTag(tag));
 
   return { success: true };
 }
@@ -1321,9 +1328,8 @@ export async function acceptScheduleSuggestion(
     }
   }
 
-  revalidatePath("/");
-  revalidatePath("/plants");
-  revalidatePath(`/plants/${plantId}`);
+  scheduleSuggestionMutationTags(user.id, suggestionId, plantId).forEach((tag) => updateTag(tag));
+  carePreferencesMutationTags(user.id, plantId).forEach((tag) => updateTag(tag));
 
   return { success: true };
 }
@@ -1359,9 +1365,7 @@ export async function dismissScheduleSuggestion(suggestionId: string) {
     return { success: false, error: error.message };
   }
 
-  revalidatePath("/");
-  revalidatePath("/plants");
-  revalidatePath(`/plants/${suggestion.plant_id}`);
+  scheduleSuggestionMutationTags(user.id, suggestionId, suggestion.plant_id).forEach((tag) => updateTag(tag));
 
   return { success: true };
 }

@@ -15,24 +15,32 @@ export default async function EditPlantTypePage({
   const { id } = await params;
   const supabase = await createClient();
 
-  const { data: plantType, error } = await supabase
-    .from("plant_types")
-    .select("*")
-    .eq("id", id)
-    .single();
+  const [plantTypeResult, photosResult, originsResult] = await Promise.all([
+    supabase
+      .from("plant_types")
+      .select("*")
+      .eq("id", id)
+      .single(),
+    supabase
+      .from("plant_type_photos")
+      .select("id, url, caption, is_primary, display_order")
+      .eq("plant_type_id", id)
+      .order("is_primary", { ascending: false })
+      .order("display_order", { ascending: true })
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("plant_type_origins")
+      .select("country_code, region")
+      .eq("plant_type_id", id),
+  ]);
+
+  const { data: plantType, error } = plantTypeResult;
+  const { data: photos } = photosResult;
+  const { data: origins } = originsResult;
 
   if (error || !plantType) {
     notFound();
   }
-
-  // Fetch photos for this plant type
-  const { data: photos } = await supabase
-    .from("plant_type_photos")
-    .select("id, url, caption, is_primary, display_order")
-    .eq("plant_type_id", id)
-    .order("is_primary", { ascending: false })
-    .order("display_order", { ascending: true })
-    .order("created_at", { ascending: true });
 
   return (
     <div className="space-y-6">
@@ -60,7 +68,7 @@ export default async function EditPlantTypePage({
       <WikidataEnrichment plantType={plantType} />
 
       {/* Form */}
-      <PlantTypeForm plantType={plantType} mode="edit" />
+      <PlantTypeForm plantType={plantType} mode="edit" initialOrigins={origins || []} />
 
       {/* Photo Management */}
       <PhotoManagement

@@ -1,9 +1,17 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { del } from "@vercel/blob";
 import { createClient, getCurrentUserId } from "@/lib/supabase/server";
+import { potMutationTags } from "@/lib/cache-tags";
+import {
+  getUserPotsForUser,
+  getPotsWithUsageForUser,
+  getRecommendedPotsForRepotForUser,
+  getUnusedPotsForUser,
+  type PotWithUsage,
+} from "@/lib/queries/pots";
 
 export interface PotData {
   name: string;
@@ -45,7 +53,7 @@ export async function createPot(data: PotData) {
     return { success: false, error: error.message };
   }
 
-  revalidatePath("/pots");
+  potMutationTags(userId, pot.id).forEach((tag) => updateTag(tag));
   return { success: true, potId: pot.id };
 }
 
@@ -93,7 +101,7 @@ export async function updatePot(potId: string, data: Partial<PotData>) {
     return { success: false, error: error.message };
   }
 
-  revalidatePath("/pots");
+  potMutationTags(userId, potId).forEach((tag) => updateTag(tag));
   return { success: true };
 }
 
@@ -116,7 +124,7 @@ export async function retirePot(potId: string) {
     return { success: false, error: error.message };
   }
 
-  revalidatePath("/pots");
+  potMutationTags(userId, potId).forEach((tag) => updateTag(tag));
   return { success: true };
 }
 
@@ -139,7 +147,7 @@ export async function unretirePot(potId: string) {
     return { success: false, error: error.message };
   }
 
-  revalidatePath("/pots");
+  potMutationTags(userId, potId).forEach((tag) => updateTag(tag));
   return { success: true };
 }
 
@@ -183,7 +191,7 @@ export async function deletePot(potId: string) {
     return { success: false, error: error.message };
   }
 
-  revalidatePath("/pots");
+  potMutationTags(userId, potId).forEach((tag) => updateTag(tag));
   return { success: true };
 }
 
@@ -226,57 +234,22 @@ export async function setPotPhoto(potId: string, photoUrl: string | null) {
     return { success: false, error: error.message };
   }
 
-  revalidatePath("/pots");
+  potMutationTags(userId, potId).forEach((tag) => updateTag(tag));
   return { success: true };
 }
 
+// ============================================================================
+// Pot Read Functions (wrappers with auth)
+// ============================================================================
+
 export async function getUserPots(includeRetired = false) {
-  const supabase = await createClient();
   const userId = await getCurrentUserId();
 
   if (!userId) {
     redirect("/auth/login");
   }
 
-  let query = supabase
-    .from("user_pots")
-    .select("*")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false });
-
-  if (!includeRetired) {
-    query = query.eq("is_retired", false);
-  }
-
-  const { data: pots, error } = await query;
-
-  if (error) {
-    console.error("Error fetching pots:", error);
-    return [];
-  }
-
-  return pots;
-}
-
-// ============================================================================
-// Pot Inventory & Usage Helpers
-// ============================================================================
-
-export interface PotWithUsage {
-  id: string;
-  name: string;
-  size_inches: number | null;
-  material: string | null;
-  has_drainage: boolean;
-  color: string | null;
-  notes: string | null;
-  photo_url: string | null;
-  is_retired: boolean;
-  created_at: string;
-  // Usage info
-  in_use: boolean;
-  used_by_plant_id: string | null;
-  used_by_plant_name: string | null;
+  return getUserPotsForUser(userId, includeRetired);
 }
 
 /**
@@ -284,127 +257,40 @@ export interface PotWithUsage {
  * "In use" means assigned to an active plant (is_active=true).
  */
 export async function getPotsWithUsage(includeRetired = true): Promise<PotWithUsage[]> {
-  const supabase = await createClient();
   const userId = await getCurrentUserId();
 
   if (!userId) {
     redirect("/auth/login");
   }
 
-  // Fetch all pots
-  let potsQuery = supabase
-    .from("user_pots")
-    .select("*")
-    .eq("user_id", userId)
-    .order("is_retired", { ascending: true })
-    .order("size_inches", { ascending: true, nullsFirst: false })
-    .order("created_at", { ascending: false });
-
-  if (!includeRetired) {
-    potsQuery = potsQuery.eq("is_retired", false);
-  }
-
-  const { data: pots, error: potsError } = await potsQuery;
-
-  if (potsError) {
-    console.error("Error fetching pots:", potsError);
-    return [];
-  }
-
-  if (!pots || pots.length === 0) {
-    return [];
-  }
-
-  // Fetch active plants with their current_pot_id
-  const { data: activePlants } = await supabase
-    .from("plants")
-    .select("id, name, current_pot_id")
-    .eq("user_id", userId)
-    .eq("is_active", true)
-    .not("current_pot_id", "is", null);
-
-  // Build a map of pot_id -> plant info
-  const potUsageMap = new Map<string, { plantId: string; plantName: string }>();
-  if (activePlants) {
-    for (const plant of activePlants) {
-      if (plant.current_pot_id) {
-        potUsageMap.set(plant.current_pot_id, {
-          plantId: plant.id,
-          plantName: plant.name,
-        });
-      }
-    }
-  }
-
-  // Enrich pots with usage info
-  return pots.map((pot) => {
-    const usage = potUsageMap.get(pot.id);
-    return {
-      ...pot,
-      in_use: !!usage,
-      used_by_plant_id: usage?.plantId ?? null,
-      used_by_plant_name: usage?.plantName ?? null,
-    };
-  });
+  return getPotsWithUsageForUser(userId, includeRetired);
 }
 
 /**
  * Get recommended pots for repotting a specific plant.
- * Rules:
- * - Exclude retired pots
- * - Exclude pots currently in use by active plants
- * - If current pot has a size, recommend pots where size_inches >= current AND <= current + 2
- * - If no current pot size, return all unused pots sorted by size
  */
 export async function getRecommendedPotsForRepot(
   currentPotId: string | null,
   currentPotSizeInches: number | null
 ): Promise<PotWithUsage[]> {
-  const allPots = await getPotsWithUsage(false); // exclude retired
+  const userId = await getCurrentUserId();
 
-  // Filter to unused pots (exclude the current pot itself)
-  const unusedPots = allPots.filter(
-    (pot) => !pot.in_use && pot.id !== currentPotId
-  );
-
-  // If current pot has a size, filter to [current, current + 2] range
-  if (currentPotSizeInches !== null) {
-    const minSize = currentPotSizeInches;
-    const maxSize = currentPotSizeInches + 2;
-
-    const recommended = unusedPots.filter(
-      (pot) =>
-        pot.size_inches !== null &&
-        pot.size_inches >= minSize &&
-        pot.size_inches <= maxSize
-    );
-
-    // Sort by size (smallest first)
-    return recommended.sort((a, b) => {
-      if (a.size_inches === null) return 1;
-      if (b.size_inches === null) return -1;
-      return a.size_inches - b.size_inches;
-    });
+  if (!userId) {
+    redirect("/auth/login");
   }
 
-  // No current pot size: return all unused pots sorted by size then recency
-  return unusedPots.sort((a, b) => {
-    // Pots with size first, then by size ascending
-    if (a.size_inches !== null && b.size_inches !== null) {
-      return a.size_inches - b.size_inches;
-    }
-    if (a.size_inches !== null) return -1;
-    if (b.size_inches !== null) return 1;
-    // Both null size: sort by created_at descending
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-  });
+  return getRecommendedPotsForRepotForUser(userId, currentPotId, currentPotSizeInches);
 }
 
 /**
  * Get all unused pots (for browsing inventory during repot).
- * Excludes retired pots.
  */
 export async function getUnusedPots(): Promise<PotWithUsage[]> {
-  const allPots = await getPotsWithUsage(false); // exclude retired
-  return allPots.filter((pot) => !pot.in_use);
+  const userId = await getCurrentUserId();
+
+  if (!userId) {
+    redirect("/auth/login");
+  }
+
+  return getUnusedPotsForUser(userId);
 }

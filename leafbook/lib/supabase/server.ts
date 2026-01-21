@@ -1,4 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 
 /**
@@ -30,6 +31,21 @@ export async function createClient() {
         },
       },
     },
+  );
+}
+
+/**
+ * Public client for cached queries that don't require user authentication.
+ * This client uses the anon key and doesn't rely on cookies.
+ * Use this for public data like plant types catalog.
+ * 
+ * NOTE: This client respects RLS policies for anonymous access.
+ * Only use for tables/views that allow public read access.
+ */
+export function createPublicClient() {
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
   );
 }
 

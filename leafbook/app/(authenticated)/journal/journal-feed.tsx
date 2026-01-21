@@ -4,7 +4,7 @@ import Link from "next/link";
 import { BookOpen, ExternalLink, Leaf, AlertTriangle, CheckCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import type { JournalEntryWithPlant, PlantIssueWithPlant } from "./actions";
+import type { JournalEntryWithPlant, PlantIssueWithPlant } from "@/lib/queries/journal";
 
 function formatDate(dateString: string): string {
   const date = new Date(dateString);

@@ -30,7 +30,7 @@ import {
   getRecentJournalEntriesForUser,
   getScheduleSuggestionsForUser,
   getWishlistCountForUser,
-} from "@/app/(authenticated)/today/actions";
+} from "@/lib/queries/today";
 
 type TaskStatus = "overdue" | "due_soon" | "not_started" | "ok";
 
@@ -238,6 +238,9 @@ export async function TodayDashboard({ userId }: { userId: string }) {
   // Get greeting
   const { greeting, subtext } = getGreeting();
   const displayName = profile?.display_name;
+
+  const end = Date.now();
+  console.log(`Time taken for TodayDashboard: ${end - start}ms`);
 
   return (
     <div className="space-y-8">

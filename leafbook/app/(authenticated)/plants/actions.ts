@@ -1,8 +1,15 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient, getCurrentUserId } from "@/lib/supabase/server";
+import {
+  careEventMutationTags,
+  plantMutationTags,
+  plantTypeDetailTags,
+  propagationMutationTags,
+  userTag,
+} from "@/lib/cache-tags";
 
 // ============================================================================
 // Journal Entry Helpers for Acquisition
@@ -137,53 +144,14 @@ export async function createPlant(formData: FormData) {
     // Don't fail the whole operation if journal entry fails
   }
 
-  revalidatePath("/plants");
-  revalidatePath("/");
-  revalidatePath("/journal");
+  // Invalidate cache tags (userId is guaranteed string after redirect guard)
+  plantMutationTags(userId as string, plant.id).forEach((tag) => updateTag(tag));
+  updateTag(userTag(userId as string, "journal"));
+  if (plantTypeId) {
+    plantTypeDetailTags(plantTypeId).forEach((tag) => updateTag(tag));
+  }
   
   return { success: true, plantId: plant.id };
-}
-
-export type PlantWithTypes = {
-  id: string;
-  name: string;
-  nickname: string | null;
-  plant_location: "indoor" | "outdoor" | null;
-  location: string | null;
-  is_active: boolean;
-  created_at: string;
-  plant_type_id: string | null;
-  active_photo_id: string | null;
-  plant_types:
-    | {
-        id: string;
-        name: string;
-        scientific_name: string | null;
-      }[]
-    | null;
-};
-
-export type PlantTypeSummary = {
-  id: string;
-  name: string;
-  scientific_name: string | null;
-};
-
-export type PlantDueTask = {
-  plant_id: string;
-  watering_status: string | null;
-  fertilizing_status: string | null;
-};
-
-export type PlantPhoto = {
-  id: string;
-  plant_id: string;
-  url: string;
-};
-
-interface FetchResult<T> {
-  data: T[];
-  error?: string | null;
 }
 
 export async function getCurrentUser() {
@@ -194,70 +162,6 @@ export async function getCurrentUser() {
   }
 
   return { id: userId };
-}
-
-export async function getPlantsForUser(userId: string): Promise<FetchResult<PlantWithTypes>> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("plants")
-    .select(`
-      id,
-      name,
-      nickname,
-      plant_location,
-      location,
-      is_active,
-      created_at,
-      plant_type_id,
-      active_photo_id,
-      plant_types (
-        id,
-        name,
-        scientific_name
-      )
-    `)
-    .eq("user_id", userId)
-    .eq("is_active", true)
-    .order("created_at", { ascending: false });
-
-  return { data: data || [], error: error?.message };
-}
-
-export async function getPlantTypes(): Promise<FetchResult<PlantTypeSummary>> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("plant_types")
-    .select("id, name, scientific_name")
-    .order("name", { ascending: true });
-
-  return { data: data || [], error: error?.message };
-}
-
-export async function getDueTasksForUser(userId: string): Promise<FetchResult<PlantDueTask>> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("v_plant_due_tasks")
-    .select("plant_id, watering_status, fertilizing_status")
-    .eq("user_id", userId);
-
-  return { data: data || [], error: error?.message };
-}
-
-export async function getPlantPhotosForPlants(
-  plantIds: string[]
-): Promise<FetchResult<PlantPhoto>> {
-  if (plantIds.length === 0) {
-    return { data: [] };
-  }
-
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("plant_photos")
-    .select("id, plant_id, url")
-    .in("plant_id", plantIds)
-    .order("taken_at", { ascending: false });
-
-  return { data: data || [], error: error?.message };
 }
 
 export async function logCareEvent(
@@ -285,9 +189,232 @@ export async function logCareEvent(
     return { success: false, error: error.message };
   }
 
-  revalidatePath("/");
-  revalidatePath("/plants");
-  revalidatePath(`/plants/${plantId}`);
+  // Invalidate cache tags for the affected plant and user's due tasks
+  careEventMutationTags(userId as string, plantId).forEach((tag) => updateTag(tag));
   
   return { success: true };
+}
+
+// ============================================================================
+// PROPAGATION ACTIONS
+// ============================================================================
+
+/**
+ * Set a parent plant for a plant (create propagation link).
+ * Also logs a 'propagated' event on the child plant.
+ */
+export async function setParentPlant(
+  childPlantId: string,
+  parentPlantId: string,
+  propagationDate?: string
+) {
+  const supabase = await createClient();
+  const userId = await getCurrentUserId();
+
+  if (!userId) {
+    redirect("/auth/login");
+  }
+
+  // Prevent self-reference
+  if (childPlantId === parentPlantId) {
+    return { success: false, error: "A plant cannot be its own parent" };
+  }
+
+  // Verify both plants belong to the current user
+  const { data: plants, error: verifyError } = await supabase
+    .from("plants")
+    .select("id")
+    .eq("user_id", userId)
+    .in("id", [childPlantId, parentPlantId]);
+
+  if (verifyError || !plants || plants.length !== 2) {
+    return { success: false, error: "Invalid plant selection" };
+  }
+
+  // Update the child plant with the parent reference
+  const { error: updateError } = await supabase
+    .from("plants")
+    .update({ parent_plant_id: parentPlantId })
+    .eq("id", childPlantId)
+    .eq("user_id", userId);
+
+  if (updateError) {
+    console.error("Error setting parent plant:", updateError);
+    return { success: false, error: updateError.message };
+  }
+
+  // Log a 'propagated' event on the child plant
+  const eventDate = propagationDate ? new Date(propagationDate).toISOString() : new Date().toISOString();
+  const { error: eventError } = await supabase.from("plant_events").insert({
+    plant_id: childPlantId,
+    user_id: userId,
+    event_type: "propagated",
+    event_date: eventDate,
+    metadata: { parent_plant_id: parentPlantId },
+    notes: "Propagated from parent plant",
+  });
+
+  if (eventError) {
+    console.error("Error logging propagation event:", eventError);
+    // Don't fail the whole operation if event logging fails
+  }
+
+  // Invalidate cache tags
+  propagationMutationTags(userId, childPlantId, parentPlantId).forEach((tag) =>
+    updateTag(tag)
+  );
+
+  return { success: true };
+}
+
+/**
+ * Clear a plant's parent (remove propagation link).
+ */
+export async function clearParentPlant(childPlantId: string) {
+  const supabase = await createClient();
+  const userId = await getCurrentUserId();
+
+  if (!userId) {
+    redirect("/auth/login");
+  }
+
+  // First get the current parent so we can invalidate its cache
+  const { data: plant } = await supabase
+    .from("plants")
+    .select("parent_plant_id")
+    .eq("id", childPlantId)
+    .eq("user_id", userId)
+    .single();
+
+  const previousParentId = plant?.parent_plant_id;
+
+  // Update the child plant to remove parent reference
+  const { error: updateError } = await supabase
+    .from("plants")
+    .update({ parent_plant_id: null })
+    .eq("id", childPlantId)
+    .eq("user_id", userId);
+
+  if (updateError) {
+    console.error("Error clearing parent plant:", updateError);
+    return { success: false, error: updateError.message };
+  }
+
+  // Invalidate cache tags
+  propagationMutationTags(userId, childPlantId, previousParentId).forEach((tag) =>
+    updateTag(tag)
+  );
+
+  return { success: true };
+}
+
+/**
+ * Create a plant as a propagation from a parent plant.
+ * This creates the plant, links it to the parent, and logs the propagation event.
+ */
+export async function createPropagatedPlant(formData: FormData) {
+  const supabase = await createClient();
+  const userId = await getCurrentUserId();
+
+  if (!userId) {
+    redirect("/auth/login");
+  }
+
+  const name = formData.get("name") as string;
+  const parentPlantId = formData.get("parentPlantId") as string;
+  const plantTypeId = formData.get("plantTypeId") as string | null;
+  const nickname = formData.get("nickname") as string | null;
+  const plantLocation = (formData.get("plant_location") as "indoor" | "outdoor") || "indoor";
+  const location = formData.get("location") as string | null;
+  const lightExposure = formData.get("light_exposure") as string | null;
+  const propagationDate = formData.get("propagation_date") as string | null;
+  const description = formData.get("description") as string | null;
+
+  if (!parentPlantId?.trim()) {
+    return { success: false, error: "Parent plant is required" };
+  }
+
+  if (!name?.trim()) {
+    return { success: false, error: "Name is required" };
+  }
+
+  // Verify parent plant belongs to current user
+  const { data: parentPlant, error: parentError } = await supabase
+    .from("plants")
+    .select("id, name, plant_type_id")
+    .eq("id", parentPlantId)
+    .eq("user_id", userId)
+    .single();
+
+  if (parentError || !parentPlant) {
+    return { success: false, error: "Invalid parent plant" };
+  }
+
+  const now = new Date().toISOString();
+  const eventDate = propagationDate ? new Date(propagationDate).toISOString() : now;
+
+  // Use parent's plant type if not explicitly specified
+  const effectivePlantTypeId = plantTypeId || parentPlant.plant_type_id;
+
+  // Create the new plant with parent reference
+  const { data: plant, error } = await supabase
+    .from("plants")
+    .insert({
+      user_id: userId,
+      name: name.trim(),
+      nickname: nickname?.trim() || null,
+      plant_type_id: effectivePlantTypeId,
+      parent_plant_id: parentPlantId,
+      plant_location: plantLocation,
+      location: location?.trim() || null,
+      light_exposure: lightExposure || null,
+      how_acquired: `Propagated from ${parentPlant.name}`,
+      acquired_at: propagationDate || null,
+      description: description?.trim() || null,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error creating propagated plant:", error);
+    return { success: false, error: error.message };
+  }
+
+  // Log a 'propagated' event on the child plant
+  const { error: eventError } = await supabase.from("plant_events").insert({
+    plant_id: plant.id,
+    user_id: userId,
+    event_type: "propagated",
+    event_date: eventDate,
+    metadata: { parent_plant_id: parentPlantId },
+    notes: `Propagated from ${parentPlant.name}`,
+  });
+
+  if (eventError) {
+    console.error("Error logging propagation event:", eventError);
+  }
+
+  // Create a journal entry for the propagation
+  const journalContent = `Welcome, ${name.trim()}!\n\nPropagated from ${parentPlant.name}.${description ? `\n\n${description.trim()}` : ""}`;
+  
+  const { error: journalError } = await supabase.from("journal_entries").insert({
+    plant_id: plant.id,
+    user_id: userId,
+    title: "Propagation",
+    content: journalContent,
+    entry_date: eventDate,
+  });
+
+  if (journalError) {
+    console.error("Error creating propagation journal entry:", journalError);
+  }
+
+  // Invalidate cache tags
+  propagationMutationTags(userId, plant.id, parentPlantId).forEach((tag) =>
+    updateTag(tag)
+  );
+  plantMutationTags(userId, plant.id).forEach((tag) => updateTag(tag));
+  updateTag(userTag(userId, "journal"));
+
+  return { success: true, plantId: plant.id };
 }

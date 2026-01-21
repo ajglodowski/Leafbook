@@ -1,36 +1,9 @@
-import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { Leaf } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { AppShell } from "@/components/app-shell";
-import { TodayDashboard } from "@/components/today-dashboard";
 import { MarketingHeader } from "@/components/marketing-header";
-import { getCurrentUserId } from "@/lib/supabase/server";
 
-// Force dynamic rendering since we check auth state
-export const dynamic = "force-dynamic";
-
-export default async function HomePage() {
-  const supabase = await createClient();
-  const userId = await getCurrentUserId();
-
-  // Authenticated users see the Today dashboard at root
-  if (userId) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", userId)
-      .single();
-
-    const isAdmin = profile?.role === "admin";
-
-    return (
-      <AppShell isAdmin={isAdmin}>
-        <TodayDashboard userId={userId} />
-      </AppShell>
-    );
-  }
-
+export default function HomePage() {
   // Simple landing for unauthenticated users (full marketing page comes later)
   return (
     <div className="flex min-h-screen flex-col">
