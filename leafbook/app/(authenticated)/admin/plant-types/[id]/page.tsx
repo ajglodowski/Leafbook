@@ -7,6 +7,11 @@ import { PlantTypeForm } from "../plant-type-form";
 import { PhotoManagement } from "./photo-management";
 import { WikidataEnrichment } from "./wikidata-enrichment";
 
+export const metadata = {
+  title: "Edit Plant Type | Leafbook",
+  description: "Update plant type details and photos",
+};
+
 export default async function EditPlantTypePage({
   params,
 }: {

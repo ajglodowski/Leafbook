@@ -12,6 +12,7 @@ import {
   plantMutationTags,
   plantPhotoMutationTags,
   potMutationTags,
+  propagationMutationTags,
   recordTag,
   scheduleSuggestionMutationTags,
   scopedListTag,
@@ -134,16 +135,20 @@ export async function logCareEvent(
   const supabase = await createClient();
   const user = { id: await getRequiredUserId() };
 
-  // Verify the plant belongs to this user
+  // Verify the plant belongs to this user and is not legacy
   const { data: plant, error: plantError } = await supabase
     .from("plants")
-    .select("id")
+    .select("id, is_legacy")
     .eq("id", plantId)
     .eq("user_id", user.id)
     .single();
 
   if (plantError || !plant) {
     return { success: false, error: "Plant not found" };
+  }
+
+  if (plant.is_legacy) {
+    return { success: false, error: "Cannot log care events for legacy plants" };
   }
 
   // Use provided date or default to now
@@ -168,6 +173,277 @@ export async function logCareEvent(
   return { success: true };
 }
 
+export async function updateCareEvent(
+  eventId: string,
+  data: {
+    eventDate?: string;
+    notes?: string | null;
+  }
+) {
+  const supabase = await createClient();
+  const user = { id: await getRequiredUserId() };
+
+  // Fetch the event and verify ownership + allowed event type
+  const { data: event, error: eventError } = await supabase
+    .from("plant_events")
+    .select("id, plant_id, event_type")
+    .eq("id", eventId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (eventError || !event) {
+    return { success: false, error: "Event not found" };
+  }
+
+  // Only allow editing watered and fertilized events via this action
+  const allowedTypes = ["watered", "fertilized"];
+  if (!allowedTypes.includes(event.event_type)) {
+    return { success: false, error: "This event type cannot be edited here" };
+  }
+
+  // Verify the plant belongs to this user
+  const { data: plant, error: plantError } = await supabase
+    .from("plants")
+    .select("id")
+    .eq("id", event.plant_id)
+    .eq("user_id", user.id)
+    .single();
+
+  if (plantError || !plant) {
+    return { success: false, error: "Plant not found" };
+  }
+
+  const updateData: Record<string, unknown> = {};
+  if (data.eventDate) {
+    updateData.event_date = new Date(data.eventDate).toISOString();
+  }
+  if (data.notes !== undefined) {
+    updateData.notes = data.notes?.trim() || null;
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    return { success: true }; // Nothing to update
+  }
+
+  const { error: updateError } = await supabase
+    .from("plant_events")
+    .update(updateData)
+    .eq("id", eventId);
+
+  if (updateError) {
+    console.error("Error updating care event:", updateError);
+    return { success: false, error: updateError.message };
+  }
+
+  careEventMutationTags(user.id, event.plant_id).forEach((tag) => updateTag(tag));
+
+  return { success: true };
+}
+
+export async function updatePropagationEvent(
+  eventId: string,
+  data: {
+    eventDate?: string;
+    notes?: string | null;
+    parentPlantId?: string | null;
+  }
+) {
+  const supabase = await createClient();
+  const user = { id: await getRequiredUserId() };
+
+  // Fetch the event and verify ownership + event type
+  const { data: event, error: eventError } = await supabase
+    .from("plant_events")
+    .select("id, plant_id, event_type, metadata")
+    .eq("id", eventId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (eventError || !event) {
+    return { success: false, error: "Event not found" };
+  }
+
+  if (event.event_type !== "propagated") {
+    return { success: false, error: "Event is not a propagation event" };
+  }
+
+  const childPlantId = event.plant_id;
+  const currentMetadata = (event.metadata as { parent_plant_id?: string | null } | null) ?? {};
+  const oldParentId = currentMetadata.parent_plant_id ?? null;
+
+  // Verify the child plant belongs to this user
+  const { data: childPlant, error: childError } = await supabase
+    .from("plants")
+    .select("id, parent_plant_id")
+    .eq("id", childPlantId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (childError || !childPlant) {
+    return { success: false, error: "Plant not found" };
+  }
+
+  // If changing parent, validate the new parent
+  let newParentId: string | null | undefined = data.parentPlantId;
+  if (newParentId !== undefined) {
+    if (newParentId === childPlantId) {
+      return { success: false, error: "A plant cannot be its own parent" };
+    }
+
+    if (newParentId) {
+      // Verify the new parent belongs to this user
+      const { data: newParent, error: parentError } = await supabase
+        .from("plants")
+        .select("id")
+        .eq("id", newParentId)
+        .eq("user_id", user.id)
+        .single();
+
+      if (parentError || !newParent) {
+        return { success: false, error: "Parent plant not found" };
+      }
+    }
+  }
+
+  // Build event update
+  const eventUpdate: Record<string, unknown> = {};
+  if (data.eventDate) {
+    eventUpdate.event_date = new Date(data.eventDate).toISOString();
+  }
+  if (data.notes !== undefined) {
+    eventUpdate.notes = data.notes?.trim() || null;
+  }
+  if (newParentId !== undefined) {
+    eventUpdate.metadata = {
+      ...currentMetadata,
+      parent_plant_id: newParentId,
+    };
+  }
+
+  // Update the event if there are changes
+  if (Object.keys(eventUpdate).length > 0) {
+    const { error: updateError } = await supabase
+      .from("plant_events")
+      .update(eventUpdate)
+      .eq("id", eventId);
+
+    if (updateError) {
+      console.error("Error updating propagation event:", updateError);
+      return { success: false, error: updateError.message };
+    }
+  }
+
+  // If parent changed, update the plant's parent_plant_id
+  if (newParentId !== undefined && newParentId !== childPlant.parent_plant_id) {
+    const { error: plantUpdateError } = await supabase
+      .from("plants")
+      .update({
+        parent_plant_id: newParentId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", childPlantId);
+
+    if (plantUpdateError) {
+      console.error("Error updating plant parent:", plantUpdateError);
+      return { success: false, error: plantUpdateError.message };
+    }
+  }
+
+  // Invalidate cache tags for care events + propagation relationships
+  careEventMutationTags(user.id, childPlantId).forEach((tag) => updateTag(tag));
+
+  // Invalidate propagation tags for old parent, new parent, and child
+  if (oldParentId) {
+    propagationMutationTags(user.id, childPlantId, oldParentId).forEach((tag) => updateTag(tag));
+  }
+  if (newParentId !== undefined) {
+    propagationMutationTags(user.id, childPlantId, newParentId).forEach((tag) => updateTag(tag));
+  }
+
+  return { success: true };
+}
+
+export async function deleteCareEvent(eventId: string) {
+  const supabase = await createClient();
+  const user = { id: await getRequiredUserId() };
+
+  // Fetch the event and verify ownership
+  const { data: event, error: eventError } = await supabase
+    .from("plant_events")
+    .select("id, plant_id, event_type")
+    .eq("id", eventId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (eventError || !event) {
+    return { success: false, error: "Event not found" };
+  }
+
+  // Only allow deleting watered and fertilized events via this action
+  const allowedTypes = ["watered", "fertilized"];
+  if (!allowedTypes.includes(event.event_type)) {
+    return { success: false, error: "This event type cannot be deleted here" };
+  }
+
+  const { error: deleteError } = await supabase
+    .from("plant_events")
+    .delete()
+    .eq("id", eventId);
+
+  if (deleteError) {
+    console.error("Error deleting care event:", deleteError);
+    return { success: false, error: deleteError.message };
+  }
+
+  careEventMutationTags(user.id, event.plant_id).forEach((tag) => updateTag(tag));
+
+  return { success: true };
+}
+
+export async function deletePropagationEvent(eventId: string) {
+  const supabase = await createClient();
+  const user = { id: await getRequiredUserId() };
+
+  // Fetch the event and verify ownership + event type
+  const { data: event, error: eventError } = await supabase
+    .from("plant_events")
+    .select("id, plant_id, event_type, metadata")
+    .eq("id", eventId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (eventError || !event) {
+    return { success: false, error: "Event not found" };
+  }
+
+  if (event.event_type !== "propagated") {
+    return { success: false, error: "Event is not a propagation event" };
+  }
+
+  const childPlantId = event.plant_id;
+  const metadata = (event.metadata as { parent_plant_id?: string | null } | null) ?? {};
+  const parentId = metadata.parent_plant_id ?? null;
+
+  // Delete the event
+  const { error: deleteError } = await supabase
+    .from("plant_events")
+    .delete()
+    .eq("id", eventId);
+
+  if (deleteError) {
+    console.error("Error deleting propagation event:", deleteError);
+    return { success: false, error: deleteError.message };
+  }
+
+  // Invalidate cache tags
+  careEventMutationTags(user.id, childPlantId).forEach((tag) => updateTag(tag));
+  if (parentId) {
+    propagationMutationTags(user.id, childPlantId, parentId).forEach((tag) => updateTag(tag));
+  }
+
+  return { success: true };
+}
+
 export async function logRepotEvent(
   plantId: string,
   data: {
@@ -179,16 +455,20 @@ export async function logRepotEvent(
   const supabase = await createClient();
   const user = { id: await getRequiredUserId() };
 
-  // Verify the plant belongs to this user
+  // Verify the plant belongs to this user and is not legacy
   const { data: plant, error: plantError } = await supabase
     .from("plants")
-    .select("id, current_pot_id")
+    .select("id, current_pot_id, is_legacy")
     .eq("id", plantId)
     .eq("user_id", user.id)
     .single();
 
   if (plantError || !plant) {
     return { success: false, error: "Plant not found" };
+  }
+
+  if (plant.is_legacy) {
+    return { success: false, error: "Cannot repot legacy plants" };
   }
 
   // If a target pot is specified, verify user owns it
@@ -548,6 +828,139 @@ export async function deletePlant(plantId: string) {
   return { success: true };
 }
 
+// ============================================================================
+// Legacy Plant Actions
+// ============================================================================
+
+export async function markPlantAsLegacy(
+  plantId: string,
+  data: {
+    reason: string;
+    legacyAt?: string; // ISO date string, defaults to now
+  }
+) {
+  const supabase = await createClient();
+  const user = { id: await getRequiredUserId() };
+
+  // Verify the plant belongs to this user
+  const { data: plant, error: plantError } = await supabase
+    .from("plants")
+    .select("id, is_legacy, name")
+    .eq("id", plantId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (plantError || !plant) {
+    return { success: false, error: "Plant not found" };
+  }
+
+  if (plant.is_legacy) {
+    return { success: false, error: "Plant is already marked as legacy" };
+  }
+
+  const legacyDate = data.legacyAt
+    ? new Date(data.legacyAt).toISOString()
+    : new Date().toISOString();
+
+  // Mark the plant as legacy and set is_active to false
+  const { error } = await supabase
+    .from("plants")
+    .update({
+      is_legacy: true,
+      is_active: false,
+      legacy_reason: data.reason.trim(),
+      legacy_at: legacyDate,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", plantId)
+    .eq("user_id", user.id);
+
+  if (error) {
+    console.error("Error marking plant as legacy:", error);
+    return { success: false, error: error.message };
+  }
+
+  // Create a journal entry to document the legacy status
+  const { error: journalError } = await supabase.from("journal_entries").insert({
+    plant_id: plantId,
+    user_id: user.id,
+    title: "Marked as Legacy",
+    content: `${plant.name} has been marked as legacy.\n\nReason: ${data.reason.trim()}\nDate: ${formatDate(legacyDate)}`,
+    entry_date: legacyDate,
+  });
+
+  if (journalError) {
+    console.error("Error creating legacy journal entry:", journalError);
+    // Don't fail the operation if journal entry fails
+  }
+
+  plantMutationTags(user.id, plantId).forEach((tag) => updateTag(tag));
+  updateTag(userTag(user.id, "journal"));
+  updateTag(scopedListTag("journal-entries", plantId));
+
+  return { success: true };
+}
+
+export async function restorePlantFromLegacy(plantId: string) {
+  const supabase = await createClient();
+  const user = { id: await getRequiredUserId() };
+
+  // Verify the plant belongs to this user and is legacy
+  const { data: plant, error: plantError } = await supabase
+    .from("plants")
+    .select("id, is_legacy, name")
+    .eq("id", plantId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (plantError || !plant) {
+    return { success: false, error: "Plant not found" };
+  }
+
+  if (!plant.is_legacy) {
+    return { success: false, error: "Plant is not marked as legacy" };
+  }
+
+  // Restore the plant from legacy status
+  const { error } = await supabase
+    .from("plants")
+    .update({
+      is_legacy: false,
+      is_active: true,
+      legacy_reason: null,
+      legacy_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", plantId)
+    .eq("user_id", user.id);
+
+  if (error) {
+    console.error("Error restoring plant from legacy:", error);
+    return { success: false, error: error.message };
+  }
+
+  // Create a journal entry to document the restoration
+  const now = new Date().toISOString();
+  const { error: journalError } = await supabase.from("journal_entries").insert({
+    plant_id: plantId,
+    user_id: user.id,
+    title: "Restored from Legacy",
+    content: `${plant.name} has been restored to the active collection.\n\nDate: ${formatDate(now)}`,
+    entry_date: now,
+  });
+
+  if (journalError) {
+    console.error("Error creating restore journal entry:", journalError);
+    // Don't fail the operation if journal entry fails
+  }
+
+  plantMutationTags(user.id, plantId).forEach((tag) => updateTag(tag));
+  updateTag(userTag(user.id, "journal"));
+  updateTag(scopedListTag("journal-entries", plantId));
+
+  return { success: true };
+}
+
 export async function upsertPlantCarePreferences(
   plantId: string,
   data: {
@@ -562,16 +975,20 @@ export async function upsertPlantCarePreferences(
     redirect("/auth/login");
   }
 
-  // Verify the plant belongs to this user
+  // Verify the plant belongs to this user and is not legacy
   const { data: plant, error: plantError } = await supabase
     .from("plants")
-    .select("id")
+    .select("id, is_legacy")
     .eq("id", plantId)
     .eq("user_id", user.id)
     .single();
 
   if (plantError || !plant) {
     return { success: false, error: "Plant not found" };
+  }
+
+  if (plant.is_legacy) {
+    return { success: false, error: "Cannot update care preferences for legacy plants" };
   }
 
   // If both values are null, delete the preferences row (if it exists)
@@ -972,7 +1389,7 @@ export type IssueType =
 
 export type IssueSeverity = "low" | "medium" | "high" | "critical";
 
-export type IssueStatus = "active" | "resolved" | "monitoring";
+export type IssueStatus = "active" | "resolved" | "monitoring" | "all";
 
 export async function createPlantIssue(
   plantId: string,

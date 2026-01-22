@@ -9,6 +9,7 @@ import {
   type JournalEntryWithPlant,
   type PlantIssueWithPlant,
 } from "@/lib/queries/journal";
+import { IssueStatus } from "../plants/[plantId]/actions";
 
 /**
  * Get journal entries for the current user.
@@ -50,7 +51,7 @@ export async function getUserPlants(): Promise<{
  */
 export async function getPlantIssues(options?: {
   plantId?: string;
-  status?: "active" | "resolved" | "monitoring" | "all";
+  status?: IssueStatus;
   limit?: number;
 }): Promise<{ issues: PlantIssueWithPlant[]; error: string | null }> {
   const userId = await getCurrentUserId();

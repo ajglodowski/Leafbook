@@ -4,6 +4,11 @@ import { getJournalEntries, getPlantIssues, getUserPlants } from "./actions";
 import { JournalFeed } from "./journal-feed";
 import { JournalHeader, type FeedType } from "./journal-header";
 
+export const metadata = {
+  title: "Journal | Leafbook",
+  description: "Review your plant journal and issues",
+};
+
 export default async function JournalPage({
   searchParams,
 }: {

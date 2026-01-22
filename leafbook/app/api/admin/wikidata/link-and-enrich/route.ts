@@ -31,6 +31,7 @@ interface EnrichmentResult {
   taxonId: string | null;
   fieldsUpdated: string[];
   taxonomyNodesCreated: number;
+  taxonomyNodesMerged: number;
   taxonomyEdgesCreated: number;
   entity: WikidataEntity;
   wikipediaSummary: string | null;
@@ -309,6 +310,7 @@ export async function POST(request: Request) {
       taxonId: linkedTaxon?.id || null,
       fieldsUpdated,
       taxonomyNodesCreated: taxonomyResult.nodesCreated,
+      taxonomyNodesMerged: taxonomyResult.nodesMerged,
       taxonomyEdgesCreated: taxonomyResult.edgesCreated,
       entity,
       wikipediaSummary,
@@ -326,26 +328,41 @@ export async function POST(request: Request) {
 }
 
 /**
- * Upsert taxonomy nodes and edges from a lineage
+ * Normalize a taxon name for comparison (lowercase, trimmed, collapsed whitespace)
+ */
+function normalizeTaxonName(name: string): string {
+  return name.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+/**
+ * Upsert taxonomy nodes and edges from a lineage.
+ * - First checks for existing taxon by wikidata_qid
+ * - If not found, checks for existing taxon by case-insensitive name match (to merge with manual entries)
+ * - Updates existing records with Wikidata metadata, or inserts new ones
  */
 async function upsertTaxonomyLineage(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
   lineage: TaxonLineage
-): Promise<{ nodesCreated: number; edgesCreated: number }> {
+): Promise<{ nodesCreated: number; edgesCreated: number; nodesMerged: number }> {
   let nodesCreated = 0;
   let edgesCreated = 0;
+  let nodesMerged = 0;
+  
+  // Map from Wikidata QID to actual taxon ID (important for edge creation after merges)
+  const qidToTaxonId = new Map<string, string>();
 
   // Upsert all taxon nodes
   for (const node of lineage.nodes) {
-    const { data: existing } = await supabase
+    // Step 1: Check for existing taxon by Wikidata QID
+    const { data: existingByQid } = await supabase
       .from("taxa")
       .select("id")
       .eq("wikidata_qid", node.qid)
       .single();
 
-    if (existing) {
-      // Update existing taxon
+    if (existingByQid) {
+      // Update existing taxon (already has this Wikidata QID)
       await supabase
         .from("taxa")
         .update({
@@ -357,9 +374,76 @@ async function upsertTaxonomyLineage(
           wikipedia_lang: node.wikipediaLang,
         })
         .eq("wikidata_qid", node.qid);
-    } else {
-      // Insert new taxon
-      const { error } = await supabase.from("taxa").insert({
+      
+      qidToTaxonId.set(node.qid, existingByQid.id);
+      continue;
+    }
+
+    // Step 2: Check for existing taxon by case-insensitive name match
+    // This handles merging with manually-created taxa
+    let existingByName: { id: string; wikidata_qid: string } | null = null;
+    
+    if (node.scientificName) {
+      const normalizedScientific = normalizeTaxonName(node.scientificName);
+      const { data } = await supabase
+        .from("taxa")
+        .select("id, wikidata_qid")
+        .or(`scientific_name.ilike.${normalizedScientific},common_name.ilike.${normalizedScientific}`)
+        .limit(1);
+      
+      if (data && data.length > 0) {
+        existingByName = data[0];
+      }
+    }
+    
+    // Also check common_name if different from scientific_name
+    if (!existingByName && node.commonName && node.commonName !== node.scientificName) {
+      const normalizedCommon = normalizeTaxonName(node.commonName);
+      const { data } = await supabase
+        .from("taxa")
+        .select("id, wikidata_qid")
+        .or(`scientific_name.ilike.${normalizedCommon},common_name.ilike.${normalizedCommon}`)
+        .limit(1);
+      
+      if (data && data.length > 0) {
+        existingByName = data[0];
+      }
+    }
+
+    if (existingByName) {
+      // Merge: Update existing taxon with Wikidata data
+      // Only update if the existing QID is a manual one (starts with 'manual:')
+      const isManualEntry = existingByName.wikidata_qid?.startsWith("manual:");
+      
+      if (isManualEntry) {
+        await supabase
+          .from("taxa")
+          .update({
+            wikidata_qid: node.qid, // Replace manual QID with real Wikidata QID
+            rank: node.rank,
+            scientific_name: node.scientificName,
+            common_name: node.commonName,
+            description: node.description,
+            wikipedia_title: node.wikipediaTitle,
+            wikipedia_lang: node.wikipediaLang,
+          })
+          .eq("id", existingByName.id);
+        
+        qidToTaxonId.set(node.qid, existingByName.id);
+        nodesMerged++;
+        continue;
+      } else {
+        // Existing taxon has a different real Wikidata QID - don't overwrite
+        // This shouldn't normally happen but handle gracefully
+        qidToTaxonId.set(node.qid, existingByName.id);
+        continue;
+      }
+    }
+
+    // Step 3: Insert new taxon
+    const { data: newTaxon, error } = await supabase
+      .from("taxa")
+      .insert({
         wikidata_qid: node.qid,
         rank: node.rank,
         scientific_name: node.scientificName,
@@ -367,43 +451,55 @@ async function upsertTaxonomyLineage(
         description: node.description,
         wikipedia_title: node.wikipediaTitle,
         wikipedia_lang: node.wikipediaLang,
-      });
+      })
+      .select("id")
+      .single();
 
-      if (!error) {
-        nodesCreated++;
-      }
+    if (!error && newTaxon) {
+      qidToTaxonId.set(node.qid, newTaxon.id);
+      nodesCreated++;
     }
   }
 
   // Upsert all edges
   for (const edge of lineage.edges) {
-    // Get the taxon IDs for the QIDs
-    const { data: parentTaxon } = await supabase
-      .from("taxa")
-      .select("id")
-      .eq("wikidata_qid", edge.parentQid)
-      .single();
+    // Get taxon IDs from our map first, fall back to DB lookup
+    let parentTaxonId = qidToTaxonId.get(edge.parentQid);
+    let childTaxonId = qidToTaxonId.get(edge.childQid);
+    
+    // Fallback to DB lookup if not in map
+    if (!parentTaxonId) {
+      const { data: parentTaxon } = await supabase
+        .from("taxa")
+        .select("id")
+        .eq("wikidata_qid", edge.parentQid)
+        .single();
+      parentTaxonId = parentTaxon?.id;
+    }
+    
+    if (!childTaxonId) {
+      const { data: childTaxon } = await supabase
+        .from("taxa")
+        .select("id")
+        .eq("wikidata_qid", edge.childQid)
+        .single();
+      childTaxonId = childTaxon?.id;
+    }
 
-    const { data: childTaxon } = await supabase
-      .from("taxa")
-      .select("id")
-      .eq("wikidata_qid", edge.childQid)
-      .single();
-
-    if (parentTaxon && childTaxon) {
+    if (parentTaxonId && childTaxonId) {
       // Check if edge already exists
       const { data: existingEdge } = await supabase
         .from("taxon_edges")
         .select("parent_taxon_id")
-        .eq("parent_taxon_id", parentTaxon.id)
-        .eq("child_taxon_id", childTaxon.id)
+        .eq("parent_taxon_id", parentTaxonId)
+        .eq("child_taxon_id", childTaxonId)
         .eq("relationship", "parent_taxon")
         .single();
 
       if (!existingEdge) {
         const { error } = await supabase.from("taxon_edges").insert({
-          parent_taxon_id: parentTaxon.id,
-          child_taxon_id: childTaxon.id,
+          parent_taxon_id: parentTaxonId,
+          child_taxon_id: childTaxonId,
           relationship: "parent_taxon",
         });
 
@@ -414,7 +510,7 @@ async function upsertTaxonomyLineage(
     }
   }
 
-  return { nodesCreated, edgesCreated };
+  return { nodesCreated, edgesCreated, nodesMerged };
 }
 
 /**

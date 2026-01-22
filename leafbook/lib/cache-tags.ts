@@ -56,7 +56,7 @@ export function recordTag(
  * Example: tableTag("plant-types") => "plant-types"
  */
 export function tableTag(
-  entity: "plant-types" | "plant-type-photos" | "plant-type-origins"
+  entity: "plant-types" | "plant-type-photos" | "plant-type-origins" | "taxa" | "taxon-edges"
 ): string {
   return entity;
 }

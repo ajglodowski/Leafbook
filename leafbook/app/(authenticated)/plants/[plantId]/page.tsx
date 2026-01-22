@@ -16,7 +16,8 @@ import {
   Package,
   Leaf,
   Heart,
-  Camera
+  Camera,
+  Archive
 } from "lucide-react";
 import { getCurrentUserId } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ import { PlantTimeline } from "./plant-timeline";
 import { RepotDialog } from "./repot-dialog";
 import { ScheduleSuggestionCard } from "./schedule-suggestion-card";
 import { PropagationSection } from "./propagation-section";
+import { LegacyDialog } from "./legacy-dialog";
 import { PotWithUsage } from "@/lib/queries/pots";
 import { createScheduleSuggestion } from "./actions";
 import { analyzeWateringSchedule } from "@/lib/watering-analysis";
@@ -45,11 +47,17 @@ import {
   getWateringEventsForAnalysis,
   getActiveScheduleSuggestion,
   getPlantPhotos,
+  getPlantPhotosForPlants,
   getUserPotsWithPlantUsage,
   getParentPlant,
   getChildrenPlants,
   getPlantsForParentSelection,
 } from "@/lib/queries/plants";
+
+export const metadata = {
+  title: "Plant | Leafbook",
+  description: "Plant details, timeline, and care",
+};
 
 // Human-friendly labels for light requirement enum
 const lightLabels: Record<string, string> = {
@@ -148,6 +156,20 @@ export default async function PlantDetailPage({
   const childrenPlants = childrenPlantsResult.data || [];
   const availablePlantsForParent = availablePlantsResult.data || [];
 
+  const propagationPlantIds = [
+    parentPlant?.id,
+    ...childrenPlants.map((child) => child.id),
+  ].filter(Boolean) as string[];
+
+  const { data: propagationPhotos } = await getPlantPhotosForPlants(propagationPlantIds);
+
+  const propagationPhotosByPlant = new Map<string, { id: string; url: string }[]>();
+  propagationPhotos?.forEach((photo) => {
+    const existing = propagationPhotosByPlant.get(photo.plant_id) || [];
+    existing.push({ id: photo.id, url: photo.url });
+    propagationPhotosByPlant.set(photo.plant_id, existing);
+  });
+
   // Build a map of pot_id -> plant info for usage tracking
   const potUsageMap = new Map<string, { plantId: string; plantName: string }>();
   if (activePlants) {
@@ -201,9 +223,31 @@ export default async function PlantDetailPage({
   const thumbnailUrl = activePhoto?.url ?? null;
 
   // Build photo map for propagation section (parent + children thumbnails)
-  // For now, we'll use a simple approach - in a real app you might batch fetch these photos
   const propagationPhotoMap = new Map<string, string>();
-  // We don't have photos for parent/children yet, they'll show the Leaf icon placeholder
+  const resolvePropagationPhoto = (plant: { id: string; active_photo_id: string | null }) => {
+    const photos = propagationPhotosByPlant.get(plant.id);
+    if (!photos || photos.length === 0) {
+      return null;
+    }
+    if (plant.active_photo_id) {
+      return photos.find((photo) => photo.id === plant.active_photo_id)?.url ?? photos[0].url;
+    }
+    return photos[0].url;
+  };
+
+  if (parentPlant) {
+    const parentPhotoUrl = resolvePropagationPhoto(parentPlant);
+    if (parentPhotoUrl) {
+      propagationPhotoMap.set(parentPlant.id, parentPhotoUrl);
+    }
+  }
+
+  childrenPlants.forEach((child) => {
+    const childPhotoUrl = resolvePropagationPhoto(child);
+    if (childPhotoUrl) {
+      propagationPhotoMap.set(child.id, childPhotoUrl);
+    }
+  });
 
   // Determine if using custom values
   const hasCustomWatering = carePrefs?.watering_frequency_days !== null && carePrefs?.watering_frequency_days !== undefined;
@@ -350,6 +394,12 @@ export default async function PlantDetailPage({
 
               {/* Quick stats pills */}
               <div className="flex flex-wrap justify-center lg:justify-start gap-2 pt-2">
+                {plant.is_legacy && (
+                  <Badge variant="secondary" className="gap-1.5 py-1.5 px-3 bg-muted">
+                    <Archive className="h-3.5 w-3.5 text-muted-foreground" />
+                    Legacy
+                  </Badge>
+                )}
                 <Badge variant="secondary" className="gap-1.5 py-1.5 px-3">
                   {plant.plant_location === "indoor" ? (
                     <>
@@ -409,17 +459,28 @@ export default async function PlantDetailPage({
                   acquired_at: plant.acquired_at,
                 }}
               />
-              <CareButton
+              {!plant.is_legacy && (
+                <>
+                  <CareButton
+                    plantId={plant.id}
+                    eventType="watered"
+                    variant="water"
+                    status={dueTask?.watering_status}
+                  />
+                  <CareButton
+                    plantId={plant.id}
+                    eventType="fertilized"
+                    variant="fertilize"
+                    status={dueTask?.fertilizing_status}
+                  />
+                </>
+              )}
+              <LegacyDialog
                 plantId={plant.id}
-                eventType="watered"
-                variant="water"
-                status={dueTask?.watering_status}
-              />
-              <CareButton
-                plantId={plant.id}
-                eventType="fertilized"
-                variant="fertilize"
-                status={dueTask?.fertilizing_status}
+                plantName={plant.name}
+                isLegacy={plant.is_legacy}
+                legacyReason={plant.legacy_reason}
+                legacyAt={plant.legacy_at}
               />
             </div>
           </div>
@@ -431,9 +492,42 @@ export default async function PlantDetailPage({
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════════
+          LEGACY BANNER - Shows when plant is legacy
+      ═══════════════════════════════════════════════════════════════════ */}
+      {plant.is_legacy && (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 px-4 py-4 rounded-xl bg-muted/50 border border-muted-foreground/20">
+          <div className="flex items-center gap-2">
+            <Archive className="h-5 w-5 text-muted-foreground" />
+            <span className="font-medium">Legacy Plant</span>
+          </div>
+          <div className="flex-1">
+            {plant.legacy_reason && (
+              <p className="text-sm text-muted-foreground">{plant.legacy_reason}</p>
+            )}
+            {plant.legacy_at && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Since {new Date(plant.legacy_at).toLocaleDateString("en-US", {
+                  month: "long",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+              </p>
+            )}
+          </div>
+          <LegacyDialog
+            plantId={plant.id}
+            plantName={plant.name}
+            isLegacy={plant.is_legacy}
+            legacyReason={plant.legacy_reason}
+            legacyAt={plant.legacy_at}
+          />
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════
           CARE STATUS STRIP - Shows overdue reminders and active issues
       ═══════════════════════════════════════════════════════════════════ */}
-      {(needsWater || needsFertilizer || activeIssues.length > 0) && (
+      {!plant.is_legacy && (needsWater || needsFertilizer || activeIssues.length > 0) && (
         <div className="flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-primary/5 via-transparent to-orange-500/5 border border-primary/10">
           {needsWater && dueTask?.watering_status === "overdue" && (
             <span className="text-sm font-medium text-blue-600 dark:text-blue-400 flex items-center gap-1.5">
@@ -467,8 +561,9 @@ export default async function PlantDetailPage({
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════
-          PLANT VITALS - The important stuff
+          PLANT VITALS - The important stuff (hidden for legacy plants)
       ═══════════════════════════════════════════════════════════════════ */}
+      {!plant.is_legacy && (
       <section>
         <div className="flex items-center gap-2 mb-4">
           <h2 className="font-serif text-xl font-medium">Plant Vitals</h2>
@@ -639,6 +734,7 @@ export default async function PlantDetailPage({
           </div>
         )}
       </section>
+      )}
 
       {/* ═══════════════════════════════════════════════════════════════════
           PROPAGATION - Plant lineage
@@ -724,6 +820,7 @@ export default async function PlantDetailPage({
     currentPotSize={currentPotSize}
     pots={potsWithUsage}
     unusedPots={unusedPots}
+    availablePlantsForParent={availablePlantsForParent}
             />
           </CardContent>
         </Card>

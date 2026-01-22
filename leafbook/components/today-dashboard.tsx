@@ -274,7 +274,7 @@ export async function TodayDashboard({ userId }: { userId: string }) {
             )}
             {(activeIssueCount ?? 0) > 0 && (
               <Link 
-                href="/journal"
+                href="/journal?type=issues"
                 className="inline-flex items-center gap-1.5 rounded-full bg-orange-500/10 px-3 py-1 text-orange-600 dark:text-orange-400 hover:bg-orange-500/20 transition-colors"
               >
                 <span className="font-medium">{activeIssueCount}</span> active issue{activeIssueCount !== 1 ? "s" : ""}
@@ -519,26 +519,26 @@ export async function TodayDashboard({ userId }: { userId: string }) {
               </CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-2">
-              <Link href="/plants?new=true">
-                <Button variant="outline" className="h-auto flex-col gap-1 py-3">
+              <Link href="/plants?new=true" className="w-full">
+                <Button variant="outline" className="w-full h-auto flex-col gap-1 py-3">
                   <Plus className="h-5 w-5" />
                   <span className="text-xs">Add Plant</span>
                 </Button>
               </Link>
-              <Link href="/plant-types">
-                <Button variant="outline" className="h-auto flex-col gap-1 py-3">
+              <Link href="/plant-types" className="w-full">
+                <Button variant="outline" className="w-full h-auto flex-col gap-1 py-3">
                   <Compass className="h-5 w-5" />
                   <span className="text-xs">Browse Catalog</span>
                 </Button>
               </Link>
-              <Link href="/journal">
-                <Button variant="outline" className="h-auto flex-col gap-1 py-3">
+              <Link href="/journal" className="w-full">
+                <Button variant="outline" className="w-full h-auto flex-col gap-1 py-3">
                   <BookOpen className="h-5 w-5" />
                   <span className="text-xs">Journal</span>
                 </Button>
               </Link>
-              <Link href="/wishlist">
-                <Button variant="outline" className="h-auto flex-col gap-1 py-3">
+              <Link href="/wishlist" className="w-full">
+                <Button variant="outline" className="w-full h-auto flex-col gap-1 py-3">
                   <Heart className="h-5 w-5" />
                   <span className="text-xs">Wishlist</span>
                 </Button>

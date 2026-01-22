@@ -24,7 +24,12 @@ export async function getWishlistItemsForUserById(userId: string) {
         id,
         name,
         scientific_name,
-        description
+        description,
+        plant_type_photos (
+          id,
+          url,
+          is_primary
+        )
       )
     `)
     .eq("user_id", userId)

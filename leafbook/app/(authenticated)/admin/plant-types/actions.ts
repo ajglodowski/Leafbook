@@ -11,6 +11,15 @@ import {
   scopedListTag,
   tableTag,
 } from "@/lib/cache-tags";
+import { fetchTaxonomyLineage, type TaxonLineage } from "@/lib/wikidata";
+
+// Type for taxonomy Wikidata match from form
+type TaxonomyWikidataMatch = {
+  index: number;
+  qid: string;
+  label: string;
+  rank: string | null;
+};
 
 // Helper to verify admin role
 async function verifyAdmin() {
@@ -37,6 +46,542 @@ async function verifyAdmin() {
 // Type for origin data
 type OriginData = { country_code: string; region: string | null };
 
+// Type for the Supabase client (avoid explicit any)
+type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
+
+/**
+ * Normalize a taxon name for comparison (lowercase, trimmed, collapsed whitespace)
+ */
+function normalizeTaxonName(name: string): string {
+  return name.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+/**
+ * Generate a deterministic manual QID for a taxon name.
+ * Format: manual:{normalized_name_with_underscores}
+ */
+function generateManualQid(name: string): string {
+  const normalized = normalizeTaxonName(name).replace(/\s/g, "_");
+  return `manual:${normalized}`;
+}
+
+/**
+ * Upsert a manual taxonomy path from a comma-separated string.
+ * - Parses the path (root → leaf order)
+ * - Reuses existing taxa by case-insensitive name match
+ * - Creates missing taxa with manual: QID prefix
+ * - Creates edges between consecutive nodes
+ * - Returns the leaf taxon id
+ */
+async function upsertManualTaxonomyPath(
+  taxonomyPath: string,
+  supabase: SupabaseClient
+): Promise<{ leafTaxonId: string | null; nodesCreated: number; edgesCreated: number; error?: string }> {
+  // Parse and validate the path
+  const nodeNames = taxonomyPath
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+
+  if (nodeNames.length === 0) {
+    return { leafTaxonId: null, nodesCreated: 0, edgesCreated: 0 };
+  }
+
+  if (nodeNames.length < 2) {
+    return { leafTaxonId: null, nodesCreated: 0, edgesCreated: 0, error: "Taxonomy path must have at least 2 nodes" };
+  }
+
+  let nodesCreated = 0;
+  let edgesCreated = 0;
+  const taxonIds: string[] = [];
+
+  // Process each node in root → leaf order
+  for (const nodeName of nodeNames) {
+    const normalizedName = normalizeTaxonName(nodeName);
+
+    // Try to find an existing taxon by case-insensitive name match
+    // Check both scientific_name and common_name
+    const { data: existingTaxa } = await supabase
+      .from("taxa")
+      .select("id, scientific_name, common_name, wikidata_qid")
+      .or(`scientific_name.ilike.${normalizedName},common_name.ilike.${normalizedName}`);
+
+    let taxonId: string;
+
+    if (existingTaxa && existingTaxa.length > 0) {
+      // Reuse existing taxon
+      taxonId = existingTaxa[0].id;
+    } else {
+      // Create new taxon with manual QID
+      let manualQid = generateManualQid(nodeName);
+
+      // Check if this QID already exists (collision handling)
+      const { data: existingQid } = await supabase
+        .from("taxa")
+        .select("id")
+        .eq("wikidata_qid", manualQid)
+        .single();
+
+      if (existingQid) {
+        // QID collision - append a numeric suffix
+        let suffix = 2;
+        let newQid = `${manualQid}_${suffix}`;
+        while (true) {
+          const { data: checkQid } = await supabase
+            .from("taxa")
+            .select("id")
+            .eq("wikidata_qid", newQid)
+            .single();
+          if (!checkQid) {
+            manualQid = newQid;
+            break;
+          }
+          suffix++;
+          newQid = `${manualQid}_${suffix}`;
+        }
+      }
+
+      // Insert the new taxon
+      const { data: newTaxon, error: insertError } = await supabase
+        .from("taxa")
+        .insert({
+          wikidata_qid: manualQid,
+          scientific_name: nodeName.trim(),
+          common_name: nodeName.trim(),
+          // rank is left NULL for manual entries
+        })
+        .select("id")
+        .single();
+
+      if (insertError || !newTaxon) {
+        console.error("Error inserting taxon:", insertError);
+        return {
+          leafTaxonId: null,
+          nodesCreated,
+          edgesCreated,
+          error: `Failed to create taxon "${nodeName}": ${insertError?.message || "Unknown error"}`,
+        };
+      }
+
+      taxonId = newTaxon.id;
+      nodesCreated++;
+    }
+
+    taxonIds.push(taxonId);
+  }
+
+  // Create edges between consecutive nodes (parent → child)
+  for (let i = 0; i < taxonIds.length - 1; i++) {
+    const parentId = taxonIds[i];
+    const childId = taxonIds[i + 1];
+
+    // Check if edge already exists
+    const { data: existingEdge } = await supabase
+      .from("taxon_edges")
+      .select("parent_taxon_id")
+      .eq("parent_taxon_id", parentId)
+      .eq("child_taxon_id", childId)
+      .eq("relationship", "parent_taxon")
+      .single();
+
+    if (!existingEdge) {
+      const { error: edgeError } = await supabase.from("taxon_edges").insert({
+        parent_taxon_id: parentId,
+        child_taxon_id: childId,
+        relationship: "parent_taxon",
+      });
+
+      if (edgeError) {
+        console.error("Error inserting taxon edge:", edgeError);
+        // Continue anyway - edge might exist due to race condition
+      } else {
+        edgesCreated++;
+      }
+    }
+  }
+
+  // Return the leaf taxon id (last in the array)
+  const leafTaxonId = taxonIds[taxonIds.length - 1];
+  return { leafTaxonId, nodesCreated, edgesCreated };
+}
+
+/**
+ * Upsert Wikidata taxonomy lineage to the database.
+ * - Upserts taxon nodes
+ * - Creates edges between parent/child pairs
+ * - Merges with existing manual taxa by name if they have manual: QID prefix
+ * - Returns the taxon ID for a specific QID
+ */
+async function upsertWikidataLineage(
+  lineage: TaxonLineage,
+  supabase: SupabaseClient
+): Promise<{ nodesCreated: number; edgesCreated: number; nodesMerged: number; qidToTaxonId: Map<string, string> }> {
+  let nodesCreated = 0;
+  let edgesCreated = 0;
+  let nodesMerged = 0;
+  
+  // Map from Wikidata QID to actual taxon ID
+  const qidToTaxonId = new Map<string, string>();
+
+  // Upsert all taxon nodes
+  for (const node of lineage.nodes) {
+    // Step 1: Check for existing taxon by Wikidata QID
+    const { data: existingByQid } = await supabase
+      .from("taxa")
+      .select("id")
+      .eq("wikidata_qid", node.qid)
+      .single();
+
+    if (existingByQid) {
+      // Update existing taxon (already has this Wikidata QID)
+      await supabase
+        .from("taxa")
+        .update({
+          rank: node.rank,
+          scientific_name: node.scientificName,
+          common_name: node.commonName,
+          description: node.description,
+          wikipedia_title: node.wikipediaTitle,
+          wikipedia_lang: node.wikipediaLang,
+        })
+        .eq("wikidata_qid", node.qid);
+      
+      qidToTaxonId.set(node.qid, existingByQid.id);
+      continue;
+    }
+
+    // Step 2: Check for existing taxon by case-insensitive name match (merge with manual)
+    let existingByName: { id: string; wikidata_qid: string } | null = null;
+    
+    if (node.scientificName) {
+      const normalizedScientific = normalizeTaxonName(node.scientificName);
+      const { data } = await supabase
+        .from("taxa")
+        .select("id, wikidata_qid")
+        .or(`scientific_name.ilike.${normalizedScientific},common_name.ilike.${normalizedScientific}`)
+        .limit(1);
+      
+      if (data && data.length > 0) {
+        existingByName = data[0];
+      }
+    }
+    
+    // Also check common_name if different
+    if (!existingByName && node.commonName && node.commonName !== node.scientificName) {
+      const normalizedCommon = normalizeTaxonName(node.commonName);
+      const { data } = await supabase
+        .from("taxa")
+        .select("id, wikidata_qid")
+        .or(`scientific_name.ilike.${normalizedCommon},common_name.ilike.${normalizedCommon}`)
+        .limit(1);
+      
+      if (data && data.length > 0) {
+        existingByName = data[0];
+      }
+    }
+
+    if (existingByName) {
+      // Merge: Update existing taxon with Wikidata data if it has a manual QID
+      const isManualEntry = existingByName.wikidata_qid?.startsWith("manual:");
+      
+      if (isManualEntry) {
+        await supabase
+          .from("taxa")
+          .update({
+            wikidata_qid: node.qid,
+            rank: node.rank,
+            scientific_name: node.scientificName,
+            common_name: node.commonName,
+            description: node.description,
+            wikipedia_title: node.wikipediaTitle,
+            wikipedia_lang: node.wikipediaLang,
+          })
+          .eq("id", existingByName.id);
+        
+        qidToTaxonId.set(node.qid, existingByName.id);
+        nodesMerged++;
+        continue;
+      } else {
+        // Existing taxon has a different real Wikidata QID - reuse it
+        qidToTaxonId.set(node.qid, existingByName.id);
+        continue;
+      }
+    }
+
+    // Step 3: Insert new taxon
+    const { data: newTaxon, error } = await supabase
+      .from("taxa")
+      .insert({
+        wikidata_qid: node.qid,
+        rank: node.rank,
+        scientific_name: node.scientificName,
+        common_name: node.commonName,
+        description: node.description,
+        wikipedia_title: node.wikipediaTitle,
+        wikipedia_lang: node.wikipediaLang,
+      })
+      .select("id")
+      .single();
+
+    if (!error && newTaxon) {
+      qidToTaxonId.set(node.qid, newTaxon.id);
+      nodesCreated++;
+    }
+  }
+
+  // Upsert all edges
+  for (const edge of lineage.edges) {
+    const parentTaxonId = qidToTaxonId.get(edge.parentQid);
+    const childTaxonId = qidToTaxonId.get(edge.childQid);
+
+    if (parentTaxonId && childTaxonId) {
+      // Check if edge already exists
+      const { data: existingEdge } = await supabase
+        .from("taxon_edges")
+        .select("parent_taxon_id")
+        .eq("parent_taxon_id", parentTaxonId)
+        .eq("child_taxon_id", childTaxonId)
+        .eq("relationship", "parent_taxon")
+        .single();
+
+      if (!existingEdge) {
+        const { error } = await supabase.from("taxon_edges").insert({
+          parent_taxon_id: parentTaxonId,
+          child_taxon_id: childTaxonId,
+          relationship: "parent_taxon",
+        });
+
+        if (!error) {
+          edgesCreated++;
+        }
+      }
+    }
+  }
+
+  return { nodesCreated, edgesCreated, nodesMerged, qidToTaxonId };
+}
+
+/**
+ * Hybrid taxonomy upsert: uses Wikidata for nodes up to the anchor, manual for the rest.
+ * - If a Wikidata match is provided, fetches lineage from Wikidata for the anchor QID
+ * - Upserts Wikidata taxa/edges up to the anchor
+ * - Creates manual taxa/edges for nodes AFTER the anchor index
+ * - Links manual nodes as children of the anchor
+ */
+async function upsertHybridTaxonomyPath(
+  taxonomyPath: string,
+  wikidataMatch: TaxonomyWikidataMatch | null,
+  supabase: SupabaseClient
+): Promise<{ 
+  leafTaxonId: string | null; 
+  wikidataNodesCreated: number;
+  wikidataNodesMerged: number;
+  manualNodesCreated: number; 
+  edgesCreated: number; 
+  error?: string 
+}> {
+  // Parse the path
+  const nodeNames = taxonomyPath
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+
+  if (nodeNames.length < 2) {
+    return { 
+      leafTaxonId: null, 
+      wikidataNodesCreated: 0, 
+      wikidataNodesMerged: 0,
+      manualNodesCreated: 0, 
+      edgesCreated: 0, 
+      error: "Taxonomy path must have at least 2 nodes" 
+    };
+  }
+
+  // If no Wikidata match, fall back to fully manual
+  if (!wikidataMatch) {
+    const result = await upsertManualTaxonomyPath(taxonomyPath, supabase);
+    return {
+      leafTaxonId: result.leafTaxonId,
+      wikidataNodesCreated: 0,
+      wikidataNodesMerged: 0,
+      manualNodesCreated: result.nodesCreated,
+      edgesCreated: result.edgesCreated,
+      error: result.error,
+    };
+  }
+
+  let wikidataNodesCreated = 0;
+  let wikidataNodesMerged = 0;
+  let manualNodesCreated = 0;
+  let edgesCreated = 0;
+
+  // Step 1: Fetch and upsert Wikidata lineage for the anchor QID
+  const lineage = await fetchTaxonomyLineage(wikidataMatch.qid, "en");
+  const wikidataResult = await upsertWikidataLineage(lineage, supabase);
+  
+  wikidataNodesCreated = wikidataResult.nodesCreated;
+  wikidataNodesMerged = wikidataResult.nodesMerged;
+  edgesCreated += wikidataResult.edgesCreated;
+
+  // Step 2: Get the anchor taxon ID
+  const anchorTaxonId = wikidataResult.qidToTaxonId.get(wikidataMatch.qid);
+  if (!anchorTaxonId) {
+    // Try to find it in the database by QID
+    const { data: anchorTaxon } = await supabase
+      .from("taxa")
+      .select("id")
+      .eq("wikidata_qid", wikidataMatch.qid)
+      .single();
+    
+    if (!anchorTaxon) {
+      return {
+        leafTaxonId: null,
+        wikidataNodesCreated,
+        wikidataNodesMerged,
+        manualNodesCreated,
+        edgesCreated,
+        error: `Could not find anchor taxon for QID ${wikidataMatch.qid}`,
+      };
+    }
+  }
+
+  const finalAnchorTaxonId = anchorTaxonId || (await supabase
+    .from("taxa")
+    .select("id")
+    .eq("wikidata_qid", wikidataMatch.qid)
+    .single()).data?.id;
+
+  if (!finalAnchorTaxonId) {
+    return {
+      leafTaxonId: null,
+      wikidataNodesCreated,
+      wikidataNodesMerged,
+      manualNodesCreated,
+      edgesCreated,
+      error: `Could not find anchor taxon for QID ${wikidataMatch.qid}`,
+    };
+  }
+
+  // Step 3: Create manual taxa/edges for nodes AFTER the anchor index
+  const manualNodeNames = nodeNames.slice(wikidataMatch.index + 1);
+  
+  if (manualNodeNames.length === 0) {
+    // No manual nodes needed, the anchor is the leaf
+    return {
+      leafTaxonId: finalAnchorTaxonId,
+      wikidataNodesCreated,
+      wikidataNodesMerged,
+      manualNodesCreated,
+      edgesCreated,
+    };
+  }
+
+  // Create manual nodes and link them
+  let previousTaxonId = finalAnchorTaxonId;
+  let leafTaxonId = finalAnchorTaxonId;
+
+  for (const nodeName of manualNodeNames) {
+    const normalizedName = normalizeTaxonName(nodeName);
+
+    // Try to find existing taxon by name
+    const { data: existingTaxa } = await supabase
+      .from("taxa")
+      .select("id, wikidata_qid")
+      .or(`scientific_name.ilike.${normalizedName},common_name.ilike.${normalizedName}`);
+
+    let taxonId: string;
+
+    if (existingTaxa && existingTaxa.length > 0) {
+      taxonId = existingTaxa[0].id;
+    } else {
+      // Create new manual taxon
+      let manualQid = generateManualQid(nodeName);
+
+      // Handle QID collision
+      const { data: existingQid } = await supabase
+        .from("taxa")
+        .select("id")
+        .eq("wikidata_qid", manualQid)
+        .single();
+
+      if (existingQid) {
+        let suffix = 2;
+        let newQid = `${manualQid}_${suffix}`;
+        while (true) {
+          const { data: checkQid } = await supabase
+            .from("taxa")
+            .select("id")
+            .eq("wikidata_qid", newQid)
+            .single();
+          if (!checkQid) {
+            manualQid = newQid;
+            break;
+          }
+          suffix++;
+          newQid = `${manualQid}_${suffix}`;
+        }
+      }
+
+      const { data: newTaxon, error: insertError } = await supabase
+        .from("taxa")
+        .insert({
+          wikidata_qid: manualQid,
+          scientific_name: nodeName.trim(),
+          common_name: nodeName.trim(),
+        })
+        .select("id")
+        .single();
+
+      if (insertError || !newTaxon) {
+        console.error("Error inserting manual taxon:", insertError);
+        return {
+          leafTaxonId: null,
+          wikidataNodesCreated,
+          wikidataNodesMerged,
+          manualNodesCreated,
+          edgesCreated,
+          error: `Failed to create taxon "${nodeName}": ${insertError?.message || "Unknown error"}`,
+        };
+      }
+
+      taxonId = newTaxon.id;
+      manualNodesCreated++;
+    }
+
+    // Create edge from previous node to this one
+    const { data: existingEdge } = await supabase
+      .from("taxon_edges")
+      .select("parent_taxon_id")
+      .eq("parent_taxon_id", previousTaxonId)
+      .eq("child_taxon_id", taxonId)
+      .eq("relationship", "parent_taxon")
+      .single();
+
+    if (!existingEdge) {
+      const { error: edgeError } = await supabase.from("taxon_edges").insert({
+        parent_taxon_id: previousTaxonId,
+        child_taxon_id: taxonId,
+        relationship: "parent_taxon",
+      });
+
+      if (!edgeError) {
+        edgesCreated++;
+      }
+    }
+
+    previousTaxonId = taxonId;
+    leafTaxonId = taxonId;
+  }
+
+  return {
+    leafTaxonId,
+    wikidataNodesCreated,
+    wikidataNodesMerged,
+    manualNodesCreated,
+    edgesCreated,
+  };
+}
+
 export async function createPlantType(formData: FormData) {
   const { supabase, userId } = await verifyAdmin();
 
@@ -62,6 +607,13 @@ export async function createPlantType(formData: FormData) {
   // Optional Wikidata fields (from "Create from Wikidata" flow)
   const wikidata_qid = formData.get("wikidata_qid") as string | null;
   const wikipedia_title = formData.get("wikipedia_title") as string | null;
+  
+  // Manual taxonomy path (if not using Wikidata enrichment)
+  const taxonomy_path = formData.get("taxonomy_path") as string | null;
+  const taxonomy_wikidata_match_json = formData.get("taxonomy_wikidata_match") as string | null;
+  const taxonomy_wikidata_match: TaxonomyWikidataMatch | null = taxonomy_wikidata_match_json 
+    ? JSON.parse(taxonomy_wikidata_match_json) 
+    : null;
 
   if (!name?.trim()) {
     return { success: false, error: "Name is required" };
@@ -122,7 +674,39 @@ export async function createPlantType(formData: FormData) {
     }
   }
 
+  // Process taxonomy path if provided (hybrid Wikidata + manual approach)
+  let taxonomyUpdated = false;
+  if (taxonomy_path?.trim() && !wikidata_qid) {
+    const taxonomyResult = await upsertHybridTaxonomyPath(
+      taxonomy_path, 
+      taxonomy_wikidata_match,
+      supabase
+    );
+    
+    if (taxonomyResult.error) {
+      // Don't fail the whole operation, but log the error
+      console.error("Taxonomy path error:", taxonomyResult.error);
+    } else if (taxonomyResult.leafTaxonId) {
+      // Update the plant type with the leaf taxon ID
+      const { error: taxonUpdateError } = await supabase
+        .from("plant_types")
+        .update({ taxon_id: taxonomyResult.leafTaxonId })
+        .eq("id", data.id);
+      
+      if (taxonUpdateError) {
+        console.error("Error linking taxon to plant type:", taxonUpdateError);
+      } else {
+        taxonomyUpdated = true;
+      }
+    }
+  }
+
+  // Invalidate cache tags
   plantTypeMutationTags(data.id).forEach((tag) => updateTag(tag));
+  if (taxonomyUpdated) {
+    updateTag(tableTag("taxa"));
+    updateTag(tableTag("taxon-edges"));
+  }
 
   return { success: true, plantTypeId: data.id };
 }
@@ -148,6 +732,13 @@ export async function updatePlantType(id: string, formData: FormData) {
   const watering_frequency_days = formData.get("watering_frequency_days") as string | null;
   const fertilizing_frequency_days = formData.get("fertilizing_frequency_days") as string | null;
   const care_notes = formData.get("care_notes") as string | null;
+  
+  // Manual taxonomy path (hybrid Wikidata + manual)
+  const taxonomy_path = formData.get("taxonomy_path") as string | null;
+  const taxonomy_wikidata_match_json = formData.get("taxonomy_wikidata_match") as string | null;
+  const taxonomy_wikidata_match: TaxonomyWikidataMatch | null = taxonomy_wikidata_match_json 
+    ? JSON.parse(taxonomy_wikidata_match_json) 
+    : null;
 
   if (!name?.trim()) {
     return { success: false, error: "Name is required" };
@@ -204,7 +795,39 @@ export async function updatePlantType(id: string, formData: FormData) {
     }
   }
 
+  // Process taxonomy path if provided (hybrid Wikidata + manual approach)
+  let taxonomyUpdated = false;
+  if (taxonomy_path?.trim()) {
+    const taxonomyResult = await upsertHybridTaxonomyPath(
+      taxonomy_path,
+      taxonomy_wikidata_match,
+      supabase
+    );
+    
+    if (taxonomyResult.error) {
+      // Don't fail the whole operation, but log the error
+      console.error("Taxonomy path error:", taxonomyResult.error);
+    } else if (taxonomyResult.leafTaxonId) {
+      // Update the plant type with the leaf taxon ID
+      const { error: taxonUpdateError } = await supabase
+        .from("plant_types")
+        .update({ taxon_id: taxonomyResult.leafTaxonId })
+        .eq("id", id);
+      
+      if (taxonUpdateError) {
+        console.error("Error linking taxon to plant type:", taxonUpdateError);
+      } else {
+        taxonomyUpdated = true;
+      }
+    }
+  }
+
+  // Invalidate cache tags
   plantTypeMutationTags(id).forEach((tag) => updateTag(tag));
+  if (taxonomyUpdated) {
+    updateTag(tableTag("taxa"));
+    updateTag(tableTag("taxon-edges"));
+  }
 
   return { success: true };
 }

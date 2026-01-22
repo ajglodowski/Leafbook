@@ -7,6 +7,11 @@ import { EmptyState } from "@/components/empty-state";
 import { DeletePlantTypeButton } from "./delete-button";
 import { getPlantTypesForAdmin } from "@/lib/queries/plant-types";
 
+export const metadata = {
+  title: "Admin Plant Types | Leafbook",
+  description: "Manage plant types in the catalog",
+};
+
 // Human-friendly labels for enums
 const lightLabels: Record<string, string> = {
   dark: "Dark",

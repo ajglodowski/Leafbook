@@ -65,7 +65,7 @@ export function PlantCollectionView({
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="grid gap-4 md:grid-cols-2">
       {plants.map((plant) => {
         const plantType = Array.isArray(plant.plant_types) ? plant.plant_types[0] : plant.plant_types;
         const taskStatus = dueTaskMap.get(plant.id);
@@ -77,13 +77,13 @@ export function PlantCollectionView({
           <Link key={plant.id} href={`/plants/${plant.id}`}>
             <Card className="gap-0 h-44 overflow-hidden transition-all hover:ring-2 hover:ring-primary/20 hover:shadow-md p-0 flex flex-row">
               {thumbnailUrl && (
-                <div className="relative h-full aspect-square shrink-0 overflow-hidden rounded-xl bg-muted">
+                <div className="relative h-full w-32 sm:w-44 shrink-0 overflow-hidden rounded-xl bg-muted">
                   <Image
                     src={thumbnailUrl}
                     alt={plant.name}
                     fill
                     className="object-cover"
-                    sizes="176px"
+                    sizes="(max-width: 640px) 128px, 176px"
                   />
                 </div>
               )}

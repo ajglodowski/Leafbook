@@ -1,6 +1,11 @@
 import { Settings } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
 
+export const metadata = {
+  title: "Settings | Leafbook",
+  description: "Manage your account and preferences",
+};
+
 export default function SettingsPage() {
   return (
     <div className="space-y-8">

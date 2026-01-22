@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { redirect } from "next/navigation";
 import { Heart, Leaf, Trash2 } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
@@ -8,6 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { WishlistItemActions } from "./wishlist-item-actions";
 import { getWishlistItemsForUserById } from "@/lib/queries/wishlist";
 import { getCurrentUserId } from "@/lib/supabase/server";
+
+export const metadata = {
+  title: "Wishlist | Leafbook",
+  description: "Keep track of plants you want to add",
+};
 
 export default async function WishlistPage() {
   const userId = await getCurrentUserId();
@@ -45,25 +51,41 @@ export default async function WishlistPage() {
 
       {/* Wishlist items */}
       {hasItems ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {wishlistItems.map((item) => {
             const plantType = Array.isArray(item.plant_types) ? item.plant_types[0] : item.plant_types;
             const name = plantType?.name || item.custom_name || "Unknown plant";
+            const photos = plantType?.plant_type_photos || [];
+            const primaryPhoto = photos.find((photo) => photo.is_primary) || photos[0];
+            const primaryPhotoUrl = primaryPhoto?.url || null;
             
             return (
-              <Card key={item.id} className="flex flex-col">
-                <CardHeader>
+              <Card key={item.id} className="relative flex flex-col pt-0 overflow-hidden">
+                {plantType && (
+                  <Link
+                    href={`/plant-types/${plantType.id}`}
+                    aria-label={`View ${name}`}
+                    className="absolute inset-0 z-0"
+                  />
+                )}
+                <div className="relative z-10 aspect-square w-full pointer-events-none">
+                  {primaryPhotoUrl ? (
+                    <Image
+                      src={primaryPhotoUrl}
+                      alt={plantType?.scientific_name ? `${name} (${plantType.scientific_name})` : name}
+                      fill
+                      className="object-cover rounded-b-2xl"
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center">
+                      <Leaf className="h-12 w-12 text-muted-foreground/30" />
+                    </div>
+                  )}
+                </div>
+                <CardHeader className="relative z-10 pointer-events-none">
                   <CardTitle className="font-serif text-lg">
-                    {plantType ? (
-                      <Link 
-                        href={`/plant-types/${plantType.id}`}
-                        className="hover:text-primary hover:underline"
-                      >
-                        {name}
-                      </Link>
-                    ) : (
-                      name
-                    )}
+                    {name}
                   </CardTitle>
                   {plantType?.scientific_name && (
                     <CardDescription className="italic">
@@ -72,7 +94,7 @@ export default async function WishlistPage() {
                   )}
                 </CardHeader>
                 
-                <CardContent className="flex-1">
+                <CardContent className="relative z-10 flex-1 pointer-events-none">
                   {plantType?.description && (
                     <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
                       {plantType.description}
@@ -85,7 +107,7 @@ export default async function WishlistPage() {
                   )}
                 </CardContent>
 
-                <CardFooter className="flex gap-2">
+                <CardFooter className="relative z-10 flex gap-2 pointer-events-auto">
                   <WishlistItemActions
                     wishlistItemId={item.id}
                     plantTypeId={item.plant_type_id}

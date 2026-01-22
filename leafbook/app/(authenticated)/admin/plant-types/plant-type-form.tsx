@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Home, TreePine, Combine, Globe, X, ChevronDown, Search } from "lucide-react";
+import { Home, TreePine, Combine, Globe, X, ChevronDown, Search, GitBranch } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +15,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { createPlantType, updatePlantType } from "./actions";
 import type { Tables } from "@/lib/supabase/database.types";
 import { getAllCountries, getRegionForCountry, getCountryName, getCountriesGroupedByRegion } from "@/lib/origin-mapping";
+import { TaxonomyNodeMatcher, type TaxonomyNodeMatch } from "./taxonomy-node-matcher";
 
 type PlantType = Tables<"plant_types">;
 type LocationPreference = "indoor" | "outdoor" | "both";
@@ -147,10 +148,25 @@ export function PlantTypeForm({ plantType, mode, wikidataQid, wikipediaTitle, in
   }
   const [careNotes, setCareNotes] = useState(plantType?.care_notes || "");
   
+  // Manual taxonomy path (comma-separated, root→leaf)
+  const [taxonomyPath, setTaxonomyPath] = useState("");
+  
+  // Taxonomy Wikidata match (anchor node)
+  const [taxonomyMatch, setTaxonomyMatch] = useState<TaxonomyNodeMatch | null>(null);
+  
   // Validate that max >= min for light
   const isLightRangeValid = !lightMin || !lightMax || getLightNumeric(lightMax) >= getLightNumeric(lightMin);
   // Validate that max >= min for size
   const isSizeRangeValid = !sizeMin || !sizeMax || getSizeNumeric(sizeMax) >= getSizeNumeric(sizeMin);
+  
+  // Parse and validate taxonomy path
+  const taxonomyNodes = useMemo(() => {
+    if (!taxonomyPath.trim()) return [];
+    return taxonomyPath.split(",").map(s => s.trim()).filter(s => s.length > 0);
+  }, [taxonomyPath]);
+  
+  // Taxonomy path is valid if empty or has at least 2 nodes
+  const isTaxonomyPathValid = taxonomyNodes.length === 0 || taxonomyNodes.length >= 2;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -163,6 +179,10 @@ export function PlantTypeForm({ plantType, mode, wikidataQid, wikipediaTitle, in
     }
     if (!isSizeRangeValid) {
       setError("Size max must be greater than or equal to size min");
+      return;
+    }
+    if (!isTaxonomyPathValid) {
+      setError("Taxonomy path must have at least 2 nodes (e.g., Biota, Plantae)");
       return;
     }
 
@@ -185,6 +205,16 @@ export function PlantTypeForm({ plantType, mode, wikidataQid, wikipediaTitle, in
       region: getRegionForCountry(code) || null,
     }));
     formData.set("origins", JSON.stringify(origins));
+    
+    // Manual taxonomy path (if provided)
+    if (taxonomyPath.trim()) {
+      formData.set("taxonomy_path", taxonomyPath.trim());
+      
+      // Include Wikidata match for hybrid taxonomy (if selected)
+      if (taxonomyMatch) {
+        formData.set("taxonomy_wikidata_match", JSON.stringify(taxonomyMatch));
+      }
+    }
     
     // Include Wikidata fields if provided (for create from Wikidata flow)
     if (wikidataQid) {
@@ -551,6 +581,58 @@ export function PlantTypeForm({ plantType, mode, wikidataQid, wikipediaTitle, in
         </CardContent>
       </Card>
 
+      {/* Manual Taxonomy Path */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <GitBranch className="h-5 w-5" />
+            Manual Taxonomy Path
+          </CardTitle>
+          <CardDescription>
+            For plants without full Wikidata coverage, paste the taxonomy hierarchy
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="taxonomy_path">Taxonomy Path (comma-separated)</Label>
+            <Textarea
+              id="taxonomy_path"
+              value={taxonomyPath}
+              onChange={(e) => {
+                setTaxonomyPath(e.target.value);
+                // Clear match when path changes
+                setTaxonomyMatch(null);
+              }}
+              placeholder="Biota, Plantae, Tracheophyta, Angiosperms, Monocots, Asparagales, Asparagaceae, Agavoideae, Agave"
+              rows={3}
+            />
+            <p className="text-xs text-muted-foreground">
+              Enter the full taxonomy path from root to leaf, separated by commas. Example: Biota, Plantae, ..., Genus, Species.
+              The system will try to find the deepest Wikidata match and only create manual entries below it.
+            </p>
+            {!isTaxonomyPathValid && (
+              <p className="text-xs text-destructive">
+                Taxonomy path must have at least 2 nodes (e.g., Biota, Plantae)
+              </p>
+            )}
+            {taxonomyNodes.length > 0 && isTaxonomyPathValid && (
+              <p className="text-xs text-muted-foreground">
+                {taxonomyNodes.length} nodes detected: {taxonomyNodes[0]} → ... → {taxonomyNodes[taxonomyNodes.length - 1]}
+              </p>
+            )}
+          </div>
+          
+          {/* Wikidata matching for taxonomy nodes */}
+          {taxonomyNodes.length >= 2 && isTaxonomyPathValid && (
+            <TaxonomyNodeMatcher
+              nodes={taxonomyNodes}
+              selectedMatch={taxonomyMatch}
+              onMatchChange={setTaxonomyMatch}
+            />
+          )}
+        </CardContent>
+      </Card>
+
       {/* Error and actions */}
       {error && (
         <p className="text-sm text-destructive">{error}</p>
@@ -564,7 +646,7 @@ export function PlantTypeForm({ plantType, mode, wikidataQid, wikipediaTitle, in
         >
           Cancel
         </Button>
-        <Button type="submit" disabled={isPending || !name.trim() || !isLightRangeValid || !isSizeRangeValid}>
+        <Button type="submit" disabled={isPending || !name.trim() || !isLightRangeValid || !isSizeRangeValid || !isTaxonomyPathValid}>
           {isPending 
             ? (mode === "create" ? "Creating..." : "Saving...") 
             : (mode === "create" ? "Create plant type" : "Save changes")}

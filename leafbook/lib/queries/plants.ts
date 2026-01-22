@@ -17,6 +17,9 @@ export type PlantWithTypes = {
   plant_location: "indoor" | "outdoor" | null;
   location: string | null;
   is_active: boolean;
+  is_legacy: boolean;
+  legacy_reason: string | null;
+  legacy_at: string | null;
   created_at: string;
   plant_type_id: string | null;
   active_photo_id: string | null;
@@ -76,7 +79,7 @@ interface FetchResult<T> {
 }
 
 /**
- * Get plants for a user.
+ * Get active (non-legacy) plants for a user.
  */
 export async function getPlantsForUser(userId: string): Promise<FetchResult<PlantWithTypes>> {
   "use cache";
@@ -92,6 +95,9 @@ export async function getPlantsForUser(userId: string): Promise<FetchResult<Plan
       plant_location,
       location,
       is_active,
+      is_legacy,
+      legacy_reason,
+      legacy_at,
       created_at,
       plant_type_id,
       active_photo_id,
@@ -103,7 +109,44 @@ export async function getPlantsForUser(userId: string): Promise<FetchResult<Plan
     `)
     .eq("user_id", userId)
     .eq("is_active", true)
+    .eq("is_legacy", false)
     .order("created_at", { ascending: false });
+
+  return { data: data || [], error: error?.message };
+}
+
+/**
+ * Get legacy plants for a user.
+ */
+export async function getLegacyPlantsForUser(userId: string): Promise<FetchResult<PlantWithTypes>> {
+  "use cache";
+  cacheTag(userTag(userId, "plants"));
+
+  const supabase = createPublicClient();
+  const { data, error } = await supabase
+    .from("plants")
+    .select(`
+      id,
+      name,
+      nickname,
+      plant_location,
+      location,
+      is_active,
+      is_legacy,
+      legacy_reason,
+      legacy_at,
+      created_at,
+      plant_type_id,
+      active_photo_id,
+      plant_types (
+        id,
+        name,
+        scientific_name
+      )
+    `)
+    .eq("user_id", userId)
+    .eq("is_legacy", true)
+    .order("legacy_at", { ascending: false, nullsFirst: false });
 
   return { data: data || [], error: error?.message };
 }
@@ -184,6 +227,9 @@ export async function getPlantDetail(plantId: string, userId: string) {
       light_exposure,
       size_category,
       is_active,
+      is_legacy,
+      legacy_reason,
+      legacy_at,
       created_at,
       acquired_at,
       how_acquired,
@@ -404,6 +450,7 @@ export type ParentPlantSummary = {
   name: string;
   nickname: string | null;
   active_photo_id: string | null;
+  is_legacy: boolean;
 };
 
 export type ChildPlantSummary = {
@@ -411,11 +458,13 @@ export type ChildPlantSummary = {
   name: string;
   nickname: string | null;
   active_photo_id: string | null;
+  is_legacy: boolean;
   created_at: string;
 };
 
 /**
  * Get parent plant info for a plant.
+ * Includes legacy plants since parent relationships should persist.
  */
 export async function getParentPlant(parentPlantId: string, userId: string) {
   "use cache";
@@ -425,7 +474,7 @@ export async function getParentPlant(parentPlantId: string, userId: string) {
 
   const { data, error } = await supabase
     .from("plants")
-    .select("id, name, nickname, active_photo_id")
+    .select("id, name, nickname, active_photo_id, is_legacy")
     .eq("id", parentPlantId)
     .eq("user_id", userId)
     .single();
@@ -435,6 +484,7 @@ export async function getParentPlant(parentPlantId: string, userId: string) {
 
 /**
  * Get children plants (plants that have this plant as parent).
+ * Includes legacy plants since parent relationships should persist.
  */
 export async function getChildrenPlants(plantId: string, userId: string) {
   "use cache";
@@ -445,10 +495,9 @@ export async function getChildrenPlants(plantId: string, userId: string) {
 
   const { data, error } = await supabase
     .from("plants")
-    .select("id, name, nickname, active_photo_id, created_at")
+    .select("id, name, nickname, active_photo_id, is_legacy, created_at")
     .eq("parent_plant_id", plantId)
     .eq("user_id", userId)
-    .eq("is_active", true)
     .order("created_at", { ascending: false });
 
   return { data: data || [], error };
@@ -456,6 +505,7 @@ export async function getChildrenPlants(plantId: string, userId: string) {
 
 /**
  * Get all plants for a user (for parent selection in dialogs).
+ * Includes legacy plants since users may want to track lineage from legacy plants.
  * Returns minimal info for combobox/select usage.
  */
 export async function getPlantsForParentSelection(userId: string, excludePlantId?: string) {
@@ -466,9 +516,9 @@ export async function getPlantsForParentSelection(userId: string, excludePlantId
 
   let query = supabase
     .from("plants")
-    .select("id, name, nickname")
+    .select("id, name, nickname, is_legacy")
     .eq("user_id", userId)
-    .eq("is_active", true)
+    .order("is_legacy", { ascending: true }) // Active plants first
     .order("name", { ascending: true });
 
   // Exclude the current plant (can't be its own parent)
@@ -582,5 +632,365 @@ export function computeOriginStats(plants: PlantWithOrigin[]): OriginStats {
     regions,
     totalWithOrigin,
     totalWithoutOrigin,
+  };
+}
+
+// ============================================================================
+// TAXONOMY QUERIES (for Taxonomy Tree View)
+// ============================================================================
+
+export type Taxon = {
+  id: string;
+  wikidata_qid: string;
+  rank: string | null;
+  scientific_name: string | null;
+  common_name: string | null;
+};
+
+export type TaxonEdge = {
+  parent_taxon_id: string;
+  child_taxon_id: string;
+};
+
+export type PlantWithTaxon = {
+  id: string;
+  name: string;
+  nickname: string | null;
+  active_photo_id: string | null;
+  plant_types: {
+    id: string;
+    name: string;
+    scientific_name: string | null;
+    taxon_id: string | null;
+  }[] | null;
+};
+
+export type TaxonomyTreeNode = {
+  taxon: Taxon;
+  children: TaxonomyTreeNode[];
+  plants: { id: string; name: string; nickname: string | null; active_photo_id: string | null; plantTypeName: string | null }[];
+  plantCount: number; // Total plants in this node and all descendants
+};
+
+export type TaxonomyTree = {
+  roots: TaxonomyTreeNode[];
+  totalPlants: number;
+  plantsWithoutTaxon: { id: string; name: string; nickname: string | null; active_photo_id: string | null; plantTypeName: string | null }[];
+};
+
+/**
+ * Get active plants with their taxon data for taxonomy tree.
+ */
+export async function getPlantsWithTaxon(userId: string): Promise<FetchResult<PlantWithTaxon>> {
+  "use cache";
+  cacheTag(userTag(userId, "plants"));
+  cacheTag(tableTag("plant-types"));
+
+  const supabase = createPublicClient();
+  const { data, error } = await supabase
+    .from("plants")
+    .select(`
+      id,
+      name,
+      nickname,
+      active_photo_id,
+      plant_types (
+        id,
+        name,
+        scientific_name,
+        taxon_id
+      )
+    `)
+    .eq("user_id", userId)
+    .eq("is_active", true)
+    .eq("is_legacy", false);
+
+  return { data: data || [], error: error?.message };
+}
+
+/**
+ * Get all taxa records.
+ */
+export async function getAllTaxa(): Promise<FetchResult<Taxon>> {
+  "use cache";
+  cacheTag(tableTag("taxa"));
+
+  const supabase = createPublicClient();
+  const { data, error } = await supabase
+    .from("taxa")
+    .select("id, wikidata_qid, rank, scientific_name, common_name");
+
+  return { data: data || [], error: error?.message };
+}
+
+/**
+ * Get all taxon edges (parent-child relationships).
+ */
+export async function getAllTaxonEdges(): Promise<FetchResult<TaxonEdge>> {
+  "use cache";
+  cacheTag(tableTag("taxon-edges"));
+
+  const supabase = createPublicClient();
+  const { data, error } = await supabase
+    .from("taxon_edges")
+    .select("parent_taxon_id, child_taxon_id");
+
+  return { data: data || [], error: error?.message };
+}
+
+/**
+ * Build a taxonomy tree from plants, taxa, and edges.
+ * Groups plants under their species, then builds upward through genus, family, etc.
+ */
+export function buildTaxonomyTree(
+  plants: PlantWithTaxon[],
+  taxa: Taxon[],
+  edges: TaxonEdge[]
+): TaxonomyTree {
+  // Create lookup maps
+  const taxaById = new Map<string, Taxon>();
+  taxa.forEach(t => taxaById.set(t.id, t));
+
+  // Build parent->children and child->parent maps
+  const childrenMap = new Map<string, string[]>();
+  const parentMap = new Map<string, string>();
+  
+  edges.forEach(edge => {
+    // child->parent
+    parentMap.set(edge.child_taxon_id, edge.parent_taxon_id);
+    
+    // parent->children
+    const children = childrenMap.get(edge.parent_taxon_id) || [];
+    children.push(edge.child_taxon_id);
+    childrenMap.set(edge.parent_taxon_id, children);
+  });
+
+  // Group plants by their taxon_id
+  const plantsByTaxonId = new Map<string, PlantWithTaxon[]>();
+  const plantsWithoutTaxon: PlantWithTaxon[] = [];
+
+  plants.forEach(plant => {
+    const plantType = Array.isArray(plant.plant_types) 
+      ? plant.plant_types[0] 
+      : plant.plant_types;
+    const taxonId = plantType?.taxon_id;
+
+    if (taxonId && taxaById.has(taxonId)) {
+      const existing = plantsByTaxonId.get(taxonId) || [];
+      existing.push(plant);
+      plantsByTaxonId.set(taxonId, existing);
+    } else {
+      plantsWithoutTaxon.push(plant);
+    }
+  });
+
+  // Find all taxon IDs that are relevant (have plants or are ancestors of taxa with plants)
+  const relevantTaxonIds = new Set<string>();
+  
+  // Start with taxa that have plants
+  plantsByTaxonId.forEach((_, taxonId) => {
+    // Add this taxon and all its ancestors
+    let currentId: string | undefined = taxonId;
+    while (currentId) {
+      relevantTaxonIds.add(currentId);
+      currentId = parentMap.get(currentId);
+    }
+  });
+
+  // Build tree nodes recursively
+  function buildNode(taxonId: string): TaxonomyTreeNode | null {
+    const taxon = taxaById.get(taxonId);
+    if (!taxon) return null;
+
+    // Get direct children that are relevant
+    const childIds = childrenMap.get(taxonId) || [];
+    const childNodes: TaxonomyTreeNode[] = [];
+    
+    childIds.forEach(childId => {
+      if (relevantTaxonIds.has(childId)) {
+        const childNode = buildNode(childId);
+        if (childNode) {
+          childNodes.push(childNode);
+        }
+      }
+    });
+
+    // Sort children by name
+    childNodes.sort((a, b) => {
+      const nameA = a.taxon.common_name || a.taxon.scientific_name || "";
+      const nameB = b.taxon.common_name || b.taxon.scientific_name || "";
+      return nameA.localeCompare(nameB);
+    });
+
+    // Get plants directly at this taxon level
+    const directPlants = (plantsByTaxonId.get(taxonId) || []).map(p => {
+      const plantType = Array.isArray(p.plant_types) ? p.plant_types[0] : p.plant_types;
+      return {
+        id: p.id,
+        name: p.name,
+        nickname: p.nickname,
+        active_photo_id: p.active_photo_id,
+        plantTypeName: plantType?.name || null,
+      };
+    });
+
+    // Calculate total plant count (direct + descendants)
+    const descendantCount = childNodes.reduce((sum, child) => sum + child.plantCount, 0);
+    const plantCount = directPlants.length + descendantCount;
+
+    return {
+      taxon,
+      children: childNodes,
+      plants: directPlants,
+      plantCount,
+    };
+  }
+
+  // Find root nodes (relevant taxa with no parent or parent not in relevant set)
+  const rootIds: string[] = [];
+  relevantTaxonIds.forEach(taxonId => {
+    const parentId = parentMap.get(taxonId);
+    if (!parentId || !relevantTaxonIds.has(parentId)) {
+      rootIds.push(taxonId);
+    }
+  });
+
+  // Build root nodes
+  const roots: TaxonomyTreeNode[] = [];
+  rootIds.forEach(rootId => {
+    const node = buildNode(rootId);
+    if (node) {
+      roots.push(node);
+    }
+  });
+
+  // Sort roots by name
+  roots.sort((a, b) => {
+    const nameA = a.taxon.common_name || a.taxon.scientific_name || "";
+    const nameB = b.taxon.common_name || b.taxon.scientific_name || "";
+    return nameA.localeCompare(nameB);
+  });
+
+  return {
+    roots,
+    totalPlants: plants.length,
+    plantsWithoutTaxon: plantsWithoutTaxon.map(p => {
+      const plantType = Array.isArray(p.plant_types) ? p.plant_types[0] : p.plant_types;
+      return {
+        id: p.id,
+        name: p.name,
+        nickname: p.nickname,
+        active_photo_id: p.active_photo_id,
+        plantTypeName: plantType?.name || null,
+      };
+    }),
+  };
+}
+
+/**
+ * Get complete taxonomy data for a user's plants.
+ * Fetches plants, taxa, and edges, then builds the tree.
+ */
+export async function getTaxonomyForUserPlants(userId: string): Promise<{
+  tree: TaxonomyTree;
+  error?: string;
+}> {
+  const [plantsResult, taxaResult, edgesResult] = await Promise.all([
+    getPlantsWithTaxon(userId),
+    getAllTaxa(),
+    getAllTaxonEdges(),
+  ]);
+
+  if (plantsResult.error || taxaResult.error || edgesResult.error) {
+    return {
+      tree: { roots: [], totalPlants: 0, plantsWithoutTaxon: [] },
+      error: plantsResult.error || taxaResult.error || edgesResult.error || undefined,
+    };
+  }
+
+  const tree = buildTaxonomyTree(
+    plantsResult.data,
+    taxaResult.data,
+    edgesResult.data
+  );
+
+  return { tree };
+}
+
+// ============================================================================
+// COMPACTED TAXONOMY TREE (for UI display)
+// ============================================================================
+
+/**
+ * A compacted tree node that collapses linear chains into a single node.
+ * The `path` array contains all taxa in a collapsed chain.
+ */
+export type CompactedTreeNode = {
+  path: Taxon[]; // Taxa in this collapsed chain (first is highest rank, last is lowest)
+  children: CompactedTreeNode[];
+  plants: { id: string; name: string; nickname: string | null; active_photo_id: string | null; plantTypeName: string | null }[];
+  plantCount: number;
+  isBranchPoint: boolean; // True if this node has multiple children
+  isLeaf: boolean; // True if this node has no children (plants are here)
+};
+
+export type CompactedTaxonomyTree = {
+  roots: CompactedTreeNode[];
+  totalPlants: number;
+  plantsWithoutTaxon: { id: string; name: string; nickname: string | null; active_photo_id: string | null; plantTypeName: string | null }[];
+};
+
+/**
+ * Build a compacted tree from the standard taxonomy tree.
+ * Collapses linear chains (single-child paths) into a single node with full path.
+ */
+export function buildCompactedTree(tree: TaxonomyTree): CompactedTaxonomyTree {
+  function compactNode(node: TaxonomyTreeNode, accumulatedPath: Taxon[] = []): CompactedTreeNode {
+    const currentPath = [...accumulatedPath, node.taxon];
+    
+    // Determine if this is a branch point or leaf
+    const hasMultipleChildren = node.children.length > 1;
+    const hasPlants = node.plants.length > 0;
+    const isLeaf = node.children.length === 0;
+    const isBranchPoint = hasMultipleChildren;
+    
+    // If this node has exactly one child and no direct plants, continue collapsing
+    if (node.children.length === 1 && !hasPlants) {
+      return compactNode(node.children[0], currentPath);
+    }
+    
+    // Otherwise, this is a stopping point - create a compacted node
+    const compactedChildren = node.children.map(child => compactNode(child, []));
+    
+    // Sort children by name
+    compactedChildren.sort((a, b) => {
+      const nameA = a.path[0]?.common_name || a.path[0]?.scientific_name || "";
+      const nameB = b.path[0]?.common_name || b.path[0]?.scientific_name || "";
+      return nameA.localeCompare(nameB);
+    });
+    
+    return {
+      path: currentPath,
+      children: compactedChildren,
+      plants: node.plants,
+      plantCount: node.plantCount,
+      isBranchPoint,
+      isLeaf,
+    };
+  }
+  
+  const compactedRoots = tree.roots.map(root => compactNode(root, []));
+  
+  // Sort roots by name
+  compactedRoots.sort((a, b) => {
+    const nameA = a.path[0]?.common_name || a.path[0]?.scientific_name || "";
+    const nameB = b.path[0]?.common_name || b.path[0]?.scientific_name || "";
+    return nameA.localeCompare(nameB);
+  });
+  
+  return {
+    roots: compactedRoots,
+    totalPlants: tree.totalPlants,
+    plantsWithoutTaxon: tree.plantsWithoutTaxon,
   };
 }

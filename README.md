@@ -189,5 +189,3 @@ An app for journaling your plants
 ## Future Features
 
 - **Custom User Lists**: Allow users to create custom lists to group their plants together.
-- **Legacy Plant Logging**: Ability for users to log plants no longer in their collection (e.g., died or given away).
-- **Taxonomy Family Tree**: A family tree view for users to see how their plants are related (backend support implemented).

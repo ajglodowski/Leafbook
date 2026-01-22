@@ -440,6 +440,7 @@ export type Database = {
           size_max_numeric: number | null
           size_min: Database["public"]["Enums"]["size_category"] | null
           size_min_numeric: number | null
+          taxon_id: string | null
           updated_at: string
           watering_frequency_days: number | null
           wikidata_qid: string | null
@@ -468,6 +469,7 @@ export type Database = {
           size_max_numeric?: number | null
           size_min?: Database["public"]["Enums"]["size_category"] | null
           size_min_numeric?: number | null
+          taxon_id?: string | null
           updated_at?: string
           watering_frequency_days?: number | null
           wikidata_qid?: string | null
@@ -496,13 +498,97 @@ export type Database = {
           size_max_numeric?: number | null
           size_min?: Database["public"]["Enums"]["size_category"] | null
           size_min_numeric?: number | null
+          taxon_id?: string | null
           updated_at?: string
           watering_frequency_days?: number | null
           wikidata_qid?: string | null
           wikipedia_lang?: string
           wikipedia_title?: string | null
         }
+        Relationships: [
+          {
+            foreignKeyName: "plant_types_taxon_id_fkey"
+            columns: ["taxon_id"]
+            isOneToOne: false
+            referencedRelation: "taxa"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      taxa: {
+        Row: {
+          id: string
+          wikidata_qid: string
+          rank: string | null
+          scientific_name: string | null
+          common_name: string | null
+          description: string | null
+          wikipedia_title: string | null
+          wikipedia_lang: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          wikidata_qid: string
+          rank?: string | null
+          scientific_name?: string | null
+          common_name?: string | null
+          description?: string | null
+          wikipedia_title?: string | null
+          wikipedia_lang?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          wikidata_qid?: string
+          rank?: string | null
+          scientific_name?: string | null
+          common_name?: string | null
+          description?: string | null
+          wikipedia_title?: string | null
+          wikipedia_lang?: string
+          created_at?: string
+          updated_at?: string
+        }
         Relationships: []
+      }
+      taxon_edges: {
+        Row: {
+          parent_taxon_id: string
+          child_taxon_id: string
+          relationship: string
+          created_at: string
+        }
+        Insert: {
+          parent_taxon_id: string
+          child_taxon_id: string
+          relationship?: string
+          created_at?: string
+        }
+        Update: {
+          parent_taxon_id?: string
+          child_taxon_id?: string
+          relationship?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "taxon_edges_parent_taxon_id_fkey"
+            columns: ["parent_taxon_id"]
+            isOneToOne: false
+            referencedRelation: "taxa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taxon_edges_child_taxon_id_fkey"
+            columns: ["child_taxon_id"]
+            isOneToOne: false
+            referencedRelation: "taxa"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       plants: {
         Row: {
@@ -514,6 +600,9 @@ export type Database = {
           how_acquired: string | null
           id: string
           is_active: boolean
+          is_legacy: boolean
+          legacy_at: string | null
+          legacy_reason: string | null
           light_exposure:
             | Database["public"]["Enums"]["light_requirement"]
             | null
@@ -538,6 +627,9 @@ export type Database = {
           how_acquired?: string | null
           id?: string
           is_active?: boolean
+          is_legacy?: boolean
+          legacy_at?: string | null
+          legacy_reason?: string | null
           light_exposure?:
             | Database["public"]["Enums"]["light_requirement"]
             | null
@@ -562,6 +654,9 @@ export type Database = {
           how_acquired?: string | null
           id?: string
           is_active?: boolean
+          is_legacy?: boolean
+          legacy_at?: string | null
+          legacy_reason?: string | null
           light_exposure?:
             | Database["public"]["Enums"]["light_requirement"]
             | null

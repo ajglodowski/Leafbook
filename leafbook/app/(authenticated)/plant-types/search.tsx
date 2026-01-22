@@ -5,7 +5,7 @@ import { Search, X, Sun, Ruler } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useTransition, useState, useEffect, useCallback } from "react";
+import { useTransition, useState, useEffect, useCallback, useRef } from "react";
 
 const lightOptions = [
   { value: "dark", label: "Dark" },
@@ -35,16 +35,19 @@ export function PlantTypesSearch() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
+  const isFirstRender = useRef(true);
   
   const [searchValue, setSearchValue] = useState(searchParams.get("q") || "");
   const lightValue = searchParams.get("light") || "";
   const sizeValue = searchParams.get("size") || "";
+  const pageValue = searchParams.get("page") || "";
 
-  const updateUrl = useCallback((params: { q?: string; light?: string; size?: string }) => {
+  const updateUrl = useCallback((params: { q?: string; light?: string; size?: string; page?: number }) => {
     const newParams = new URLSearchParams();
     if (params.q) newParams.set("q", params.q);
     if (params.light) newParams.set("light", params.light);
     if (params.size) newParams.set("size", params.size);
+    if (params.page && params.page > 1) newParams.set("page", String(params.page));
     
     startTransition(() => {
       router.push(`/plant-types?${newParams.toString()}`);
@@ -53,20 +56,24 @@ export function PlantTypesSearch() {
 
   // Debounced search
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
     const timeout = setTimeout(() => {
-      updateUrl({ q: searchValue, light: lightValue, size: sizeValue });
+      updateUrl({ q: searchValue, light: lightValue, size: sizeValue, page: 1 });
     }, 300);
     return () => clearTimeout(timeout);
   }, [searchValue, lightValue, sizeValue, updateUrl]);
 
   function handleLightChange(value: string | null) {
     const newLight = value === "all" || !value ? "" : value;
-    updateUrl({ q: searchValue, light: newLight, size: sizeValue });
+    updateUrl({ q: searchValue, light: newLight, size: sizeValue, page: 1 });
   }
 
   function handleSizeChange(value: string | null) {
     const newSize = value === "all" || !value ? "" : value;
-    updateUrl({ q: searchValue, light: lightValue, size: newSize });
+    updateUrl({ q: searchValue, light: lightValue, size: newSize, page: 1 });
   }
 
   function clearFilters() {
@@ -76,7 +83,7 @@ export function PlantTypesSearch() {
     });
   }
 
-  const hasFilters = searchValue || lightValue || sizeValue;
+  const hasFilters = searchValue || lightValue || sizeValue || pageValue;
 
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center">

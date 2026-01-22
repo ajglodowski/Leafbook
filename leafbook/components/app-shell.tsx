@@ -12,6 +12,7 @@ import {
   LogOut,
   Shield,
   Package,
+  Menu,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -19,6 +20,13 @@ import { ThemeSwitcher } from "@/components/theme-switcher";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const navItems = [
   { href: "/", label: "Today", icon: CalendarCheck },
@@ -57,8 +65,52 @@ export function AppShell({ children, isAdmin = false }: { children: React.ReactN
             <span className="hidden sm:inline">Leafbook</span>
           </Link>
 
-          {/* Main nav */}
-          <nav className="flex items-center gap-1">
+          {/* Mobile hamburger menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className="sm:hidden inline-flex items-center justify-center rounded-md p-2 hover:bg-accent hover:text-accent-foreground"
+            >
+              <Menu className="h-5 w-5" />
+              <span className="sr-only">Open menu</span>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" sideOffset={8} className="w-48">
+              {navItems.map((item) => {
+                const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+                return (
+                  <Link key={item.href} href={item.href}>
+                    <DropdownMenuItem
+                      className={cn(
+                        "gap-2 cursor-pointer",
+                        isActive && "bg-primary/10 text-primary"
+                      )}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      {item.label}
+                    </DropdownMenuItem>
+                  </Link>
+                );
+              })}
+              {isAdmin && (
+                <>
+                  <DropdownMenuSeparator />
+                  <Link href="/admin">
+                    <DropdownMenuItem
+                      className={cn(
+                        "gap-2 cursor-pointer",
+                        isAdminSection && "bg-amber-500/10 text-amber-600"
+                      )}
+                    >
+                      <Shield className="h-4 w-4" />
+                      Admin
+                    </DropdownMenuItem>
+                  </Link>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Desktop nav */}
+          <nav className="hidden sm:flex items-center gap-1">
             {navItems.map((item) => {
               const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
               return (
@@ -83,7 +135,7 @@ export function AppShell({ children, isAdmin = false }: { children: React.ReactN
           <div className="ml-auto flex items-center gap-1">
             {isAdmin && (
               <>
-                <Link href="/admin">
+                <Link href="/admin" className="hidden sm:block">
                   <Button
                     variant={isAdminSection ? "secondary" : "ghost"}
                     size="sm"
@@ -96,22 +148,10 @@ export function AppShell({ children, isAdmin = false }: { children: React.ReactN
                     <span className="hidden md:inline">Admin</span>
                   </Button>
                 </Link>
-                <Separator orientation="vertical" className="mx-1 h-6" />
+                <Separator orientation="vertical" className="hidden sm:block mx-1 h-6" />
               </>
             )}
             <ThemeSwitcher />
-            <Link href="/pots">
-              <Button 
-                variant={pathname === "/pots" ? "secondary" : "ghost"} 
-                size="icon-sm" 
-                title="Pot inventory"
-                className={cn(
-                  pathname === "/pots" && "bg-orange-500/10 text-orange-600 hover:bg-orange-500/15"
-                )}
-              >
-                <Package className="h-4 w-4" />
-              </Button>
-            </Link>
             <Link href="/settings">
               <Button variant="ghost" size="icon-sm">
                 <Settings className="h-4 w-4 text-muted-foreground" />
@@ -131,8 +171,8 @@ export function AppShell({ children, isAdmin = false }: { children: React.ReactN
       </header>
 
       {/* Main content */}
-      <main className="flex-1">
-        <div className="container max-w-5xl px-4 py-6 md:px-6 md:py-8">
+      <main className="flex w-full">
+        <div className="w-full px-4 py-6 md:px-6">
           {children}
         </div>
       </main>

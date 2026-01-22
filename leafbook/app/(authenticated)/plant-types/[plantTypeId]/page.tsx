@@ -1,19 +1,26 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
-import { ArrowLeft, Droplets, Sun, Ruler, Sparkles, Leaf, Home, TreePine, Combine } from "lucide-react";
+import { PlantPhotoGallery } from "./plant-photo-gallery";
+import { ArrowLeft, Droplets, Sun, Ruler, Sparkles, Leaf, Home, TreePine, Combine, MapPin, Pencil } from "lucide-react";
 import { getCurrentUserId } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { WishlistButton } from "./wishlist-button";
 import { AddPlantButton } from "./add-plant-button";
+import { getCountryName } from "@/lib/origin-mapping";
 import {
   getPlantTypeById,
   getPlantTypePhotos,
   getWishlistItemForPlantType,
   getUserPlantsOfType,
 } from "@/lib/queries/plant-types";
+
+export const metadata = {
+  title: "Plant Type | Leafbook",
+  description: "Plant type details and care overview",
+};
 
 // Human-friendly labels for enums
 const lightLabels: Record<string, string> = {
@@ -69,28 +76,41 @@ export default async function PlantTypeDetailPage({
     redirect("/auth/login");
   }
 
+  const supabase = await createClient();
+
   // Fetch all data in parallel using cached helpers
   const [
     { data: plantType, error },
     { data: photos },
     { data: wishlistItem },
     { data: existingPlants },
+    { data: profile },
   ] = await Promise.all([
     getPlantTypeById(plantTypeId),
     getPlantTypePhotos(plantTypeId),
     getWishlistItemForPlantType(userId, plantTypeId),
     getUserPlantsOfType(userId, plantTypeId),
+    supabase.from("profiles").select("role").eq("id", userId).single(),
   ]);
 
   if (error || !plantType) {
     notFound();
   }
 
-  const primaryPhoto = photos?.find((p) => p.is_primary) || photos?.[0];
-  const galleryPhotos = photos?.filter((p) => p.id !== primaryPhoto?.id) || [];
-
   const isInWishlist = !!wishlistItem;
   const userOwnsThisType = existingPlants && existingPlants.length > 0;
+  const isAdmin = profile?.role === "admin";
+  const origins: Array<{ country_code: string; region: string | null }> = Array.isArray(
+    plantType.plant_type_origins
+  )
+    ? plantType.plant_type_origins
+    : [];
+  const originRegions = Array.from(
+    new Set(origins.map((origin) => origin.region).filter((region): region is string => Boolean(region)))
+  );
+  const originCountries = Array.from(
+    new Set(origins.map((origin) => getCountryName(origin.country_code)))
+  ).sort((a: string, b: string) => a.localeCompare(b));
 
   return (
     <div className="space-y-8">
@@ -116,7 +136,15 @@ export default async function PlantTypeDetailPage({
         </div>
         
         {/* Action buttons */}
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          {isAdmin && (
+            <Link href={`/admin/plant-types/${plantTypeId}`}>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Pencil className="h-4 w-4" />
+                Edit
+              </Button>
+            </Link>
+          )}
           <WishlistButton
             plantTypeId={plantTypeId}
             isInWishlist={isInWishlist}
@@ -131,46 +159,7 @@ export default async function PlantTypeDetailPage({
 
       {/* Photo gallery */}
       {photos && photos.length > 0 && (
-        <div className="space-y-4">
-          {/* Primary photo */}
-          {primaryPhoto && (
-            <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-muted">
-              <Image
-                src={primaryPhoto.url}
-                alt={primaryPhoto.caption || plantType.name}
-                fill
-                className="object-cover"
-                priority
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
-              />
-              {primaryPhoto.caption && (
-                <div className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/60 to-transparent p-4">
-                  <p className="text-sm text-white">{primaryPhoto.caption}</p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Gallery grid */}
-          {galleryPhotos.length > 0 && (
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
-              {galleryPhotos.map((photo) => (
-                <div
-                  key={photo.id}
-                  className="relative aspect-square overflow-hidden rounded-lg bg-muted"
-                >
-                  <Image
-                    src={photo.url}
-                    alt={photo.caption || plantType.name}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 768px) 33vw, 20vw"
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <PlantPhotoGallery photos={photos} plantName={plantType.name} />
       )}
 
       {/* Already owned notice */}
@@ -228,6 +217,29 @@ export default async function PlantTypeDetailPage({
               <p className="text-sm text-muted-foreground">
                 {locationLabels[plantType.location_preference]?.description || ""}
               </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Native range */}
+        {originCountries.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <MapPin className="h-5 w-5 text-emerald-500" />
+                Native range
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {originRegions.length > 0 && (
+                <p className="text-sm text-muted-foreground">
+                  {originRegions.length > 1 ? "Regions:" : "Region:"} {originRegions.join(", ")}
+                </p>
+              )}
+              <p className="font-medium">
+                {originCountries.length > 1 ? "Countries:" : "Country:"} {originCountries.join(", ")}
+              </p>
+              <p className="text-sm text-muted-foreground">Where this plant originates naturally</p>
             </CardContent>
           </Card>
         )}

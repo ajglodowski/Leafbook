@@ -6,6 +6,7 @@ import { JournalEntryDialog } from "./journal-entry-dialog";
 import { IssueDialog } from "./issue-dialog";
 import { PotWithUsage } from "@/lib/queries/pots";
 import { RepotDialog } from "./repot-dialog";
+import { CareEventEditDialog } from "./care-event-edit-dialog";
 
 // Human-friendly labels for event types with fun icons and colors
 const eventConfig: Record<string, { label: string; emoji: string; color: string; bgColor: string }> = {
@@ -154,6 +155,12 @@ type TimelineItem =
   | { type: "journal"; data: JournalEntry; date: Date }
   | { type: "issue"; data: PlantIssue; date: Date };
 
+interface PlantOption {
+  id: string;
+  name: string;
+  nickname: string | null;
+}
+
 interface PlantTimelineProps {
   events: CareEvent[];
   journalEntries: JournalEntry[];
@@ -164,6 +171,8 @@ interface PlantTimelineProps {
   currentPotSize: number | null;
   pots: PotWithUsage[];
   unusedPots: PotWithUsage[];
+  // For propagation event editing
+  availablePlantsForParent?: PlantOption[];
 }
 
 export function PlantTimeline({
@@ -176,6 +185,7 @@ export function PlantTimeline({
   currentPotSize,
   pots,
   unusedPots,
+  availablePlantsForParent = [],
 }: PlantTimelineProps) {
   // Merge and sort timeline items by date (descending)
   const timelineItems: TimelineItem[] = [
@@ -258,6 +268,7 @@ export function PlantTimeline({
                     {formatDate(item.data.event_date)}
                   </p>
                 </div>
+                {/* Edit button for repotted events */}
                 {item.data.event_type === "repotted" && (
                   <RepotDialog
                     plantId={plantId}
@@ -277,6 +288,34 @@ export function PlantTimeline({
                         <Pencil className="h-4 w-4" />
                       </button>
                     }
+                  />
+                )}
+                {/* Edit button for watered/fertilized events */}
+                {(item.data.event_type === "watered" || item.data.event_type === "fertilized") && (
+                  <CareEventEditDialog
+                    plantId={plantId}
+                    plantName={plantName}
+                    event={{
+                      id: item.data.id,
+                      event_type: item.data.event_type,
+                      event_date: item.data.event_date,
+                      notes: item.data.notes,
+                    }}
+                  />
+                )}
+                {/* Edit button for propagated events */}
+                {item.data.event_type === "propagated" && (
+                  <CareEventEditDialog
+                    plantId={plantId}
+                    plantName={plantName}
+                    event={{
+                      id: item.data.id,
+                      event_type: item.data.event_type,
+                      event_date: item.data.event_date,
+                      notes: item.data.notes,
+                      metadata: item.data.metadata,
+                    }}
+                    availablePlantsForParent={availablePlantsForParent}
                   />
                 )}
               </div>
