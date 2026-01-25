@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { Search, Loader2, Check, X, ChevronDown, ChevronUp, Link2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Check, ChevronDown, ChevronUp, Link2,Loader2, Search, X } from "lucide-react";
+import { useCallback,useEffect, useState } from "react";
+
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 
 interface WikidataSearchResult {
   qid: string;
@@ -50,6 +51,7 @@ export function TaxonomyNodeMatcher({
   const [manualSearchQuery, setManualSearchQuery] = useState("");
   const [manualSearchResults, setManualSearchResults] = useState<WikidataSearchResult[]>([]);
   const [isManualSearching, setIsManualSearching] = useState(false);
+  const nodesKey = nodes.join(",");
 
   // Reset state when nodes change
   useEffect(() => {
@@ -58,7 +60,7 @@ export function TaxonomyNodeMatcher({
     setManualSearchIndex(null);
     setManualSearchResults([]);
     onMatchChange(null);
-  }, [nodes.join(","), onMatchChange]);
+  }, [nodesKey, onMatchChange]);
 
   // Auto-search from deepest node when nodes change
   const searchFromDeepest = useCallback(async () => {

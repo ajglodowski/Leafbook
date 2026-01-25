@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
-import { TodayDashboard } from "@/components/today-dashboard";
+
+import { TodayDashboard } from "@/app/(authenticated)/dashboard/today-dashboard";
 import { getCurrentUserId } from "@/lib/supabase/server";
 
 export const metadata = {

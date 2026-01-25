@@ -1,20 +1,22 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { Droplets, RotateCcw, Settings2, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { Settings2, Droplets, Sparkles, RotateCcw } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
+
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogCancel,
-} from "@/components/ui/alert-dialog";
+
 import { upsertPlantCarePreferences } from "./actions";
 
 interface CarePreferencesDialogProps {
@@ -115,7 +117,6 @@ export function CarePreferencesDialog({
     setFertilizingDays("");
   }
 
-  const hasCustomValues = customWateringDays !== null || customFertilizingDays !== null;
   const hasChanges =
     wateringDays !== (customWateringDays?.toString() || "") ||
     fertilizingDays !== (customFertilizingDays?.toString() || "");

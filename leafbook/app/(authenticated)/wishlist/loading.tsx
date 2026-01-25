@@ -1,5 +1,5 @@
+import { Card, CardContent, CardFooter,CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 
 export default function WishlistLoading() {
   return (

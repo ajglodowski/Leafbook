@@ -1,14 +1,16 @@
-import Link from "next/link";
 import { Library } from "lucide-react";
-import { EmptyState } from "@/components/empty-state";
-import { PlantTypeCard } from "@/components/plant-type-card";
-import { PlantTypesSearch } from "./search";
+import Link from "next/link";
+
+import { PlantTypeCard } from "@/app/(authenticated)/plant-types/plant-type-card";
+import { EmptyState } from "@/components/common/empty-state";
 import {
   buildCompactedPlantTypeTree,
   getPlantTypesWithPhotos,
   getTaxonomyForPlantTypes,
 } from "@/lib/queries/plant-types";
+
 import { PlantTypesTabs } from "./plant-types-tabs";
+import { PlantTypesSearch } from "./search";
 
 export const metadata = {
   title: "Catalog | Leafbook",
@@ -85,9 +87,9 @@ export default async function PlantTypesPage({
     <div className="space-y-8">
       {/* Page header */}
       <div>
-        <h1 className="font-serif text-3xl font-semibold tracking-tight">Plant Catalog</h1>
+        <h1 className="font-serif text-3xl font-semibold tracking-tight">Plant Types</h1>
         <p className="mt-1 text-muted-foreground">
-          Discover plants and their recommended care
+          Browse the catalog and taxonomy for care-ready plants
         </p>
       </div>
 
@@ -103,13 +105,11 @@ export default async function PlantTypesPage({
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   {plantTypes.map((plantType) => {
                     // Extract primary photo URL
-                    const photos = plantType.plant_type_photos || [];
+                    const { plant_type_photos: plantTypePhotos, ...plantTypeData } = plantType;
+                    const photos = plantTypePhotos || [];
                     const primaryPhoto =
                       photos.find((p: { is_primary: boolean }) => p.is_primary) || photos[0];
                     const primaryPhotoUrl = primaryPhoto?.url || null;
-
-                    // Remove photos from plantType object for the card
-                    const { plant_type_photos, ...plantTypeData } = plantType;
 
                     return (
                       <PlantTypeCard

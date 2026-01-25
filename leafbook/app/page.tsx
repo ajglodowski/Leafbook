@@ -1,7 +1,8 @@
-import Link from "next/link";
 import { Leaf } from "lucide-react";
+import Link from "next/link";
+
+import { MarketingHeader } from "@/components/marketing/marketing-header";
 import { Button } from "@/components/ui/button";
-import { MarketingHeader } from "@/components/marketing-header";
 
 export default function HomePage() {
   // Simple landing for unauthenticated users (full marketing page comes later)

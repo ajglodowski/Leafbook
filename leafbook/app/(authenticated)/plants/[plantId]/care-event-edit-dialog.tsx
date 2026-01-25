@@ -1,27 +1,29 @@
 "use client";
 
-import { useState, useTransition, useEffect, useMemo } from "react";
+import { Calendar, Check, ChevronsUpDown, Droplets, Pencil, Search, Sparkles, Sprout, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { Pencil, Trash2, Calendar, Droplets, Sparkles, Sprout, Search, Check, ChevronsUpDown } from "lucide-react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogCancel,
-} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
+
 import {
-  updateCareEvent,
-  updatePropagationEvent,
   deleteCareEvent,
   deletePropagationEvent,
+  updateCareEvent,
+  updatePropagationEvent,
 } from "./actions";
 
 // Event type configs
@@ -48,7 +50,6 @@ interface CareEventData {
 }
 
 interface CareEventEditDialogProps {
-  plantId: string;
   plantName: string;
   event: CareEventData;
   // For propagation events only
@@ -58,7 +59,6 @@ interface CareEventEditDialogProps {
 }
 
 export function CareEventEditDialog({
-  plantId,
   plantName,
   event,
   availablePlantsForParent = [],

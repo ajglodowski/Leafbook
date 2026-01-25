@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import { useState } from "react";
+
 import { Button } from "@/components/ui/button";
-import { PlantTypeForm, type OriginData } from "../plant-type-form";
-import { WikidataSearch } from "./wikidata-search";
 import type { Tables } from "@/lib/supabase/database.types";
+
+import { type OriginData,PlantTypeForm } from "../plant-type-form";
+import { WikidataSearch } from "./wikidata-search";
 
 type PlantType = Tables<"plant_types">;
 

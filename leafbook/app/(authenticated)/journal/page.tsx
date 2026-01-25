@@ -1,8 +1,10 @@
-import { BookOpen, AlertTriangle } from "lucide-react";
-import { EmptyState } from "@/components/empty-state";
+import { AlertTriangle,BookOpen } from "lucide-react";
+
+import { EmptyState } from "@/components/common/empty-state";
+
 import { getJournalEntries, getPlantIssues, getUserPlants } from "./actions";
 import { JournalFeed } from "./journal-feed";
-import { JournalHeader, type FeedType } from "./journal-header";
+import { type FeedType,JournalHeader } from "./journal-header";
 
 export const metadata = {
   title: "Journal | Leafbook",
@@ -97,7 +99,6 @@ export default async function JournalPage({
         plants={plants}
         selectedPlantId={plantFilter}
         selectedFeedType={feedType}
-        hasContent={hasContent}
       />
 
       {/* Content */}

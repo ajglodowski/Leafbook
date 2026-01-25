@@ -1,9 +1,10 @@
 "use client";
 
+import { AlertTriangle, BookOpen, CheckCircle,ExternalLink, Leaf } from "lucide-react";
 import Link from "next/link";
-import { BookOpen, ExternalLink, Leaf, AlertTriangle, CheckCircle } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import type { JournalEntryWithPlant, PlantIssueWithPlant } from "@/lib/queries/journal";
 
 function formatDate(dateString: string): string {
@@ -14,21 +15,6 @@ function formatDate(dateString: string): string {
     day: "numeric",
     year: "numeric",
   });
-}
-
-function formatTimeAgo(dateString: string): string {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffDays = Math.floor(
-    (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24)
-  );
-
-  if (diffDays === 0) return "Today";
-  if (diffDays === 1) return "Yesterday";
-  if (diffDays < 7) return `${diffDays} days ago`;
-  if (diffDays < 30)
-    return `${Math.floor(diffDays / 7)} week${diffDays >= 14 ? "s" : ""} ago`;
-  return `${Math.floor(diffDays / 30)} month${diffDays >= 60 ? "s" : ""} ago`;
 }
 
 // Human-friendly labels for issue types

@@ -2,7 +2,7 @@
 
 import { updateTag } from "next/cache";
 import { redirect } from "next/navigation";
-import { createClient, getCurrentUserId } from "@/lib/supabase/server";
+
 import {
   careEventMutationTags,
   plantMutationTags,
@@ -10,6 +10,7 @@ import {
   propagationMutationTags,
   userTag,
 } from "@/lib/cache-tags";
+import { createClient, getCurrentUserId } from "@/lib/supabase/server";
 
 // ============================================================================
 // Journal Entry Helpers for Acquisition

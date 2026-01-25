@@ -1,11 +1,12 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
-import { EmptyState } from "@/components/empty-state";
-import { Archive, Calendar, Home, Leaf, MapPin, TreePine } from "lucide-react";
+import { Archive, Calendar, Leaf } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+
+import { EmptyState } from "@/components/common/empty-state";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import type { PlantWithTypes } from "@/lib/queries/plants";
 
 interface LegacyPlantsListProps {

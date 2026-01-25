@@ -1,10 +1,12 @@
 "use client";
 
+import { GitBranch, List } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { GitBranch, List } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import type { CompactedPlantTypeTaxonomyTree } from "@/lib/queries/plant-types";
+
 import { PlantTypeTaxonomyTree } from "./plant-type-taxonomy-tree";
 
 type TabValue = "catalog" | "taxonomy";

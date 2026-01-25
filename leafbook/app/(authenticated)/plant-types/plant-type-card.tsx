@@ -1,8 +1,9 @@
-import Link from "next/link";
+import { Combine, Droplets, Home, Leaf, Ruler, Sun, TreePine } from "lucide-react";
 import Image from "next/image";
-import { Droplets, Sun, Ruler, Leaf, Home, TreePine, Combine } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import Link from "next/link";
+
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Tables } from "@/lib/supabase/database.types";
 
 type PlantType = Tables<"plant_types">;
@@ -34,7 +35,7 @@ function formatRange(min: string | null, max: string | null, labels: Record<stri
   if (!min && !max) return null;
   const minLabel = min ? labels[min] || min : null;
   const maxLabel = max ? labels[max] || max : null;
-  
+
   if (minLabel && maxLabel) {
     return minLabel === maxLabel ? minLabel : `${minLabel}–${maxLabel}`;
   }
@@ -69,31 +70,28 @@ export function PlantTypeCard({ plantType, primaryPhotoUrl }: PlantTypeCardProps
         <CardHeader className="pb-2">
           <CardTitle className="font-serif text-lg">{plantType.name}</CardTitle>
           {plantType.scientific_name && (
-            <CardDescription className="italic">
-              {plantType.scientific_name}
-            </CardDescription>
+            <CardDescription className="italic">{plantType.scientific_name}</CardDescription>
           )}
         </CardHeader>
         <CardContent className="space-y-3">
           {plantType.description && (
-            <p className="text-sm text-muted-foreground line-clamp-2">
-              {plantType.description}
-            </p>
+            <p className="text-sm text-muted-foreground line-clamp-2">{plantType.description}</p>
           )}
-          
+
           <div className="flex flex-wrap gap-2">
-            {plantType.location_preference && (
+            {plantType.location_preference &&
               (() => {
                 const LocationIcon = locationIcons[plantType.location_preference] || Home;
                 return (
                   <Badge variant="secondary" className="gap-1">
                     <LocationIcon className="h-3 w-3" />
-                    {plantType.location_preference === "both" ? "Indoor/Outdoor" : 
-                      plantType.location_preference.charAt(0).toUpperCase() + plantType.location_preference.slice(1)}
+                    {plantType.location_preference === "both"
+                      ? "Indoor/Outdoor"
+                      : plantType.location_preference.charAt(0).toUpperCase() +
+                        plantType.location_preference.slice(1)}
                   </Badge>
                 );
-              })()
-            )}
+              })()}
             {(plantType.light_min || plantType.light_max) && (
               <Badge variant="secondary" className="gap-1">
                 <Sun className="h-3 w-3" />

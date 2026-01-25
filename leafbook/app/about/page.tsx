@@ -1,7 +1,8 @@
-import { BookOpen, Droplets, Camera, Heart, Sparkles } from "lucide-react";
+import { BookOpen, Camera, Droplets, Heart, Sparkles } from "lucide-react";
 import Link from "next/link";
+
+import { MarketingHeader } from "@/components/marketing/marketing-header";
 import { Button } from "@/components/ui/button";
-import { MarketingHeader } from "@/components/marketing-header";
 
 export const metadata = {
   title: "About | Leafbook",

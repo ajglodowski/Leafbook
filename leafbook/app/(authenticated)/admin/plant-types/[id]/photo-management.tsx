@@ -1,27 +1,23 @@
 "use client";
 
-import { useState, useTransition, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import Image from "next/image";
 import { upload } from "@vercel/blob/client";
-import { 
-  Camera, 
-  Trash2, 
-  Plus, 
-  Loader2, 
-  X, 
-  Star, 
-  ChevronUp, 
-  ChevronDown,
-  GripVertical,
-  Globe,
+import {
+  Camera,
   Check,
-  ExternalLink,
+  ChevronDown,
+  ChevronUp,
+  Globe,
   Info,
+  Loader2,
+  Plus,
+  Star,
+  Trash2,
+  X
 } from "lucide-react";
-import { ImageCropper } from "@/components/ui/image-cropper";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { useCallback, useRef, useState, useTransition } from "react";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,10 +28,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { 
-  setPlantTypePrimaryPhoto, 
-  reorderPlantTypePhotos, 
-  deletePlantTypePhoto 
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ImageCropper } from "@/components/ui/image-cropper";
+
+import {
+  deletePlantTypePhoto,
+  reorderPlantTypePhotos,
+  setPlantTypePrimaryPhoto
 } from "../actions";
 
 interface PlantTypePhoto {

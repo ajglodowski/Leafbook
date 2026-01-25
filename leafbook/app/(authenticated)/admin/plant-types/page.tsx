@@ -1,11 +1,13 @@
+import { Combine, Droplets, Home, Library, Pencil, Plus, Ruler, Sparkles, Sun, TreePine } from "lucide-react";
 import Link from "next/link";
-import { Plus, Pencil, Trash2, Library, Droplets, Sun, Ruler, Sparkles, Home, TreePine, Combine } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+
+import { EmptyState } from "@/components/common/empty-state";
 import { Badge } from "@/components/ui/badge";
-import { EmptyState } from "@/components/empty-state";
-import { DeletePlantTypeButton } from "./delete-button";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { getPlantTypesForAdmin } from "@/lib/queries/plant-types";
+
+import { DeletePlantTypeButton } from "./delete-button";
 
 export const metadata = {
   title: "Admin Plant Types | Leafbook",

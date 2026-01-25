@@ -1,20 +1,22 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { Home, Plus, TreePine } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { Plus, Home, TreePine } from "lucide-react";
+import { useState, useTransition } from "react";
+
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogCancel,
-} from "@/components/ui/alert-dialog";
+
 import { addPlant } from "./actions";
 
 interface AddPlantButtonProps {

@@ -1,7 +1,5 @@
 import { cacheTag } from "next/cache";
-import { createPublicClient } from "@/lib/supabase/server";
-import { getAllTaxa, getAllTaxonEdges } from "@/lib/queries/plants";
-import type { Taxon, TaxonEdge } from "@/lib/queries/plants";
+
 import {
   plantTypeDetailTags,
   recordTag,
@@ -9,6 +7,9 @@ import {
   tableTag,
   userTag,
 } from "@/lib/cache-tags";
+import type { Taxon, TaxonEdge } from "@/lib/queries/plants";
+import { getAllTaxa, getAllTaxonEdges } from "@/lib/queries/plants";
+import { createPublicClient } from "@/lib/supabase/server";
 
 /**
  * Get all plant types with optional filtering.

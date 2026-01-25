@@ -211,13 +211,12 @@ export function formatScheduleSuggestion(
   confidence: number
 ): string {
   const direction = suggestedDays < currentDays ? "more often" : "less often";
-  const diff = Math.abs(suggestedDays - currentDays);
-  
+
   if (confidence >= 80) {
     return `You consistently water ${direction} than your ${currentDays}-day schedule. Consider changing to every ${suggestedDays} days.`;
   } else if (confidence >= 60) {
     return `Your watering pattern suggests every ${suggestedDays} days might work better than ${currentDays} days.`;
-  } else {
-    return `You might prefer watering every ${suggestedDays} days instead of ${currentDays} days, but your pattern varies.`;
   }
+
+  return `You might prefer watering every ${suggestedDays} days instead of ${currentDays} days, but your pattern varies.`;
 }

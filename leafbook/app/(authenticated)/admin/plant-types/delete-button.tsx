@@ -1,17 +1,19 @@
 "use client";
 
-import { useState, useTransition } from "react";
 import { Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useState, useTransition } from "react";
+
 import {
   AlertDialog,
+  AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
   AlertDialogDescription,
   AlertDialogFooter,
-  AlertDialogCancel,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+
 import { deletePlantType } from "./actions";
 
 interface DeletePlantTypeButtonProps {

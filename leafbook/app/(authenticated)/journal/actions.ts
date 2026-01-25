@@ -1,14 +1,16 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { getCurrentUserId } from "@/lib/supabase/server";
+
 import {
   getJournalEntriesForUser,
-  getUserPlantsForJournal,
   getPlantIssuesForUser,
+  getUserPlantsForJournal,
   type JournalEntryWithPlant,
   type PlantIssueWithPlant,
 } from "@/lib/queries/journal";
+import { getCurrentUserId } from "@/lib/supabase/server";
+
 import { IssueStatus } from "../plants/[plantId]/actions";
 
 /**

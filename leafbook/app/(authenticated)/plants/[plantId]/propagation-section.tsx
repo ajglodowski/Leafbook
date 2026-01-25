@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, GitBranch, Leaf, Sprout } from "lucide-react";
 import Image from "next/image";
-import { GitBranch, Sprout, Leaf, ArrowUp, ArrowDown, ChevronDown, ChevronRight } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import Link from "next/link";
+import { useState } from "react";
+
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+
 import { PropagateDialog } from "./propagate-dialog";
 import { SetParentDialog } from "./set-parent-dialog";
 
@@ -19,12 +21,6 @@ interface PlantSummary {
 
 interface ChildPlant extends PlantSummary {
   created_at: string;
-}
-
-interface PlantPhoto {
-  id: string;
-  plant_id: string;
-  url: string;
 }
 
 interface PropagationSectionProps {

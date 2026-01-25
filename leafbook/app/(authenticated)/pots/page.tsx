@@ -1,13 +1,15 @@
+import { ArchiveRestore, CheckCircle,Droplet, Leaf, Package, Palette, Ruler } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { Package, Droplet, Ruler, Palette, ArchiveRestore, Leaf, CheckCircle } from "lucide-react";
-import { EmptyState } from "@/components/empty-state";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+
+import { EmptyState } from "@/components/common/empty-state";
 import { Badge } from "@/components/ui/badge";
-import { PotDialog } from "./pot-dialog";
-import { PotActions } from "./pot-actions";
-import { getPotsWithUsage } from "./actions";
+import { Card, CardContent, CardDescription,CardHeader, CardTitle } from "@/components/ui/card";
 import type { PotWithUsage } from "@/lib/queries/pots";
+
+import { getPotsWithUsage } from "./actions";
+import { PotActions } from "./pot-actions";
+import { PotDialog } from "./pot-dialog";
 
 export const metadata = {
   title: "Pots | Leafbook",

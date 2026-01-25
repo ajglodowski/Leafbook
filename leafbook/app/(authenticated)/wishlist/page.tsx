@@ -1,14 +1,15 @@
-import Link from "next/link";
+import { Heart, Leaf } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Heart, Leaf, Trash2 } from "lucide-react";
-import { EmptyState } from "@/components/empty-state";
+
+import { EmptyState } from "@/components/common/empty-state";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { WishlistItemActions } from "./wishlist-item-actions";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { getWishlistItemsForUserById } from "@/lib/queries/wishlist";
 import { getCurrentUserId } from "@/lib/supabase/server";
+
+import { WishlistItemActions } from "./wishlist-item-actions";
 
 export const metadata = {
   title: "Wishlist | Leafbook",

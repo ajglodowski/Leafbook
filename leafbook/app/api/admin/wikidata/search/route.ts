@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { connection } from "next/server";
+
 import { createClient, getCurrentUserId } from "@/lib/supabase/server";
-import { sparqlSearchPlantTaxa, searchPlantTaxa } from "@/lib/wikidata";
+import { searchPlantTaxa,sparqlSearchPlantTaxa } from "@/lib/wikidata";
 
 /**
  * Admin-only endpoint to search Wikidata for plant taxa

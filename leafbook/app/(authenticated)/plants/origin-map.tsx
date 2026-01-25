@@ -1,16 +1,17 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { Compass, Feather, Map, Navigation, ScrollText } from "lucide-react";
+import { useMemo, useState } from "react";
 import {
   ComposableMap,
   Geographies,
   Geography,
   ZoomableGroup,
 } from "react-simple-maps";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Compass, Map, ScrollText, Feather, Navigation } from "lucide-react";
-import type { OriginStats } from "@/lib/queries/plants";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCountryName } from "@/lib/origin-mapping";
+import type { OriginStats } from "@/lib/queries/plants";
 
 // World map topology JSON URL (Natural Earth)
 const GEO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
@@ -24,13 +25,13 @@ function getCountryColor(count: number, maxCount: number, isDark: boolean): stri
   if (count === 0) {
     return isDark ? "hsl(40, 10%, 20%)" : "hsl(40, 20%, 94%)";
   }
-  
+
   const intensity = Math.min(count / Math.max(maxCount, 1), 1);
   if (isDark) {
-    const l = 25 + (intensity * 20);
+    const l = 25 + intensity * 20;
     return `hsl(150, 30%, ${l}%)`;
   }
-  const l = 75 - (intensity * 35);
+  const l = 75 - intensity * 35;
   return `hsl(150, 35%, ${l}%)`;
 }
 
@@ -44,51 +45,73 @@ function CompassRose({ className }: { className?: string }) {
       <polygon points="8,50 40,46 35,50 40,54" opacity="0.25" />
       <polygon points="92,50 60,46 65,50 60,54" opacity="0.25" />
       <circle cx="50" cy="50" r="4" opacity="0.4" />
-      <text x="50" y="22" textAnchor="middle" fontSize="10" fontWeight="600" opacity="0.5">N</text>
+      <text x="50" y="22" textAnchor="middle" fontSize="10" fontWeight="600" opacity="0.5">
+        N
+      </text>
     </svg>
   );
 }
 
 // Torn paper edge SVG - creates jagged edges on all sides
-function TornPaperFrame({ children, className }: { children: React.ReactNode; className?: string }) {
+function TornPaperFrame({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
     <div className={`relative ${className}`}>
       {/* Top torn edge */}
-      <svg className="absolute -top-2 left-0 right-0 h-3 w-full text-stone-100 dark:text-stone-900" preserveAspectRatio="none" viewBox="0 0 100 10">
-        <path 
-          d="M0,10 L0,3 L2,4 L4,2 L6,5 L8,3 L10,4 L12,2 L14,5 L16,3 L18,4 L20,2 L22,5 L24,3 L26,4 L28,2 L30,4 L32,3 L34,5 L36,2 L38,4 L40,3 L42,5 L44,2 L46,4 L48,3 L50,5 L52,2 L54,4 L56,3 L58,5 L60,2 L62,4 L64,3 L66,5 L68,2 L70,4 L72,3 L74,5 L76,2 L78,4 L80,3 L82,5 L84,2 L86,4 L88,3 L90,5 L92,2 L94,4 L96,3 L98,5 L100,3 L100,10 Z" 
+      <svg
+        className="absolute -top-2 left-0 right-0 h-3 w-full text-stone-100 dark:text-stone-900"
+        preserveAspectRatio="none"
+        viewBox="0 0 100 10"
+      >
+        <path
+          d="M0,10 L0,3 L2,4 L4,2 L6,5 L8,3 L10,4 L12,2 L14,5 L16,3 L18,4 L20,2 L22,5 L24,3 L26,4 L28,2 L30,4 L32,3 L34,5 L36,2 L38,4 L40,3 L42,5 L44,2 L46,4 L48,3 L50,5 L52,2 L54,4 L56,3 L58,5 L60,2 L62,4 L64,3 L66,5 L68,2 L70,4 L72,3 L74,5 L76,2 L78,4 L80,3 L82,5 L84,2 L86,4 L88,3 L90,5 L92,2 L94,4 L96,3 L98,5 L100,3 L100,10 Z"
           fill="currentColor"
         />
       </svg>
-      
+
       {/* Bottom torn edge */}
-      <svg className="absolute -bottom-2 left-0 right-0 h-3 w-full text-stone-100 dark:text-stone-900" preserveAspectRatio="none" viewBox="0 0 100 10">
-        <path 
-          d="M0,0 L0,7 L2,6 L4,8 L6,5 L8,7 L10,6 L12,8 L14,5 L16,7 L18,6 L20,8 L22,5 L24,7 L26,6 L28,8 L30,6 L32,7 L34,5 L36,8 L38,6 L40,7 L42,5 L44,8 L46,6 L48,7 L50,5 L52,8 L54,6 L56,7 L58,5 L60,8 L62,6 L64,7 L66,5 L68,8 L70,6 L72,7 L74,5 L76,8 L78,6 L80,7 L82,5 L84,8 L86,6 L88,7 L90,5 L92,8 L94,6 L96,7 L98,5 L100,7 L100,0 Z" 
+      <svg
+        className="absolute -bottom-2 left-0 right-0 h-3 w-full text-stone-100 dark:text-stone-900"
+        preserveAspectRatio="none"
+        viewBox="0 0 100 10"
+      >
+        <path
+          d="M0,0 L0,7 L2,6 L4,8 L6,5 L8,7 L10,6 L12,8 L14,5 L16,7 L18,6 L20,8 L22,5 L24,7 L26,6 L28,8 L30,6 L32,7 L34,5 L36,8 L38,6 L40,7 L42,5 L44,8 L46,6 L48,7 L50,5 L52,8 L54,6 L56,7 L58,5 L60,8 L62,6 L64,7 L66,5 L68,8 L70,6 L72,7 L74,5 L76,8 L78,6 L80,7 L82,5 L84,8 L86,6 L88,7 L90,5 L92,8 L94,6 L96,7 L98,5 L100,7 L100,0 Z"
           fill="currentColor"
         />
       </svg>
-      
+
       {/* Left torn edge */}
-      <svg className="absolute top-0 -left-2 bottom-0 h-full w-3 text-stone-100 dark:text-stone-900" preserveAspectRatio="none" viewBox="0 0 10 100">
-        <path 
-          d="M10,0 L3,0 L4,2 L2,4 L5,6 L3,8 L4,10 L2,12 L5,14 L3,16 L4,18 L2,20 L5,22 L3,24 L4,26 L2,28 L4,30 L3,32 L5,34 L2,36 L4,38 L3,40 L5,42 L2,44 L4,46 L3,48 L5,50 L2,52 L4,54 L3,56 L5,58 L2,60 L4,62 L3,64 L5,66 L2,68 L4,70 L3,72 L5,74 L2,76 L4,78 L3,80 L5,82 L2,84 L4,86 L3,88 L5,90 L2,92 L4,94 L3,96 L5,98 L3,100 L10,100 Z" 
+      <svg
+        className="absolute top-0 -left-2 bottom-0 h-full w-3 text-stone-100 dark:text-stone-900"
+        preserveAspectRatio="none"
+        viewBox="0 0 10 100"
+      >
+        <path
+          d="M10,0 L3,0 L4,2 L2,4 L5,6 L3,8 L4,10 L2,12 L5,14 L3,16 L4,18 L2,20 L5,22 L3,24 L4,26 L2,28 L4,30 L3,32 L5,34 L2,36 L4,38 L3,40 L5,42 L2,44 L4,46 L3,48 L5,50 L2,52 L4,54 L3,56 L5,58 L2,60 L4,62 L3,64 L5,66 L2,68 L4,70 L3,72 L5,74 L2,76 L4,78 L3,80 L5,82 L2,84 L4,86 L3,88 L5,90 L2,92 L4,94 L3,96 L5,98 L3,100 L10,100 Z"
           fill="currentColor"
         />
       </svg>
-      
+
       {/* Right torn edge */}
-      <svg className="absolute top-0 -right-2 bottom-0 h-full w-3 text-stone-100 dark:text-stone-900" preserveAspectRatio="none" viewBox="0 0 10 100">
-        <path 
-          d="M0,0 L7,0 L6,2 L8,4 L5,6 L7,8 L6,10 L8,12 L5,14 L7,16 L6,18 L8,20 L5,22 L7,24 L6,26 L8,28 L6,30 L7,32 L5,34 L8,36 L6,38 L7,40 L5,42 L8,44 L6,46 L7,48 L5,50 L8,52 L6,54 L7,56 L5,58 L8,60 L6,62 L7,64 L5,66 L8,68 L6,70 L7,72 L5,74 L8,76 L6,78 L7,80 L5,82 L8,84 L6,86 L7,88 L5,90 L8,92 L6,94 L7,96 L5,98 L7,100 L0,100 Z" 
+      <svg
+        className="absolute top-0 -right-2 bottom-0 h-full w-3 text-stone-100 dark:text-stone-900"
+        preserveAspectRatio="none"
+        viewBox="0 0 10 100"
+      >
+        <path
+          d="M0,0 L7,0 L6,2 L8,4 L5,6 L7,8 L6,10 L8,12 L5,14 L7,16 L6,18 L8,20 L5,22 L7,24 L6,26 L8,28 L6,30 L7,32 L5,34 L8,36 L6,38 L7,40 L5,42 L8,44 L6,46 L7,48 L5,50 L8,52 L6,54 L7,56 L5,58 L8,60 L6,62 L7,64 L5,66 L8,68 L6,70 L7,72 L5,74 L8,76 L6,78 L7,80 L5,82 L8,84 L6,86 L7,88 L5,90 L8,92 L6,94 L7,96 L5,98 L7,100 L0,100 Z"
           fill="currentColor"
         />
       </svg>
-      
+
       {/* Content */}
-      <div className="relative bg-stone-100 dark:bg-stone-900">
-        {children}
-      </div>
+      <div className="relative bg-stone-100 dark:bg-stone-900">{children}</div>
     </div>
   );
 }
@@ -101,12 +124,12 @@ export function OriginMap({ stats }: OriginMapProps) {
   } | null>(null);
 
   const maxCount = useMemo(() => {
-    return Math.max(...Object.values(stats.countries).map(c => c.count), 1);
+    return Math.max(...Object.values(stats.countries).map((c) => c.count), 1);
   }, [stats.countries]);
 
   const countryCodeToName: Record<string, string> = useMemo(() => {
     const codes: Record<string, string> = {};
-    Object.keys(stats.countries).forEach(code => {
+    Object.keys(stats.countries).forEach((code) => {
       codes[code] = getCountryName(code);
     });
     return codes;
@@ -114,8 +137,10 @@ export function OriginMap({ stats }: OriginMapProps) {
 
   function getCountryDataByName(name: string) {
     for (const [code, countryName] of Object.entries(countryCodeToName)) {
-      if (name.toLowerCase().includes(countryName.toLowerCase()) || 
-          countryName.toLowerCase().includes(name.toLowerCase())) {
+      if (
+        name.toLowerCase().includes(countryName.toLowerCase()) ||
+        countryName.toLowerCase().includes(name.toLowerCase())
+      ) {
         return { code, ...stats.countries[code] };
       }
     }
@@ -150,7 +175,7 @@ export function OriginMap({ stats }: OriginMapProps) {
             <p className="text-xs text-muted-foreground">Origins of your plant collection</p>
           </div>
         </div>
-        
+
         {/* Inline stats */}
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
@@ -180,7 +205,7 @@ export function OriginMap({ stats }: OriginMapProps) {
             <div className="pointer-events-none absolute right-4 top-4 z-10 opacity-30">
               <CompassRose className="h-16 w-16 text-stone-500" />
             </div>
-            
+
             <ComposableMap
               projection="geoMercator"
               projectionConfig={{
@@ -252,10 +277,14 @@ export function OriginMap({ stats }: OriginMapProps) {
                 </p>
                 <div className="mt-2 space-y-0.5">
                   {tooltipContent.plants.slice(0, 4).map((plant) => (
-                    <p key={plant.id} className="truncate text-xs">• {plant.name}</p>
+                    <p key={plant.id} className="truncate text-xs">
+                      • {plant.name}
+                    </p>
                   ))}
                   {tooltipContent.plants.length > 4 && (
-                    <p className="text-xs text-muted-foreground">+{tooltipContent.plants.length - 4} more</p>
+                    <p className="text-xs text-muted-foreground">
+                      +{tooltipContent.plants.length - 4} more
+                    </p>
                   )}
                 </div>
               </div>

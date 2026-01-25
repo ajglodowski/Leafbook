@@ -1,58 +1,60 @@
-import { notFound, redirect } from "next/navigation";
-import Link from "next/link";
-import Image from "next/image";
-import { 
-  ArrowLeft, 
-  Droplets, 
-  Sun, 
-  Sparkles, 
-  Home, 
-  TreePine, 
-  MapPin, 
-  Calendar,
-  ExternalLink,
-  History,
-  AlertTriangle,
-  Package,
-  Leaf,
-  Heart,
-  Camera,
-  Archive
-} from "lucide-react";
-import { getCurrentUserId } from "@/lib/supabase/server";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { CareButton } from "./care-button";
-import { EditPlantDialog } from "./edit-plant-dialog";
-import { CarePreferencesDialog } from "./care-preferences-dialog";
-import { PlantPhotosSection } from "./plant-photos-section";
-import { JournalEntryDialog } from "./journal-entry-dialog";
-import { IssueDialog } from "./issue-dialog";
-import { PlantTimeline } from "./plant-timeline";
-import { RepotDialog } from "./repot-dialog";
-import { ScheduleSuggestionCard } from "./schedule-suggestion-card";
-import { PropagationSection } from "./propagation-section";
-import { LegacyDialog } from "./legacy-dialog";
-import { PotWithUsage } from "@/lib/queries/pots";
-import { createScheduleSuggestion } from "./actions";
-import { analyzeWateringSchedule } from "@/lib/watering-analysis";
 import {
-  getPlantDetail,
-  getPlantEvents,
-  getPlantJournalEntries,
-  getPlantIssues,
-  getPlantDueTask,
-  getPlantCarePreferences,
-  getWateringEventsForAnalysis,
+  AlertTriangle,
+  Archive,
+  ArrowLeft,
+  Calendar,
+  Camera,
+  Droplets,
+  ExternalLink,
+  Heart,
+  History,
+  Home,
+  Leaf,
+  MapPin,
+  Package,
+  Sparkles,
+  Sun,
+  TreePine
+} from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
   getActiveScheduleSuggestion,
+  getChildrenPlants,
+  getParentPlant,
+  getPlantCarePreferences,
+  getPlantDetail,
+  getPlantDueTask,
+  getPlantEvents,
+  getPlantIssues,
+  getPlantJournalEntries,
   getPlantPhotos,
   getPlantPhotosForPlants,
-  getUserPotsWithPlantUsage,
-  getParentPlant,
-  getChildrenPlants,
   getPlantsForParentSelection,
+  getUserPotsWithPlantUsage,
+  getWateringEventsForAnalysis,
 } from "@/lib/queries/plants";
+import { PotWithUsage } from "@/lib/queries/pots";
+import { getCurrentUserId } from "@/lib/supabase/server";
+import { analyzeWateringSchedule } from "@/lib/watering-analysis";
+
+import { createScheduleSuggestion } from "./actions";
+import { CareButton } from "./care-button";
+import { CarePreferencesDialog } from "./care-preferences-dialog";
+import { EditPlantDialog } from "./edit-plant-dialog";
+import { IssueDialog } from "./issue-dialog";
+import { JournalEntryDialog } from "./journal-entry-dialog";
+import { LegacyDialog } from "./legacy-dialog";
+import { PlantPhotosSection } from "./plant-photos-section";
+import { PlantTimeline } from "./plant-timeline";
+import { PropagationSection } from "./propagation-section";
+import { RepotDialog } from "./repot-dialog";
+import { ScheduleSuggestionCard } from "./schedule-suggestion-card";
 
 export const metadata = {
   title: "Plant | Leafbook",

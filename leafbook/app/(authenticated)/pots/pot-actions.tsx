@@ -1,15 +1,8 @@
 "use client";
 
+import { Archive, ArchiveRestore, ImagePlus, MoreHorizontal, Package, Pencil, Trash2 } from "lucide-react";
 import { useState, useTransition } from "react";
-import { MoreHorizontal, Pencil, Archive, ArchiveRestore, Trash2, ImagePlus } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,9 +13,30 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+
+import { deletePot, retirePot, unretirePot, updatePot } from "./actions";
 import { PotDialog } from "./pot-dialog";
 import { PotPhotoDialog } from "./pot-photo-dialog";
-import { retirePot, unretirePot, deletePot } from "./actions";
 
 interface Pot {
   id: string;
@@ -166,7 +180,6 @@ function PotDialogControlled({
 }) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const { updatePot } = require("./actions");
 
   const [formData, setFormData] = useState({
     name: pot.name,
@@ -202,15 +215,6 @@ function PotDialogControlled({
       }
     });
   }
-
-  // Import components
-  const { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } = require("@/components/ui/dialog");
-  const { Input } = require("@/components/ui/input");
-  const { Label } = require("@/components/ui/label");
-  const { Textarea } = require("@/components/ui/textarea");
-  const { Checkbox } = require("@/components/ui/checkbox");
-  const { Button } = require("@/components/ui/button");
-  const { Package } = require("lucide-react");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

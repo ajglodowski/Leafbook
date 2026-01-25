@@ -1,11 +1,15 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { Check, ChevronRight, Lightbulb, X } from "lucide-react";
 import Link from "next/link";
-import { Lightbulb, ChevronRight, X, Check } from "lucide-react";
+import { useState, useTransition } from "react";
+
+import {
+  acceptScheduleSuggestion,
+  dismissScheduleSuggestion,
+} from "@/app/(authenticated)/plants/[plantId]/actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { acceptScheduleSuggestion, dismissScheduleSuggestion } from "@/app/(authenticated)/plants/[plantId]/actions";
 
 interface ScheduleSuggestion {
   id: string;
@@ -20,7 +24,9 @@ interface ScheduleSuggestionBannerProps {
   suggestions: ScheduleSuggestion[];
 }
 
-export function ScheduleSuggestionBanner({ suggestions: initialSuggestions }: ScheduleSuggestionBannerProps) {
+export function ScheduleSuggestionBanner({
+  suggestions: initialSuggestions,
+}: ScheduleSuggestionBannerProps) {
   const [suggestions, setSuggestions] = useState(initialSuggestions);
   const [isPending, startTransition] = useTransition();
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -32,20 +38,21 @@ export function ScheduleSuggestionBanner({ suggestions: initialSuggestions }: Sc
   // Show the first suggestion
   const suggestion = suggestions[0];
   const remainingCount = suggestions.length - 1;
-  const direction = suggestion.suggested_interval_days < suggestion.current_interval_days 
-    ? "more often" 
-    : "less often";
+  const direction =
+    suggestion.suggested_interval_days < suggestion.current_interval_days
+      ? "more often"
+      : "less often";
 
   async function handleAccept() {
     setProcessingId(suggestion.id);
     startTransition(async () => {
       const result = await acceptScheduleSuggestion(
-        suggestion.id, 
-        suggestion.plant_id, 
+        suggestion.id,
+        suggestion.plant_id,
         suggestion.suggested_interval_days
       );
       if (result.success) {
-        setSuggestions(prev => prev.filter(s => s.id !== suggestion.id));
+        setSuggestions((prev) => prev.filter((s) => s.id !== suggestion.id));
       }
       setProcessingId(null);
     });
@@ -56,7 +63,7 @@ export function ScheduleSuggestionBanner({ suggestions: initialSuggestions }: Sc
     startTransition(async () => {
       const result = await dismissScheduleSuggestion(suggestion.id);
       if (result.success) {
-        setSuggestions(prev => prev.filter(s => s.id !== suggestion.id));
+        setSuggestions((prev) => prev.filter((s) => s.id !== suggestion.id));
       }
       setProcessingId(null);
     });
@@ -73,16 +80,17 @@ export function ScheduleSuggestionBanner({ suggestions: initialSuggestions }: Sc
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium truncate">
-              <Link 
+              <Link
                 href={`/plants/${suggestion.plant_id}`}
                 className="text-purple-700 dark:text-purple-300 hover:underline"
               >
                 {suggestion.plant_name}
-              </Link>
-              {" "}could use a schedule update
+              </Link>{" "}
+              could use a schedule update
             </p>
             <p className="text-xs text-muted-foreground">
-              You water {direction} ({suggestion.current_interval_days} → {suggestion.suggested_interval_days} days)
+              You water {direction} ({suggestion.current_interval_days} →{" "}
+              {suggestion.suggested_interval_days} days)
               {remainingCount > 0 && (
                 <span className="ml-1">• +{remainingCount} more</span>
               )}
@@ -109,11 +117,7 @@ export function ScheduleSuggestionBanner({ suggestions: initialSuggestions }: Sc
             <X className="h-4 w-4" />
           </Button>
           <Link href={`/plants/${suggestion.plant_id}`}>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="gap-1"
-            >
+            <Button size="sm" variant="ghost" className="gap-1">
               View
               <ChevronRight className="h-3.5 w-3.5" />
             </Button>

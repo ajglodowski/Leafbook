@@ -1,6 +1,7 @@
 import { cacheTag } from "next/cache";
-import { createPublicClient } from "@/lib/supabase/server";
+
 import { userTag } from "@/lib/cache-tags";
+import { createPublicClient } from "@/lib/supabase/server";
 
 export interface PotWithUsage {
   id: string;

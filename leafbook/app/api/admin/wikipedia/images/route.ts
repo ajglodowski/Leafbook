@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { connection } from "next/server";
+
 import { createClient, getCurrentUserId } from "@/lib/supabase/server";
 import { fetchWikipediaImages } from "@/lib/wikipedia";
 

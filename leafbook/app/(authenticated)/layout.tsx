@@ -1,9 +1,10 @@
+import { Loader2 } from "lucide-react";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+
+import { AppShell } from "@/app/(authenticated)/app-shell";
 import { createClient } from "@/lib/supabase/server";
-import { AppShell } from "@/components/app-shell";
 import { getCurrentUserId } from "@/lib/supabase/server";
-import { Loader2 } from "lucide-react";
 
 async function AuthenticatedLayoutContent({
   children,

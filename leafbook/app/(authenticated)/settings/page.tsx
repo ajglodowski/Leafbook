@@ -1,5 +1,6 @@
 import { Settings } from "lucide-react";
-import { EmptyState } from "@/components/empty-state";
+
+import { EmptyState } from "@/components/common/empty-state";
 
 export const metadata = {
   title: "Settings | Leafbook",

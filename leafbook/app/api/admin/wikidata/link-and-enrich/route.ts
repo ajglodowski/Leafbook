@@ -1,14 +1,15 @@
 import { NextResponse } from "next/server";
 import { connection } from "next/server";
+
+import { getRegionForCountry } from "@/lib/origin-mapping";
 import { createClient, getCurrentUserId } from "@/lib/supabase/server";
 import {
   fetchEntity,
   fetchTaxonomyLineage,
   resolveLocationToCountryCode,
-  type WikidataEntity,
   type TaxonLineage,
+  type WikidataEntity,
 } from "@/lib/wikidata";
-import { getRegionForCountry } from "@/lib/origin-mapping";
 import { fetchWikipediaSummary } from "@/lib/wikipedia";
 
 interface LinkAndEnrichRequest {

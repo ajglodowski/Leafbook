@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
-import { Lora, Source_Sans_3, Caveat } from "next/font/google";
-import { ThemeProvider } from "next-themes";
 import "./globals.css";
+
+import type { Metadata } from "next";
+import { Caveat,Lora, Source_Sans_3 } from "next/font/google";
+import { ThemeProvider } from "next-themes";
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`

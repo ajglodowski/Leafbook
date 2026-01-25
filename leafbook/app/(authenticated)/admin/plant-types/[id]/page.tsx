@@ -1,8 +1,10 @@
-import { notFound } from "next/navigation";
-import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+
 import { Button } from "@/components/ui/button";
+import { createClient } from "@/lib/supabase/server";
+
 import { PlantTypeForm } from "../plant-type-form";
 import { PhotoManagement } from "./photo-management";
 import { WikidataEnrichment } from "./wikidata-enrichment";

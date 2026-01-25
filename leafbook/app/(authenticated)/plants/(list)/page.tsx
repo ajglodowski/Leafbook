@@ -1,17 +1,18 @@
-import { getCurrentUser } from "./actions";
 import {
+  buildCompactedTree,
+  computeOriginStats,
   getDueTasksForUserList as getDueTasksForUser,
   getLegacyPlantsForUser,
   getPlantPhotosForPlants,
   getPlantsForUser,
   getPlantsWithOrigin,
   getPlantTypes,
-  computeOriginStats,
   getTaxonomyForUserPlants,
-  buildCompactedTree,
 } from "@/lib/queries/plants";
-import { AddPlantDialog } from "./add-plant-dialog";
-import { PlantsTabs } from "./plants-tabs";
+
+import { getCurrentUser } from "../actions";
+import { AddPlantDialog } from "../add-plant-dialog";
+import { PlantsTabs } from "../plants-tabs";
 
 export const metadata = {
   title: "Plants | Leafbook",
@@ -55,8 +56,6 @@ export default async function PlantsPage() {
   }
 
   const hasPlants = plants && plants.length > 0;
-  const totalPlants = (plants?.length || 0) + (legacyPlants?.length || 0);
-  
   return (
     <div className="space-y-8">
       {/* Page header */}

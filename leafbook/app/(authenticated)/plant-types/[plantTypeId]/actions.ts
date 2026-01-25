@@ -2,13 +2,14 @@
 
 import { updateTag } from "next/cache";
 import { redirect } from "next/navigation";
-import { createClient, getCurrentUserId } from "@/lib/supabase/server";
+
 import {
   plantMutationTags,
   recordTag,
   userTag,
   wishlistMutationTags,
 } from "@/lib/cache-tags";
+import { createClient, getCurrentUserId } from "@/lib/supabase/server";
 
 export async function addToWishlist(plantTypeId: string) {
   const supabase = await createClient();

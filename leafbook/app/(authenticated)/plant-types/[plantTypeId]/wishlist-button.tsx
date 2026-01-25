@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
 import { Heart } from "lucide-react";
+import { useState, useTransition } from "react";
+
 import { Button } from "@/components/ui/button";
+
 import { addToWishlist, removeFromWishlist } from "./actions";
 
 interface WishlistButtonProps {

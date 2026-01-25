@@ -1,21 +1,21 @@
-import { notFound, redirect } from "next/navigation";
+import { ArrowLeft, Combine, Droplets, Home, Leaf, MapPin, Pencil, Ruler, Sparkles, Sun, TreePine } from "lucide-react";
 import Link from "next/link";
-import { PlantPhotoGallery } from "./plant-photo-gallery";
-import { ArrowLeft, Droplets, Sun, Ruler, Sparkles, Leaf, Home, TreePine, Combine, MapPin, Pencil } from "lucide-react";
-import { getCurrentUserId } from "@/lib/supabase/server";
-import { createClient } from "@/lib/supabase/server";
+import { notFound, redirect } from "next/navigation";
+
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { WishlistButton } from "./wishlist-button";
-import { AddPlantButton } from "./add-plant-button";
 import { getCountryName } from "@/lib/origin-mapping";
 import {
   getPlantTypeById,
   getPlantTypePhotos,
-  getWishlistItemForPlantType,
   getUserPlantsOfType,
+  getWishlistItemForPlantType,
 } from "@/lib/queries/plant-types";
+import { createClient, getCurrentUserId } from "@/lib/supabase/server";
+
+import { AddPlantButton } from "./add-plant-button";
+import { PlantPhotoGallery } from "./plant-photo-gallery";
+import { WishlistButton } from "./wishlist-button";
 
 export const metadata = {
   title: "Plant Type | Leafbook",

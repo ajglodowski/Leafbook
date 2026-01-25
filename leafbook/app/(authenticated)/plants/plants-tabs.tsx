@@ -1,13 +1,15 @@
 "use client";
 
+import { Archive, Compass, GitBranch,List } from "lucide-react";
 import { useState } from "react";
-import { List, Compass, Archive, GitBranch } from "lucide-react";
-import { Button } from "@/components/ui/button";
+
+import { OriginMap } from "@/app/(authenticated)/plants/origin-map";
 import { Badge } from "@/components/ui/badge";
-import type { PlantWithTypes, PlantDueTask, PlantTypeSummary, OriginStats, CompactedTaxonomyTree } from "@/lib/queries/plants";
-import { PlantCollectionView } from "./plant-collection-view";
+import { Button } from "@/components/ui/button";
+import type { CompactedTaxonomyTree,OriginStats, PlantDueTask, PlantTypeSummary, PlantWithTypes } from "@/lib/queries/plants";
+
 import { LegacyPlantsList } from "./legacy-plants-list";
-import { OriginMap } from "@/components/origin-map";
+import { PlantCollectionView } from "./plant-collection-view";
 import { PlantTaxonomyTree } from "./plant-taxonomy-tree";
 
 type TabValue = "collection" | "legacy" | "origins" | "taxonomy";

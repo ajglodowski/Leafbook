@@ -1,5 +1,5 @@
 import { cacheTag } from "next/cache";
-import { createPublicClient } from "@/lib/supabase/server";
+
 import {
   carePreferencesTags,
   plantDetailTags,
@@ -8,6 +8,7 @@ import {
   tableTag,
   userTag,
 } from "@/lib/cache-tags";
+import { createPublicClient } from "@/lib/supabase/server";
 
 // Type exports for actions files
 export type PlantWithTypes = {

@@ -1,25 +1,22 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import {
-  CalendarCheck,
-  Leaf,
   BookOpen,
+  CalendarCheck,
   Heart,
+  Leaf,
   Library,
-  Settings,
   LogOut,
-  Shield,
-  Package,
   Menu,
+  Package,
+  Settings,
+  Shield,
 } from "lucide-react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+
+import { ThemeSwitcher } from "@/app/(authenticated)/theme-switcher";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { ThemeSwitcher } from "@/components/theme-switcher";
-import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
-import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,6 +24,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Separator } from "@/components/ui/separator";
+import { createClient } from "@/lib/supabase/client";
+import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/", label: "Today", icon: CalendarCheck },
@@ -37,7 +37,13 @@ const navItems = [
   { href: "/journal", label: "Journal", icon: BookOpen },
 ];
 
-export function AppShell({ children, isAdmin = false }: { children: React.ReactNode; isAdmin?: boolean }) {
+export function AppShell({
+  children,
+  isAdmin = false,
+}: {
+  children: React.ReactNode;
+  isAdmin?: boolean;
+}) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -67,9 +73,7 @@ export function AppShell({ children, isAdmin = false }: { children: React.ReactN
 
           {/* Mobile hamburger menu */}
           <DropdownMenu>
-            <DropdownMenuTrigger
-              className="sm:hidden inline-flex items-center justify-center rounded-md p-2 hover:bg-accent hover:text-accent-foreground"
-            >
+            <DropdownMenuTrigger className="sm:hidden inline-flex items-center justify-center rounded-md p-2 hover:bg-accent hover:text-accent-foreground">
               <Menu className="h-5 w-5" />
               <span className="sr-only">Open menu</span>
             </DropdownMenuTrigger>
@@ -172,9 +176,7 @@ export function AppShell({ children, isAdmin = false }: { children: React.ReactN
 
       {/* Main content */}
       <main className="flex w-full">
-        <div className="w-full px-4 py-6 md:px-6">
-          {children}
-        </div>
+        <div className="w-full px-4 py-6 md:px-6">{children}</div>
       </main>
 
       {/* Footer */}

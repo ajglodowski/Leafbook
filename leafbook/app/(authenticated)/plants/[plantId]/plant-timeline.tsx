@@ -1,12 +1,14 @@
 "use client";
 
-import { History, BookOpen, Pencil, AlertTriangle, CheckCircle, Sparkles } from "lucide-react";
+import { AlertTriangle, BookOpen, CheckCircle, History, Pencil, Sparkles } from "lucide-react";
+
 import { Badge } from "@/components/ui/badge";
-import { JournalEntryDialog } from "./journal-entry-dialog";
-import { IssueDialog } from "./issue-dialog";
 import { PotWithUsage } from "@/lib/queries/pots";
-import { RepotDialog } from "./repot-dialog";
+
 import { CareEventEditDialog } from "./care-event-edit-dialog";
+import { IssueDialog } from "./issue-dialog";
+import { JournalEntryDialog } from "./journal-entry-dialog";
+import { RepotDialog } from "./repot-dialog";
 
 // Human-friendly labels for event types with fun icons and colors
 const eventConfig: Record<string, { label: string; emoji: string; color: string; bgColor: string }> = {
@@ -227,7 +229,7 @@ export function PlantTimeline({
       <div className="absolute left-[15px] top-2 bottom-2 w-0.5 bg-gradient-to-b from-border via-border to-transparent" />
       
       <div className="space-y-1">
-        {timelineItems.map((item, index) => {
+        {timelineItems.map((item) => {
           if (item.type === "event") {
             const config = eventConfig[item.data.event_type] || eventConfig.other;
             return (
@@ -293,7 +295,6 @@ export function PlantTimeline({
                 {/* Edit button for watered/fertilized events */}
                 {(item.data.event_type === "watered" || item.data.event_type === "fertilized") && (
                   <CareEventEditDialog
-                    plantId={plantId}
                     plantName={plantName}
                     event={{
                       id: item.data.id,
@@ -306,7 +307,6 @@ export function PlantTimeline({
                 {/* Edit button for propagated events */}
                 {item.data.event_type === "propagated" && (
                   <CareEventEditDialog
-                    plantId={plantId}
                     plantName={plantName}
                     event={{
                       id: item.data.id,

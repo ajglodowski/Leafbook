@@ -1,14 +1,14 @@
 "use client";
 
+import { AlertTriangle, BookOpen, Filter, List, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { BookOpen, Filter, X, AlertTriangle, List } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
   SelectItem,
-  SelectTrigger,
-  SelectValue,
+  SelectTrigger
 } from "@/components/ui/select";
 
 export type FeedType = "all" | "journal" | "issues";
@@ -17,14 +17,12 @@ interface JournalHeaderProps {
   plants: { id: string; name: string }[];
   selectedPlantId?: string;
   selectedFeedType: FeedType;
-  hasContent: boolean;
 }
 
 export function JournalHeader({
   plants,
   selectedPlantId,
   selectedFeedType,
-  hasContent,
 }: JournalHeaderProps) {
   const router = useRouter();
   const searchParams = useSearchParams();

@@ -1,17 +1,12 @@
 "use client";
 
-import { useState, useTransition, useRef, useMemo, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import Image from "next/image";
 import { upload } from "@vercel/blob/client";
 import exifr from "exifr";
-import { Camera, Trash2, Plus, Loader2, X, Pencil, Star, Sparkles, ImagePlus } from "lucide-react";
-import { ImageCropper } from "@/components/ui/image-cropper";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Camera, ImagePlus, Loader2, Pencil, Plus, Sparkles, Star, Trash2, X } from "lucide-react";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { useCallback, useMemo, useRef, useState, useTransition } from "react";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +17,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -30,7 +27,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { createPlantPhoto, deletePlantPhoto, updatePlantPhotoMetadata, setPlantActivePhoto } from "./actions";
+import { ImageCropper } from "@/components/ui/image-cropper";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+
+import { createPlantPhoto, deletePlantPhoto, setPlantActivePhoto, updatePlantPhotoMetadata } from "./actions";
 
 interface PlantPhoto {
   id: string;
@@ -60,17 +62,6 @@ function formatPolaroidDate(dateString: string): string {
     month: "short",
     day: "numeric",
     year: "numeric",
-  });
-}
-
-function formatDateTime(dateString: string): string {
-  const date = new Date(dateString);
-  return date.toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
   });
 }
 

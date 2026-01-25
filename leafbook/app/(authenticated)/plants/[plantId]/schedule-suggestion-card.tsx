@@ -1,9 +1,11 @@
 "use client";
 
+import { Check, Droplets,Lightbulb, TrendingUp, X } from "lucide-react";
 import { useState, useTransition } from "react";
-import { TrendingUp, Check, X, Lightbulb, Droplets } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardDescription,CardHeader, CardTitle } from "@/components/ui/card";
+
 import { acceptScheduleSuggestion, dismissScheduleSuggestion } from "./actions";
 
 interface ScheduleSuggestionCardProps {

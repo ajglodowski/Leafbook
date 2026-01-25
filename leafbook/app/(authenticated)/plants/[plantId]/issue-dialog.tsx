@@ -1,35 +1,36 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { AlertTriangle, Calendar, CheckCircle, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Trash2, Calendar, CheckCircle } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
+
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
   SelectItem,
-  SelectTrigger,
-  SelectValue,
+  SelectTrigger
 } from "@/components/ui/select";
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogCancel,
-} from "@/components/ui/alert-dialog";
+import { Textarea } from "@/components/ui/textarea";
+
 import {
   createPlantIssue,
-  updatePlantIssue,
-  resolvePlantIssue,
   deletePlantIssue,
-  type IssueType,
   type IssueSeverity,
+  type IssueType,
+  resolvePlantIssue,
+  updatePlantIssue,
 } from "./actions";
 
 // Human-friendly labels for issue types

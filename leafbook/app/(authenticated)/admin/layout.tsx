@@ -1,9 +1,10 @@
+import { ArrowLeft, Library, Loader2,Shield } from "lucide-react";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import { createClient } from "@/lib/supabase/server";
-import Link from "next/link";
-import { Shield, Library, ArrowLeft, Loader2 } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
+import { createClient } from "@/lib/supabase/server";
 import { getCurrentUserId } from "@/lib/supabase/server";
 
 async function AdminLayoutContent({

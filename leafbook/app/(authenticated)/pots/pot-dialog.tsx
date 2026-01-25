@@ -1,11 +1,9 @@
 "use client";
 
-import { useState, useTransition, ReactNode } from "react";
-import { Plus, Package } from "lucide-react";
+import { Package,Plus } from "lucide-react";
+import { ReactNode,useState, useTransition } from "react";
+
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
@@ -16,7 +14,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { createPot, updatePot, type PotData } from "./actions";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+
+import { createPot, type PotData,updatePot } from "./actions";
 
 interface Pot {
   id: string;

@@ -1,9 +1,9 @@
 "use server";
 
+import { del } from "@vercel/blob";
 import { updateTag } from "next/cache";
 import { redirect } from "next/navigation";
-import { del } from "@vercel/blob";
-import { createClient, getCurrentUserId } from "@/lib/supabase/server";
+
 import {
   careEventMutationTags,
   carePreferencesMutationTags,
@@ -11,13 +11,13 @@ import {
   journalMutationTags,
   plantMutationTags,
   plantPhotoMutationTags,
-  potMutationTags,
   propagationMutationTags,
   recordTag,
   scheduleSuggestionMutationTags,
   scopedListTag,
   userTag,
 } from "@/lib/cache-tags";
+import { createClient, getCurrentUserId } from "@/lib/supabase/server";
 
 // ============================================================================
 // Journal Entry Helpers for Auto-Generated Entries
@@ -284,7 +284,7 @@ export async function updatePropagationEvent(
   }
 
   // If changing parent, validate the new parent
-  let newParentId: string | null | undefined = data.parentPlantId;
+  const newParentId: string | null | undefined = data.parentPlantId;
   if (newParentId !== undefined) {
     if (newParentId === childPlantId) {
       return { success: false, error: "A plant cannot be its own parent" };
