@@ -1,6 +1,6 @@
 "use client";
 
-import { Calendar,PenLine, Trash2 } from "lucide-react";
+import { Calendar, Link2,PenLine, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect,useState, useTransition } from "react";
 
@@ -16,6 +16,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
 import { createJournalEntry, deleteJournalEntry,updateJournalEntry } from "./actions";
@@ -25,6 +31,13 @@ interface JournalEntryData {
   title: string | null;
   content: string;
   entry_date: string;
+  event_id?: string | null;
+}
+
+interface JournalEventOption {
+  id: string;
+  event_type: string;
+  event_date: string;
 }
 
 interface JournalEntryDialogProps {
@@ -32,6 +45,8 @@ interface JournalEntryDialogProps {
   plantName: string;
   entry?: JournalEntryData; // If provided, we're editing; otherwise creating
   trigger?: React.ReactNode;
+  availableEvents?: JournalEventOption[];
+  defaultEventId?: string | null;
 }
 
 export function JournalEntryDialog({
@@ -39,6 +54,8 @@ export function JournalEntryDialog({
   plantName,
   entry,
   trigger,
+  availableEvents = [],
+  defaultEventId = null,
 }: JournalEntryDialogProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -54,7 +71,11 @@ export function JournalEntryDialog({
       ? entry.entry_date.split("T")[0]
       : new Date().toISOString().split("T")[0]
   );
+  const [linkedEventId, setLinkedEventId] = useState<string | null>(
+    entry?.event_id ?? defaultEventId ?? null
+  );
   const [error, setError] = useState<string | null>(null);
+  const eventById = new Map(availableEvents.map((event) => [event.id, event]));
 
   // Reset form when dialog opens
   useEffect(() => {
@@ -66,9 +87,10 @@ export function JournalEntryDialog({
           ? entry.entry_date.split("T")[0]
           : new Date().toISOString().split("T")[0]
       );
+      setLinkedEventId(entry?.event_id ?? defaultEventId ?? null);
       setError(null);
     }
-  }, [isOpen, entry]);
+  }, [isOpen, entry, defaultEventId]);
 
   async function handleSubmit() {
     setError(null);
@@ -86,12 +108,14 @@ export function JournalEntryDialog({
           title: title.trim() || null,
           content: content.trim(),
           entryAt,
+          eventId: linkedEventId,
         });
       } else {
         result = await createJournalEntry(plantId, {
           title: title.trim() || null,
           content: content.trim(),
           entryAt,
+          eventId: linkedEventId,
         });
       }
 
@@ -101,6 +125,7 @@ export function JournalEntryDialog({
         setTitle("");
         setContent("");
         setEntryAt(new Date().toISOString().split("T")[0]);
+        setLinkedEventId(null);
         router.refresh();
       } else {
         setError(result.error || "Something went wrong");
@@ -191,6 +216,40 @@ export function JournalEntryDialog({
                 Backdate if you're writing about something that happened earlier
               </p>
             </div>
+
+            {availableEvents.length > 0 && (
+              <div className="space-y-2">
+                <Label htmlFor="journal-event" className="flex items-center gap-1.5">
+                  <Link2 className="h-3.5 w-3.5" />
+                  Link to event (optional)
+                </Label>
+                <Select
+                  value={linkedEventId ?? "none"}
+                  onValueChange={(value) => setLinkedEventId(value === "none" ? null : value)}
+                >
+                  <SelectTrigger id="journal-event">
+                    <div className="flex items-center gap-2">
+                      <span>
+                        {linkedEventId && eventById.get(linkedEventId)
+                          ? `${eventById.get(linkedEventId)?.event_type} · ${eventById.get(linkedEventId)?.event_date.split("T")[0]}`
+                          : "No linked event"}
+                      </span>
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No linked event</SelectItem>
+                    {availableEvents.map((event) => (
+                      <SelectItem key={event.id} value={event.id}>
+                        {event.event_type} · {event.event_date.split("T")[0]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Link this entry to a care event so it shows up together in the timeline.
+                </p>
+              </div>
+            )}
 
             {error && <p className="text-sm text-destructive">{error}</p>}
           </div>

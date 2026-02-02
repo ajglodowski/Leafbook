@@ -1,13 +1,17 @@
 "use client";
 
 import { AlertTriangle, BookOpen, CheckCircle, History, Pencil, Sparkles } from "lucide-react";
+import { useState, useTransition } from "react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { PotWithUsage } from "@/lib/queries/pots";
 
+import { createAcquiredEvent } from "./actions";
 import { CareEventEditDialog } from "./care-event-edit-dialog";
 import { IssueDialog } from "./issue-dialog";
 import { JournalEntryDialog } from "./journal-entry-dialog";
+import { MoveDialog } from "./move-dialog";
 import { RepotDialog } from "./repot-dialog";
 
 // Human-friendly labels for event types with fun icons and colors
@@ -29,6 +33,12 @@ const eventConfig: Record<string, { label: string; emoji: string; color: string;
     emoji: "🪴", 
     color: "text-orange-600 dark:text-orange-400",
     bgColor: "bg-orange-500/10"
+  },
+  moved: {
+    label: "Moved locations",
+    emoji: "📦",
+    color: "text-indigo-600 dark:text-indigo-400",
+    bgColor: "bg-indigo-500/10",
   },
   pruned: { 
     label: "Fresh haircut", 
@@ -65,6 +75,18 @@ const eventConfig: Record<string, { label: string; emoji: string; color: string;
     emoji: "🎁", 
     color: "text-pink-600 dark:text-pink-400",
     bgColor: "bg-pink-500/10"
+  },
+  legacy: {
+    label: "Marked as legacy",
+    emoji: "🕊️",
+    color: "text-slate-600 dark:text-slate-400",
+    bgColor: "bg-slate-500/10"
+  },
+  restored: {
+    label: "Restored from legacy",
+    emoji: "🌿",
+    color: "text-emerald-600 dark:text-emerald-400",
+    bgColor: "bg-emerald-500/10"
   },
   other: { 
     label: "Something happened", 
@@ -130,6 +152,8 @@ interface CareEvent {
     to_pot_id?: string | null;
     from_pot_name?: string | null;
     to_pot_name?: string | null;
+    from_location?: string | null;
+    to_location?: string | null;
     parent_plant_id?: string | null;
   } | null;
 }
@@ -139,6 +163,7 @@ interface JournalEntry {
   title: string | null;
   content: string;
   entry_date: string;
+  event_id?: string | null;
 }
 
 interface PlantIssue {
@@ -189,6 +214,10 @@ export function PlantTimeline({
   unusedPots,
   availablePlantsForParent = [],
 }: PlantTimelineProps) {
+  const [isPending, startTransition] = useTransition();
+  const [acquiredError, setAcquiredError] = useState<string | null>(null);
+  const hasAcquiredEvent = events.some((event) => event.event_type === "acquired");
+  const eventLookup = new Map(events.map((event) => [event.id, event]));
   // Merge and sort timeline items by date (descending)
   const timelineItems: TimelineItem[] = [
     ...events.map((event) => ({
@@ -219,6 +248,29 @@ export function PlantTimeline({
         <p className="text-sm text-muted-foreground max-w-xs mx-auto">
           Every great plant has a story. Start writing {plantName}&apos;s by logging care events or journal entries!
         </p>
+        {!hasAcquiredEvent && (
+          <div className="mt-6 flex flex-col items-center gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={isPending}
+              onClick={() => {
+                setAcquiredError(null);
+                startTransition(async () => {
+                  const result = await createAcquiredEvent(plantId);
+                  if (!result.success) {
+                    setAcquiredError(result.error || "Could not create an acquired event");
+                  }
+                });
+              }}
+            >
+              {isPending ? "Adding acquired event..." : "Add acquired event"}
+            </Button>
+            {acquiredError && (
+              <p className="text-xs text-destructive">{acquiredError}</p>
+            )}
+          </div>
+        )}
       </div>
     );
   }
@@ -229,6 +281,45 @@ export function PlantTimeline({
       <div className="absolute left-[15px] top-2 bottom-2 w-0.5 bg-gradient-to-b from-border via-border to-transparent" />
       
       <div className="space-y-1">
+        {!hasAcquiredEvent && (
+          <div className="relative flex items-start gap-4 pl-10 py-3">
+            <div className="absolute left-0 flex h-8 w-8 items-center justify-center rounded-full bg-pink-500/10 ring-4 ring-background">
+              <span className="text-base">🎁</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="rounded-xl border bg-linear-to-br from-card to-pink-500/5 p-4 shadow-sm">
+                <p className="font-medium text-pink-600 dark:text-pink-400">
+                  Missing an acquired event
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Add the moment this plant joined your collection.
+                </p>
+                <div className="mt-3 flex items-center gap-3">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    disabled={isPending}
+                    onClick={() => {
+                      setAcquiredError(null);
+                      startTransition(async () => {
+                        const result = await createAcquiredEvent(plantId);
+                        if (!result.success) {
+                          setAcquiredError(result.error || "Could not create an acquired event");
+                        }
+                      });
+                    }}
+                  >
+                    {isPending ? "Adding..." : "Add acquired event"}
+                  </Button>
+                  {acquiredError && (
+                    <span className="text-xs text-destructive">{acquiredError}</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         {timelineItems.map((item) => {
           if (item.type === "event") {
             const config = eventConfig[item.data.event_type] || eventConfig.other;
@@ -261,6 +352,17 @@ export function PlantTimeline({
                             : null}
                     </p>
                   )}
+                  {item.data.event_type === "moved" && item.data.metadata && (
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {item.data.metadata.from_location && item.data.metadata.to_location
+                        ? `${item.data.metadata.from_location} → ${item.data.metadata.to_location}`
+                        : item.data.metadata.to_location
+                          ? `Moved to ${item.data.metadata.to_location}`
+                          : item.data.metadata.from_location
+                            ? `Moved from ${item.data.metadata.from_location}`
+                            : null}
+                    </p>
+                  )}
                   {item.data.notes && (
                     <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
                       {item.data.notes}
@@ -284,6 +386,24 @@ export function PlantTimeline({
                       eventDate: item.data.event_date,
                       fromPotId: item.data.metadata?.from_pot_id ?? null,
                       toPotId: item.data.metadata?.to_pot_id ?? null,
+                    }}
+                    trigger={
+                      <button className="shrink-0 rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                    }
+                  />
+                )}
+                {item.data.event_type === "moved" && (
+                  <MoveDialog
+                    plantId={plantId}
+                    plantName={plantName}
+                    currentLocation={null}
+                    initialEvent={{
+                      id: item.data.id,
+                      eventDate: item.data.event_date,
+                      toLocation: item.data.metadata?.to_location ?? null,
+                      notes: item.data.notes ?? null,
                     }}
                     trigger={
                       <button className="shrink-0 rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
@@ -322,6 +442,12 @@ export function PlantTimeline({
             );
           } else if (item.type === "journal") {
             // Journal entry
+            const linkedEvent = item.data.event_id
+              ? eventLookup.get(item.data.event_id)
+              : null;
+            const linkedLabel = linkedEvent
+              ? eventConfig[linkedEvent.event_type]?.label || "Event"
+              : null;
             return (
               <div key={`journal-${item.data.id}`} className="relative flex items-start gap-4 pl-10 py-3 group">
                 {/* Timeline dot */}
@@ -351,6 +477,11 @@ export function PlantTimeline({
                         <p className="mt-2 text-sm text-foreground/80 whitespace-pre-wrap line-clamp-4 leading-relaxed">
                           {item.data.content}
                         </p>
+                        {linkedLabel && (
+                          <Badge variant="secondary" className="mt-2">
+                            Linked to {linkedLabel}
+                          </Badge>
+                        )}
                         <p className="mt-2 text-xs text-muted-foreground/70">
                           {formatDate(item.data.entry_date)}
                         </p>
@@ -358,11 +489,13 @@ export function PlantTimeline({
                       <JournalEntryDialog
                         plantId={plantId}
                         plantName={plantName}
+                        availableEvents={events}
                         entry={{
                           id: item.data.id,
                           title: item.data.title,
                           content: item.data.content,
                           entry_date: item.data.entry_date,
+                          event_id: item.data.event_id ?? null,
                         }}
                         trigger={
                           <button className="shrink-0 rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">

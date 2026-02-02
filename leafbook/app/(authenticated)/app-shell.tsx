@@ -1,9 +1,9 @@
 "use client";
 
 import {
-  BookOpen,
   CalendarCheck,
   Heart,
+  History,
   Leaf,
   Library,
   LogOut,
@@ -34,7 +34,7 @@ const navItems = [
   { href: "/plant-types", label: "Catalog", icon: Library },
   { href: "/pots", label: "Pots", icon: Package },
   { href: "/wishlist", label: "Wishlist", icon: Heart },
-  { href: "/journal", label: "Journal", icon: BookOpen },
+  { href: "/timeline", label: "Timeline", icon: History },
 ];
 
 export function AppShell({

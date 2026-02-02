@@ -8,66 +8,8 @@ import {
   plantMutationTags,
   plantTypeDetailTags,
   propagationMutationTags,
-  userTag,
 } from "@/lib/cache-tags";
 import { createClient, getCurrentUserId } from "@/lib/supabase/server";
-
-// ============================================================================
-// Journal Entry Helpers for Acquisition
-// ============================================================================
-
-const ACQUISITION_JOURNAL_TITLE = "New plant";
-
-function formatDate(dateStr: string | null | undefined): string {
-  if (!dateStr) return "";
-  const date = new Date(dateStr);
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
-interface AcquisitionDetails {
-  name: string;
-  plantLocation: "indoor" | "outdoor";
-  location: string | null;
-  howAcquired: string | null;
-  acquiredAt: string | null;
-  description: string | null;
-  entryDate: string; // fallback date if acquiredAt is null
-}
-
-function buildAcquisitionJournalContent(details: AcquisitionDetails): string {
-  const lines: string[] = [];
-
-  lines.push(`Welcome, ${details.name}!`);
-
-  const envLabel = details.plantLocation === "indoor" ? "Indoor" : "Outdoor";
-  if (details.location) {
-    lines.push(`Environment: ${envLabel} · ${details.location}`);
-  } else {
-    lines.push(`Environment: ${envLabel}`);
-  }
-
-  if (details.howAcquired) {
-    lines.push(`Source: ${details.howAcquired}`);
-  }
-
-  // Use acquiredAt if available, otherwise fallback to entry date with a different label
-  if (details.acquiredAt) {
-    lines.push(`Acquired: ${formatDate(details.acquiredAt)}`);
-  } else {
-    lines.push(`Logged on: ${formatDate(details.entryDate)}`);
-  }
-
-  if (details.description) {
-    lines.push("");
-    lines.push(details.description);
-  }
-
-  return lines.join("\n");
-}
 
 export async function createPlant(formData: FormData) {
   const supabase = await createClient();
@@ -87,6 +29,8 @@ export async function createPlant(formData: FormData) {
   const howAcquired = formData.get("how_acquired") as string | null;
   const acquiredAt = formData.get("acquired_at") as string | null;
   const description = formData.get("description") as string | null;
+  const originType = formData.get("origin_type") as "acquired" | "propagated" | null;
+  const parentPlantId = formData.get("parent_plant_id") as string | null;
 
   if (!plantTypeId?.trim()) {
     return { success: false, error: "Plant type is required" };
@@ -96,7 +40,45 @@ export async function createPlant(formData: FormData) {
     return { success: false, error: "Name is required" };
   }
 
+  if (!originType || (originType !== "acquired" && originType !== "propagated")) {
+    return { success: false, error: "Origin selection is required" };
+  }
+
+  if (originType === "propagated" && !parentPlantId?.trim()) {
+    return { success: false, error: "Parent plant is required for propagations" };
+  }
+
+  let parentPlant: { id: string; name: string } | null = null;
+  if (originType === "propagated" && parentPlantId) {
+    const { data, error: parentError } = await supabase
+      .from("plants")
+      .select("id, name")
+      .eq("id", parentPlantId)
+      .eq("user_id", userId)
+      .single();
+
+    if (parentError || !data) {
+      if (parentError) {
+        console.error("[Supabase Fetch Error]", {
+          table: "plants",
+          operation: "select",
+          userId,
+          error: parentError.message,
+          code: parentError.code,
+          details: parentError.details,
+          hint: parentError.hint,
+        });
+      }
+      return { success: false, error: "Invalid parent plant" };
+    }
+    parentPlant = data;
+  }
+
   const now = new Date().toISOString();
+  const eventDate =
+    originType === "acquired" && acquiredAt
+      ? new Date(acquiredAt).toISOString()
+      : now;
 
   const { data: plant, error } = await supabase
     .from("plants")
@@ -109,47 +91,84 @@ export async function createPlant(formData: FormData) {
       location: location?.trim() || null,
       light_exposure: lightExposure || null,
       size_category: sizeCategory || null,
-      how_acquired: howAcquired?.trim() || null,
-      acquired_at: acquiredAt || null,
+      parent_plant_id: originType === "propagated" ? parentPlantId : null,
+      how_acquired:
+        originType === "propagated"
+          ? `Propagated from ${parentPlant?.name ?? "parent plant"}`
+          : howAcquired?.trim() || null,
+      acquired_at: originType === "acquired" ? acquiredAt || null : null,
       description: description?.trim() || null,
     })
     .select()
     .single();
 
   if (error) {
-    console.error("Error creating plant:", error);
+    console.error("[Supabase Mutation Error]", {
+      table: "plants",
+      operation: "insert",
+      userId,
+      data: {
+        name,
+        nickname,
+        plantTypeId,
+        plantLocation,
+        location,
+        lightExposure,
+        sizeCategory,
+        originType,
+        parentPlantId,
+      },
+      error: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+    });
     return { success: false, error: error.message };
   }
 
-  // Create an acquisition journal entry
-  const journalContent = buildAcquisitionJournalContent({
-    name: name.trim(),
-    plantLocation,
-    location: location?.trim() || null,
-    howAcquired: howAcquired?.trim() || null,
-    acquiredAt: acquiredAt || null,
-    description: description?.trim() || null,
-    entryDate: acquiredAt || now,
-  });
-
-  const { error: journalError } = await supabase.from("journal_entries").insert({
+  const { error: eventError } = await supabase.from("plant_events").insert({
     plant_id: plant.id,
     user_id: userId,
-    title: ACQUISITION_JOURNAL_TITLE,
-    content: journalContent,
-    entry_date: acquiredAt ? new Date(acquiredAt).toISOString() : now,
+    event_type: originType,
+    event_date: eventDate,
+    metadata:
+      originType === "propagated" && parentPlantId
+        ? { parent_plant_id: parentPlantId }
+        : null,
+    notes:
+      originType === "propagated"
+        ? `Propagated from ${parentPlant?.name ?? "parent plant"}`
+        : howAcquired?.trim() || null,
   });
 
-  if (journalError) {
-    console.error("Error creating acquisition journal entry:", journalError);
-    // Don't fail the whole operation if journal entry fails
+  if (eventError) {
+    console.error("[Supabase Mutation Error]", {
+      table: "plant_events",
+      operation: "insert",
+      userId,
+      data: {
+        plantId: plant.id,
+        eventType: originType,
+        eventDate,
+        parentPlantId,
+      },
+      error: eventError.message,
+      code: eventError.code,
+      details: eventError.details,
+      hint: eventError.hint,
+    });
   }
 
   // Invalidate cache tags (userId is guaranteed string after redirect guard)
   plantMutationTags(userId as string, plant.id).forEach((tag) => updateTag(tag));
-  updateTag(userTag(userId as string, "journal"));
   if (plantTypeId) {
     plantTypeDetailTags(plantTypeId).forEach((tag) => updateTag(tag));
+  }
+  careEventMutationTags(userId as string, plant.id).forEach((tag) => updateTag(tag));
+  if (originType === "propagated" && parentPlantId) {
+    propagationMutationTags(userId as string, plant.id, parentPlantId).forEach((tag) =>
+      updateTag(tag)
+    );
   }
   
   return { success: true, plantId: plant.id };
@@ -395,27 +414,11 @@ export async function createPropagatedPlant(formData: FormData) {
     console.error("Error logging propagation event:", eventError);
   }
 
-  // Create a journal entry for the propagation
-  const journalContent = `Welcome, ${name.trim()}!\n\nPropagated from ${parentPlant.name}.${description ? `\n\n${description.trim()}` : ""}`;
-  
-  const { error: journalError } = await supabase.from("journal_entries").insert({
-    plant_id: plant.id,
-    user_id: userId,
-    title: "Propagation",
-    content: journalContent,
-    entry_date: eventDate,
-  });
-
-  if (journalError) {
-    console.error("Error creating propagation journal entry:", journalError);
-  }
-
   // Invalidate cache tags
   propagationMutationTags(userId, plant.id, parentPlantId).forEach((tag) =>
     updateTag(tag)
   );
   plantMutationTags(userId, plant.id).forEach((tag) => updateTag(tag));
-  updateTag(userTag(userId, "journal"));
 
   return { success: true, plantId: plant.id };
 }

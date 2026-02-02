@@ -19,13 +19,6 @@ import {
 } from "@/lib/cache-tags";
 import { createClient, getCurrentUserId } from "@/lib/supabase/server";
 
-// ============================================================================
-// Journal Entry Helpers for Auto-Generated Entries
-// ============================================================================
-
-const ACQUISITION_JOURNAL_TITLE = "New plant";
-const REPOT_JOURNAL_TITLE = "Repotted";
-
 async function getRequiredUserId() {
   const userId = await getCurrentUserId();
 
@@ -34,97 +27,6 @@ async function getRequiredUserId() {
   }
 
   return userId;
-}
-
-function formatDate(dateStr: string | null | undefined): string {
-  if (!dateStr) return "";
-  const date = new Date(dateStr);
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
-interface PotDetails {
-  name: string;
-  size_inches: number | null;
-  material: string | null;
-}
-
-function buildRepotJournalContent(
-  fromPot: PotDetails | null,
-  toPot: PotDetails | null,
-  eventDate: string
-): string {
-  const lines: string[] = [];
-
-  if (fromPot) {
-    const fromDetails = [
-      fromPot.name,
-      fromPot.size_inches ? `${fromPot.size_inches}"` : null,
-      fromPot.material,
-    ].filter(Boolean).join(" · ");
-    lines.push(`From: ${fromDetails}`);
-  }
-
-  if (toPot) {
-    const toDetails = [
-      toPot.name,
-      toPot.size_inches ? `${toPot.size_inches}"` : null,
-      toPot.material,
-    ].filter(Boolean).join(" · ");
-    lines.push(`To: ${toDetails}`);
-  }
-
-  if (!fromPot && !toPot) {
-    lines.push("Moved to a new pot.");
-  }
-
-  lines.push(`Date: ${formatDate(eventDate)}`);
-
-  return lines.join("\n");
-}
-
-interface AcquisitionDetails {
-  name: string;
-  plantLocation: "indoor" | "outdoor";
-  location: string | null;
-  howAcquired: string | null;
-  acquiredAt: string | null;
-  description: string | null;
-  entryDate: string; // fallback date if acquiredAt is null
-}
-
-function buildAcquisitionJournalContent(details: AcquisitionDetails): string {
-  const lines: string[] = [];
-
-  lines.push(`Welcome, ${details.name}!`);
-
-  const envLabel = details.plantLocation === "indoor" ? "Indoor" : "Outdoor";
-  if (details.location) {
-    lines.push(`Environment: ${envLabel} · ${details.location}`);
-  } else {
-    lines.push(`Environment: ${envLabel}`);
-  }
-
-  if (details.howAcquired) {
-    lines.push(`Source: ${details.howAcquired}`);
-  }
-
-  // Use acquiredAt if available, otherwise fallback to entry date with a different label
-  if (details.acquiredAt) {
-    lines.push(`Acquired: ${formatDate(details.acquiredAt)}`);
-  } else {
-    lines.push(`Logged on: ${formatDate(details.entryDate)}`);
-  }
-
-  if (details.description) {
-    lines.push("");
-    lines.push(details.description);
-  }
-
-  return lines.join("\n");
 }
 
 export async function logCareEvent(
@@ -170,6 +72,71 @@ export async function logCareEvent(
 
   careEventMutationTags(user.id, plantId).forEach((tag) => updateTag(tag));
   
+  return { success: true };
+}
+
+export async function createAcquiredEvent(plantId: string) {
+  const supabase = await createClient();
+  const user = { id: await getRequiredUserId() };
+
+  // Verify the plant belongs to this user
+  const { data: plant, error: plantError } = await supabase
+    .from("plants")
+    .select("id")
+    .eq("id", plantId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (plantError || !plant) {
+    if (plantError) {
+      console.error("[Supabase Fetch Error]", {
+        table: "plants",
+        operation: "select",
+        userId: user.id,
+        error: plantError.message,
+        code: plantError.code,
+        details: plantError.details,
+        hint: plantError.hint,
+      });
+    }
+    return { success: false, error: "Plant not found" };
+  }
+
+  const { data: existing } = await supabase
+    .from("plant_events")
+    .select("id")
+    .eq("plant_id", plantId)
+    .eq("user_id", user.id)
+    .eq("event_type", "acquired")
+    .maybeSingle();
+
+  if (existing?.id) {
+    return { success: true };
+  }
+
+  const { error: eventError } = await supabase.from("plant_events").insert({
+    plant_id: plantId,
+    user_id: user.id,
+    event_type: "acquired",
+    event_date: new Date().toISOString(),
+  });
+
+  if (eventError) {
+    console.error("[Supabase Mutation Error]", {
+      table: "plant_events",
+      operation: "insert",
+      userId: user.id,
+      data: { plantId, eventType: "acquired" },
+      error: eventError.message,
+      code: eventError.code,
+      details: eventError.details,
+      hint: eventError.hint,
+    });
+    return { success: false, error: eventError.message };
+  }
+
+  careEventMutationTags(user.id, plantId).forEach((tag) => updateTag(tag));
+
   return { success: true };
 }
 
@@ -527,56 +494,195 @@ export async function logRepotEvent(
     // Event was logged, so we don't fail completely
   }
 
-  // Create a journal entry for the repot
-  const fromPotId = data.fromPotId ?? plant.current_pot_id;
-  let fromPot: PotDetails | null = null;
-  let toPot: PotDetails | null = null;
-
-  // Fetch pot details if IDs are provided
-  if (fromPotId) {
-    const { data: potData } = await supabase
-      .from("user_pots")
-      .select("name, size_inches, material")
-      .eq("id", fromPotId)
-      .single();
-    if (potData) {
-      fromPot = potData;
-    }
-  }
-
-  if (data.toPotId) {
-    const { data: potData } = await supabase
-      .from("user_pots")
-      .select("name, size_inches, material")
-      .eq("id", data.toPotId)
-      .single();
-    if (potData) {
-      toPot = potData;
-    }
-  }
-
-  const repotContent = buildRepotJournalContent(fromPot, toPot, dateToUse);
-
-  const { error: journalError } = await supabase.from("journal_entries").insert({
-    plant_id: plantId,
-    user_id: user.id,
-    title: REPOT_JOURNAL_TITLE,
-    content: repotContent,
-    entry_date: dateToUse,
-  });
-
-  if (journalError) {
-    console.error("Error creating repot journal entry:", journalError);
-    // Don't fail the whole operation if journal entry fails
-  }
-
-  // Invalidate plant, events, pots, and journal
+  // Invalidate plant, events, and pots
   careEventMutationTags(user.id, plantId).forEach((tag) => updateTag(tag));
   updateTag(userTag(user.id, "pots"));
-  updateTag(userTag(user.id, "journal"));
-  updateTag(scopedListTag("journal-entries", plantId));
   if (data.fromPotId) updateTag(recordTag("pot", data.fromPotId));
   if (data.toPotId) updateTag(recordTag("pot", data.toPotId));
+
+  return { success: true };
+}
+
+export async function logMoveEvent(
+  plantId: string,
+  data: {
+    eventDate?: string; // ISO date string for backdating
+    toLocation: string;
+    notes?: string | null;
+  }
+) {
+  const supabase = await createClient();
+  const user = { id: await getRequiredUserId() };
+
+  const trimmedLocation = data.toLocation.trim();
+  if (!trimmedLocation) {
+    return { success: false, error: "Destination location is required" };
+  }
+
+  // Verify the plant belongs to this user and is not legacy
+  const { data: plant, error: plantError } = await supabase
+    .from("plants")
+    .select("id, location, is_legacy")
+    .eq("id", plantId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (plantError || !plant) {
+    return { success: false, error: "Plant not found" };
+  }
+
+  if (plant.is_legacy) {
+    return { success: false, error: "Cannot move legacy plants" };
+  }
+
+  // Use provided date or default to now
+  const dateToUse = data.eventDate ? new Date(data.eventDate).toISOString() : new Date().toISOString();
+
+  const metadata = {
+    from_location: plant.location ?? null,
+    to_location: trimmedLocation,
+  };
+
+  const notes = data.notes?.trim() || null;
+
+  // Insert the move event
+  const { error: eventError } = await supabase
+    .from("plant_events")
+    .insert({
+      plant_id: plantId,
+      user_id: user.id,
+      event_type: "moved",
+      event_date: dateToUse,
+      metadata,
+      notes,
+    });
+
+  if (eventError) {
+    console.error("Error logging move event:", eventError);
+    return { success: false, error: eventError.message };
+  }
+
+  // Update the plant's current location
+  const { error: updateError } = await supabase
+    .from("plants")
+    .update({
+      location: trimmedLocation,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", plantId);
+
+  if (updateError) {
+    console.error("Error updating plant location:", updateError);
+  }
+
+  careEventMutationTags(user.id, plantId).forEach((tag) => updateTag(tag));
+  plantMutationTags(user.id, plantId).forEach((tag) => updateTag(tag));
+
+  return { success: true };
+}
+
+export async function updateMoveEvent(
+  eventId: string,
+  data: {
+    eventDate?: string;
+    toLocation?: string;
+    notes?: string | null;
+  }
+) {
+  const supabase = await createClient();
+  const user = { id: await getRequiredUserId() };
+
+  if (!user) {
+    redirect("/auth/login");
+  }
+
+  const { data: event, error: eventError } = await supabase
+    .from("plant_events")
+    .select("id, plant_id, event_type, metadata")
+    .eq("id", eventId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (eventError || !event) {
+    return { success: false, error: "Move event not found" };
+  }
+
+  if (event.event_type !== "moved") {
+    return { success: false, error: "Event is not a move" };
+  }
+
+  const { data: plant, error: plantError } = await supabase
+    .from("plants")
+    .select("id, is_legacy")
+    .eq("id", event.plant_id)
+    .eq("user_id", user.id)
+    .single();
+
+  if (plantError || !plant) {
+    return { success: false, error: "Plant not found" };
+  }
+
+  if (plant.is_legacy) {
+    return { success: false, error: "Cannot move legacy plants" };
+  }
+
+  const updateData: Record<string, unknown> = {};
+  if (data.eventDate) {
+    updateData.event_date = new Date(data.eventDate).toISOString();
+  }
+  if (data.notes !== undefined) {
+    updateData.notes = data.notes?.trim() || null;
+  }
+  if (data.toLocation !== undefined) {
+    const trimmedLocation = data.toLocation.trim();
+    if (!trimmedLocation) {
+      return { success: false, error: "Destination location is required" };
+    }
+    const currentMetadata = (event.metadata as { from_location?: string | null } | null) ?? {};
+    updateData.metadata = {
+      from_location: currentMetadata.from_location ?? null,
+      to_location: trimmedLocation,
+    };
+  }
+
+  if (Object.keys(updateData).length > 0) {
+    const { error: updateError } = await supabase
+      .from("plant_events")
+      .update(updateData)
+      .eq("id", eventId);
+
+    if (updateError) {
+      console.error("Error updating move event:", updateError);
+      return { success: false, error: updateError.message };
+    }
+  }
+
+  const { data: latestMove } = await supabase
+    .from("plant_events")
+    .select("metadata")
+    .eq("plant_id", event.plant_id)
+    .eq("event_type", "moved")
+    .order("event_date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const latestMetadata = latestMove?.metadata as { to_location?: string | null } | null;
+  const latestLocation = latestMetadata?.to_location ?? null;
+
+  const { error: plantUpdateError } = await supabase
+    .from("plants")
+    .update({
+      location: latestLocation,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", event.plant_id);
+
+  if (plantUpdateError) {
+    console.error("Error updating plant location after move edit:", plantUpdateError);
+  }
+
+  careEventMutationTags(user.id, event.plant_id).forEach((tag) => updateTag(tag));
+  plantMutationTags(user.id, event.plant_id).forEach((tag) => updateTag(tag));
 
   return { success: true };
 }
@@ -690,11 +796,9 @@ export async function updateRepotEvent(
     console.error("Error updating plant pot after repot edit:", plantUpdateError);
   }
 
-  // Invalidate plant, events, pots, and journal
+  // Invalidate plant, events, and pots
   careEventMutationTags(user.id, event.plant_id).forEach((tag) => updateTag(tag));
   updateTag(userTag(user.id, "pots"));
-  updateTag(userTag(user.id, "journal"));
-  updateTag(scopedListTag("journal-entries", event.plant_id));
 
   return { success: true };
 }
@@ -732,8 +836,6 @@ export async function updatePlant(
     return { success: false, error: "Plant not found" };
   }
 
-  const oldAcquiredAt = plant.acquired_at;
-
   const { error } = await supabase
     .from("plants")
     .update({
@@ -745,57 +847,6 @@ export async function updatePlant(
   if (error) {
     console.error("Error updating plant:", error);
     return { success: false, error: error.message };
-  }
-
-  // If acquired_at changed, update the most recent "New plant" journal entry
-  if (data.acquired_at !== undefined && data.acquired_at !== oldAcquiredAt) {
-    // Find the most recent "New plant" journal entry for this plant
-    const { data: journalEntry } = await supabase
-      .from("journal_entries")
-      .select("id")
-      .eq("plant_id", plantId)
-      .eq("user_id", user.id)
-      .eq("title", ACQUISITION_JOURNAL_TITLE)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .single();
-
-    if (journalEntry) {
-      // Build updated content with current plant data merged with updates
-      const updatedName = data.name ?? plant.name;
-      const updatedPlantLocation = data.plant_location ?? plant.plant_location ?? "indoor";
-      const updatedLocation = data.location !== undefined ? data.location : plant.location;
-      const updatedHowAcquired = data.how_acquired !== undefined ? data.how_acquired : plant.how_acquired;
-      const updatedDescription = data.description !== undefined ? data.description : plant.description;
-      const newAcquiredAt = data.acquired_at;
-
-      const now = new Date().toISOString();
-      const updatedContent = buildAcquisitionJournalContent({
-        name: updatedName,
-        plantLocation: updatedPlantLocation as "indoor" | "outdoor",
-        location: updatedLocation,
-        howAcquired: updatedHowAcquired,
-        acquiredAt: newAcquiredAt,
-        description: updatedDescription,
-        entryDate: newAcquiredAt || now,
-      });
-
-      const { error: journalError } = await supabase
-        .from("journal_entries")
-        .update({
-          content: updatedContent,
-          entry_date: newAcquiredAt ? new Date(newAcquiredAt).toISOString() : now,
-        })
-        .eq("id", journalEntry.id);
-
-      if (journalError) {
-        console.error("Error updating acquisition journal entry:", journalError);
-        // Don't fail the whole operation
-      }
-
-      updateTag(userTag(user.id, "journal"));
-      updateTag(scopedListTag("journal-entries", plantId));
-    }
   }
 
   plantMutationTags(user.id, plantId).forEach((tag) => updateTag(tag));
@@ -880,23 +931,22 @@ export async function markPlantAsLegacy(
     return { success: false, error: error.message };
   }
 
-  // Create a journal entry to document the legacy status
-  const { error: journalError } = await supabase.from("journal_entries").insert({
+  const { error: eventError } = await supabase.from("plant_events").insert({
     plant_id: plantId,
     user_id: user.id,
-    title: "Marked as Legacy",
-    content: `${plant.name} has been marked as legacy.\n\nReason: ${data.reason.trim()}\nDate: ${formatDate(legacyDate)}`,
-    entry_date: legacyDate,
+    event_type: "legacy",
+    event_date: legacyDate,
+    notes: data.reason.trim(),
+    metadata: { reason: data.reason.trim() },
   });
 
-  if (journalError) {
-    console.error("Error creating legacy journal entry:", journalError);
-    // Don't fail the operation if journal entry fails
+  if (eventError) {
+    console.error("Error logging legacy event:", eventError);
+    // Don't fail the operation if event logging fails
   }
 
   plantMutationTags(user.id, plantId).forEach((tag) => updateTag(tag));
-  updateTag(userTag(user.id, "journal"));
-  updateTag(scopedListTag("journal-entries", plantId));
+  updateTag(scopedListTag("plant-events", plantId));
 
   return { success: true };
 }
@@ -939,24 +989,22 @@ export async function restorePlantFromLegacy(plantId: string) {
     return { success: false, error: error.message };
   }
 
-  // Create a journal entry to document the restoration
   const now = new Date().toISOString();
-  const { error: journalError } = await supabase.from("journal_entries").insert({
+  const { error: eventError } = await supabase.from("plant_events").insert({
     plant_id: plantId,
     user_id: user.id,
-    title: "Restored from Legacy",
-    content: `${plant.name} has been restored to the active collection.\n\nDate: ${formatDate(now)}`,
-    entry_date: now,
+    event_type: "restored",
+    event_date: now,
+    notes: "Restored from legacy",
   });
 
-  if (journalError) {
-    console.error("Error creating restore journal entry:", journalError);
-    // Don't fail the operation if journal entry fails
+  if (eventError) {
+    console.error("Error logging restore event:", eventError);
+    // Don't fail the operation if event logging fails
   }
 
   plantMutationTags(user.id, plantId).forEach((tag) => updateTag(tag));
-  updateTag(userTag(user.id, "journal"));
-  updateTag(scopedListTag("journal-entries", plantId));
+  updateTag(scopedListTag("plant-events", plantId));
 
   return { success: true };
 }
@@ -1224,12 +1272,41 @@ export async function setPlantActivePhoto(
 // Journal Entry Actions
 // ============================================================================
 
+async function validateJournalEventLink(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  plantId: string,
+  eventId?: string | null
+) {
+  if (!eventId) {
+    return { success: true };
+  }
+
+  const { data: event, error } = await supabase
+    .from("plant_events")
+    .select("id, plant_id")
+    .eq("id", eventId)
+    .eq("user_id", userId)
+    .single();
+
+  if (error || !event) {
+    return { success: false, error: "Linked event not found" };
+  }
+
+  if (event.plant_id !== plantId) {
+    return { success: false, error: "Event does not belong to this plant" };
+  }
+
+  return { success: true };
+}
+
 export async function createJournalEntry(
   plantId: string,
   data: {
     title?: string | null;
     content: string;
     entryAt?: string; // ISO date string for backdating
+    eventId?: string | null;
   }
 ) {
   const supabase = await createClient();
@@ -1255,6 +1332,16 @@ export async function createJournalEntry(
     return { success: false, error: "Content is required" };
   }
 
+  const eventValidation = await validateJournalEventLink(
+    supabase,
+    user.id,
+    plantId,
+    data.eventId
+  );
+  if (!eventValidation.success) {
+    return { success: false, error: eventValidation.error };
+  }
+
   // Use provided date or default to now
   const entryDate = data.entryAt ? new Date(data.entryAt).toISOString() : new Date().toISOString();
 
@@ -1264,6 +1351,7 @@ export async function createJournalEntry(
     title: data.title?.trim() || null,
     content: data.content.trim(),
     entry_date: entryDate,
+    event_id: data.eventId ?? null,
   });
 
   if (error) {
@@ -1284,6 +1372,7 @@ export async function updateJournalEntry(
     title?: string | null;
     content: string;
     entryAt?: string;
+    eventId?: string | null;
   }
 ) {
   const supabase = await createClient();
@@ -1309,6 +1398,16 @@ export async function updateJournalEntry(
     return { success: false, error: "Content is required" };
   }
 
+  const eventValidation = await validateJournalEventLink(
+    supabase,
+    user.id,
+    entry.plant_id,
+    data.eventId
+  );
+  if (!eventValidation.success) {
+    return { success: false, error: eventValidation.error };
+  }
+
   const updateData: Record<string, unknown> = {
     title: data.title?.trim() || null,
     content: data.content.trim(),
@@ -1316,6 +1415,9 @@ export async function updateJournalEntry(
 
   if (data.entryAt) {
     updateData.entry_date = new Date(data.entryAt).toISOString();
+  }
+  if (data.eventId !== undefined) {
+    updateData.event_id = data.eventId ?? null;
   }
 
   const { error } = await supabase

@@ -1,9 +1,9 @@
 "use client";
 
-import { Check, ChevronsUpDown,ExternalLink, Home, Plus, Search, TreePine } from "lucide-react";
+import { Check, ChevronsUpDown, ExternalLink, Home, Plus, Search, TreePine } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo,useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 
 import {
   AlertDialog,
@@ -35,8 +35,15 @@ interface PlantType {
   scientific_name: string | null;
 }
 
+interface ParentPlantOption {
+  id: string;
+  name: string;
+  nickname: string | null;
+}
+
 interface AddPlantDialogProps {
   plantTypes: PlantType[];
+  plants: ParentPlantOption[];
 }
 
 const lightOptions = [
@@ -62,7 +69,7 @@ function getSizeLabel(value: string): string {
   return sizeOptions.find((opt) => opt.value === value)?.label || value;
 }
 
-export function AddPlantDialog({ plantTypes }: AddPlantDialogProps) {
+export function AddPlantDialog({ plantTypes, plants }: AddPlantDialogProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [isOpen, setIsOpen] = useState(false);
@@ -84,6 +91,8 @@ export function AddPlantDialog({ plantTypes }: AddPlantDialogProps) {
   const [acquiredAt, setAcquiredAt] = useState("");
   const [howAcquired, setHowAcquired] = useState("");
   const [description, setDescription] = useState("");
+  const [originType, setOriginType] = useState<"" | "acquired" | "propagated">("");
+  const [parentPlantId, setParentPlantId] = useState("");
   
   const [error, setError] = useState<string | null>(null);
 
@@ -102,6 +111,8 @@ export function AddPlantDialog({ plantTypes }: AddPlantDialogProps) {
       setAcquiredAt("");
       setHowAcquired("");
       setDescription("");
+      setOriginType("");
+      setParentPlantId("");
       setError(null);
     }
   }, [isOpen]);
@@ -113,7 +124,21 @@ export function AddPlantDialog({ plantTypes }: AddPlantDialogProps) {
     }
   }, [selectedPlantType, name]);
 
-  const canSubmit = name.trim() && selectedPlantType;
+  useEffect(() => {
+    if (originType === "acquired") {
+      setParentPlantId("");
+    }
+    if (originType === "propagated") {
+      setAcquiredAt("");
+      setHowAcquired("");
+    }
+  }, [originType]);
+
+  const canSubmit =
+    name.trim() &&
+    selectedPlantType &&
+    originType &&
+    (originType !== "propagated" || parentPlantId);
 
   async function handleSubmit() {
     setError(null);
@@ -128,16 +153,32 @@ export function AddPlantDialog({ plantTypes }: AddPlantDialogProps) {
       return;
     }
 
+    if (!originType) {
+      setError("Please choose how this plant joined your collection");
+      return;
+    }
+
+    if (originType === "propagated" && !parentPlantId) {
+      setError("Please select the parent plant for this propagation");
+      return;
+    }
+
     const formData = new FormData();
     formData.set("plantTypeId", selectedPlantType.id);
     formData.set("name", name.trim());
     formData.set("plant_location", plantLocation);
+    formData.set("origin_type", originType);
     if (nickname.trim()) formData.set("nickname", nickname.trim());
     if (location.trim()) formData.set("location", location.trim());
     if (lightExposure) formData.set("light_exposure", lightExposure);
     if (sizeCategory) formData.set("size_category", sizeCategory);
-    if (acquiredAt) formData.set("acquired_at", acquiredAt);
-    if (howAcquired.trim()) formData.set("how_acquired", howAcquired.trim());
+    if (originType === "acquired") {
+      if (acquiredAt) formData.set("acquired_at", acquiredAt);
+      if (howAcquired.trim()) formData.set("how_acquired", howAcquired.trim());
+    }
+    if (originType === "propagated") {
+      formData.set("parent_plant_id", parentPlantId);
+    }
     if (description.trim()) formData.set("description", description.trim());
 
     startTransition(async () => {
@@ -161,6 +202,13 @@ export function AddPlantDialog({ plantTypes }: AddPlantDialogProps) {
         (pt.scientific_name && pt.scientific_name.toLowerCase().includes(lower))
     );
   }, [plantTypes, plantTypeSearch]);
+
+  const parentPlantOptions = useMemo(() => {
+    return plants.map((plant) => ({
+      id: plant.id,
+      label: plant.nickname ? `${plant.nickname} (${plant.name})` : plant.name,
+    }));
+  }, [plants]);
   
   function handleSelectPlantType(pt: PlantType) {
     setSelectedPlantType(pt);
@@ -285,6 +333,47 @@ export function AddPlantDialog({ plantTypes }: AddPlantDialogProps) {
             />
           </div>
 
+          {/* Origin (required) */}
+          <div className="space-y-2">
+            <Label>How did this plant join you? *</Label>
+            <Select value={originType} onValueChange={(value) => setOriginType(value as "acquired" | "propagated")}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select an origin" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="acquired">Acquired</SelectItem>
+                <SelectItem value="propagated">Propagated</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {originType === "propagated" && (
+            <div className="space-y-2">
+              <Label>Parent plant *</Label>
+              {parentPlantOptions.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No parent plants available yet. Add a plant before logging a propagation.
+                </p>
+              ) : (
+                <Select value={parentPlantId} onValueChange={(value) => setParentPlantId(value ?? "")}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a parent plant" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {parentPlantOptions.map((plant) => (
+                      <SelectItem key={plant.id} value={plant.id}>
+                        {plant.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              <p className="text-xs text-muted-foreground">
+                We&apos;ll log this as a propagated plant event.
+              </p>
+            </div>
+          )}
+
           {/* Indoor/Outdoor toggle */}
           <div className="space-y-2">
             <Label>Environment</Label>
@@ -361,27 +450,31 @@ export function AddPlantDialog({ plantTypes }: AddPlantDialogProps) {
             </Select>
           </div>
 
-          {/* Acquired at (optional) */}
-          <div className="space-y-2">
-            <Label htmlFor="add-acquired">When did you get it? (optional)</Label>
-            <Input
-              id="add-acquired"
-              type="date"
-              value={acquiredAt}
-              onChange={(e) => setAcquiredAt(e.target.value)}
-            />
-          </div>
+          {originType === "acquired" && (
+            <>
+              {/* Acquired at (optional) */}
+              <div className="space-y-2">
+                <Label htmlFor="add-acquired">When did you get it? (optional)</Label>
+                <Input
+                  id="add-acquired"
+                  type="date"
+                  value={acquiredAt}
+                  onChange={(e) => setAcquiredAt(e.target.value)}
+                />
+              </div>
 
-          {/* How acquired (optional) */}
-          <div className="space-y-2">
-            <Label htmlFor="add-how-acquired">How did you get it? (optional)</Label>
-            <Input
-              id="add-how-acquired"
-              value={howAcquired}
-              onChange={(e) => setHowAcquired(e.target.value)}
-              placeholder="e.g., Gift from mom, Found at farmers market"
-            />
-          </div>
+              {/* How acquired (optional) */}
+              <div className="space-y-2">
+                <Label htmlFor="add-how-acquired">How did you get it? (optional)</Label>
+                <Input
+                  id="add-how-acquired"
+                  value={howAcquired}
+                  onChange={(e) => setHowAcquired(e.target.value)}
+                  placeholder="e.g., Gift from mom, Found at farmers market"
+                />
+              </div>
+            </>
+          )}
 
           {/* Description (optional) */}
           <div className="space-y-2">

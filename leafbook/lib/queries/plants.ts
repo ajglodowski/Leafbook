@@ -287,7 +287,7 @@ export async function getPlantJournalEntries(plantId: string) {
 
   const { data, error } = await supabase
     .from("journal_entries")
-    .select("id, title, content, entry_date")
+    .select("id, title, content, entry_date, event_id")
     .eq("plant_id", plantId)
     .order("entry_date", { ascending: false })
     .limit(20);

@@ -1,10 +1,10 @@
-import { AlertTriangle,BookOpen } from "lucide-react";
+import { BookOpen } from "lucide-react";
 
 import { EmptyState } from "@/components/common/empty-state";
 
-import { getJournalEntries, getPlantIssues, getUserPlants } from "./actions";
+import { getJournalEntries, getUserPlants } from "./actions";
 import { JournalFeed } from "./journal-feed";
-import { type FeedType,JournalHeader } from "./journal-header";
+import { JournalHeader } from "./journal-header";
 
 export const metadata = {
   title: "Journal | Leafbook",
@@ -14,31 +14,18 @@ export const metadata = {
 export default async function JournalPage({
   searchParams,
 }: {
-  searchParams: Promise<{ plant?: string; type?: string }>;
+  searchParams: Promise<{ plant?: string }>;
 }) {
-  const { plant: plantFilter, type: typeFilter } = await searchParams;
-  
-  // Validate type filter
-  const feedType: FeedType = 
-    typeFilter === "journal" ? "journal" :
-    typeFilter === "issues" ? "issues" :
-    "all";
+  const { plant: plantFilter } = await searchParams;
 
-  const [{ entries }, { issues }, { plants }] = await Promise.all([
-    // Only fetch journal entries if showing all or journal
-    feedType !== "issues"
-      ? getJournalEntries({ plantId: plantFilter })
-      : Promise.resolve({ entries: [], error: null }),
-    // Only fetch issues if showing all or issues
-    feedType !== "journal"
-      ? getPlantIssues({ plantId: plantFilter, status: "all" })
-      : Promise.resolve({ issues: [], error: null }),
+  const [{ entries }, { plants }] = await Promise.all([
+    getJournalEntries({ plantId: plantFilter }),
     getUserPlants(),
   ]);
 
   // If user has no plants at all, show a different empty state
   const hasPlants = plants.length > 0;
-  const hasContent = entries.length > 0 || issues.length > 0;
+  const hasContent = entries.length > 0;
 
   const getEmptyStateProps = () => {
     if (!hasPlants) {
@@ -50,45 +37,17 @@ export default async function JournalPage({
     }
 
     if (plantFilter) {
-      if (feedType === "journal") {
-        return {
-          icon: BookOpen,
-          title: "No journal entries for this plant",
-          description: "Write about this plant from its detail page to start its story.",
-        };
-      }
-      if (feedType === "issues") {
-        return {
-          icon: AlertTriangle,
-          title: "No issues for this plant",
-          description: "When you notice a problem with this plant, you can report it from the plant's detail page.",
-        };
-      }
       return {
         icon: BookOpen,
-        title: "Nothing here yet for this plant",
-        description: "Write journal entries or report issues from this plant's detail page.",
+        title: "No journal entries for this plant",
+        description: "Write about this plant from its detail page to start its story.",
       };
     }
 
-    if (feedType === "journal") {
-      return {
-        icon: BookOpen,
-        title: "No journal entries yet",
-        description: "Write about your plants — milestones, observations, or just how they make you feel.",
-      };
-    }
-    if (feedType === "issues") {
-      return {
-        icon: AlertTriangle,
-        title: "No issues reported",
-        description: "When you notice problems with your plants, you can track them here.",
-      };
-    }
     return {
       icon: BookOpen,
-      title: "Nothing here yet",
-      description: "Write journal entries or report issues from any plant's detail page.",
+      title: "No journal entries yet",
+      description: "Write about your plants — milestones, observations, or just how they make you feel.",
     };
   };
 
@@ -98,12 +57,11 @@ export default async function JournalPage({
       <JournalHeader
         plants={plants}
         selectedPlantId={plantFilter}
-        selectedFeedType={feedType}
       />
 
       {/* Content */}
       {hasContent ? (
-        <JournalFeed entries={entries} issues={issues} />
+        <JournalFeed entries={entries} />
       ) : (
         <EmptyState {...getEmptyStateProps()} />
       )}

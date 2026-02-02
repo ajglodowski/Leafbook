@@ -38,6 +38,7 @@ export type Database = {
         Row: {
           content: string
           created_at: string
+          event_id: string | null
           entry_date: string
           id: string
           plant_id: string
@@ -48,6 +49,7 @@ export type Database = {
         Insert: {
           content: string
           created_at?: string
+          event_id?: string | null
           entry_date?: string
           id?: string
           plant_id: string
@@ -58,6 +60,7 @@ export type Database = {
         Update: {
           content?: string
           created_at?: string
+          event_id?: string | null
           entry_date?: string
           id?: string
           plant_id?: string
@@ -66,6 +69,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "journal_entries_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "plant_events"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "journal_entries_plant_id_fkey"
             columns: ["plant_id"]
@@ -930,12 +940,15 @@ export type Database = {
         | "watered"
         | "fertilized"
         | "repotted"
+        | "moved"
         | "pruned"
         | "rotated"
         | "misted"
         | "cleaned"
         | "propagated"
         | "acquired"
+        | "legacy"
+        | "restored"
         | "other"
       issue_status: "active" | "resolved" | "monitoring"
       issue_type:
@@ -1096,12 +1109,15 @@ export const Constants = {
         "watered",
         "fertilized",
         "repotted",
+        "moved",
         "pruned",
         "rotated",
         "misted",
         "cleaned",
         "propagated",
         "acquired",
+        "legacy",
+        "restored",
         "other",
       ],
       issue_status: ["active", "resolved", "monitoring"],

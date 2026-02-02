@@ -58,7 +58,14 @@ export function PlantCollectionView({
               Browse catalog
             </Button>
           </Link>
-          <AddPlantDialog plantTypes={plantTypes || []} />
+          <AddPlantDialog
+            plantTypes={plantTypes || []}
+            plants={plants.map((plant) => ({
+              id: plant.id,
+              name: plant.name,
+              nickname: plant.nickname,
+            }))}
+          />
         </div>
       </EmptyState>
     );

@@ -68,7 +68,14 @@ export default async function PlantsPage() {
             {legacyPlants && legacyPlants.length > 0 && ` · ${legacyPlants.length} legacy`}
           </p>
         </div>
-        <AddPlantDialog plantTypes={plantTypes || []} />
+        <AddPlantDialog
+          plantTypes={plantTypes || []}
+          plants={(plants || []).map((plant) => ({
+            id: plant.id,
+            name: plant.name,
+            nickname: plant.nickname,
+          }))}
+        />
       </div>
 
       {/* Tabbed content */}

@@ -43,3 +43,5 @@ DerivedData/
 *.xcuserstate
 *.xccheckout
 *.xcscmblueprint
+/SwiftUI/Leafbook/build/XCBuildData/**/attachments/
+/SwiftUI/Leafbook/build/

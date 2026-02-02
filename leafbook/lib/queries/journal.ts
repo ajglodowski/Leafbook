@@ -9,6 +9,7 @@ export interface JournalEntryWithPlant {
   content: string;
   entry_date: string;
   created_at: string;
+  event_id: string | null;
   plant_id: string;
   plant: {
     id: string;
@@ -20,6 +21,7 @@ export interface JournalEntryWithPlant {
     } | null;
   };
 }
+
 
 export interface PlantIssueWithPlant {
   id: string;
@@ -67,6 +69,7 @@ export async function getJournalEntriesForUser(
       content,
       entry_date,
       created_at,
+      event_id,
       plant_id,
       plants!inner (
         id,
@@ -109,6 +112,7 @@ export async function getJournalEntriesForUser(
       content: entry.content,
       entry_date: entry.entry_date,
       created_at: entry.created_at,
+      event_id: entry.event_id ?? null,
       plant_id: entry.plant_id,
       plant: {
         id: plant?.id || entry.plant_id,
