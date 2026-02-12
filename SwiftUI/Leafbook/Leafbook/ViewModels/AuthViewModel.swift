@@ -5,15 +5,16 @@
 //  Created by AJ Glodowski on 1/26/26.
 //
 
-import Combine
 import Foundation
+import Observation
 
+@Observable
 @MainActor
-final class AuthViewModel: ObservableObject {
-    @Published var email = ""
-    @Published var password = ""
-    @Published var isLoading = false
-    @Published var errorMessage: String?
+final class AuthViewModel {
+    var email = ""
+    var password = ""
+    var isLoading = false
+    var errorMessage: String?
 
     private let service: SupabaseService
 

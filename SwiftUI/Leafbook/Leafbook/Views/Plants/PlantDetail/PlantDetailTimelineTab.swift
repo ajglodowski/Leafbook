@@ -11,19 +11,27 @@ struct PlantDetailTimelineTab: View {
     let events: [PlantEvent]
     let journalEntries: [JournalEntry]
     let issues: [PlantIssue]
+    var isLegacy: Bool = false
     var onSelectEvent: ((PlantEvent) -> Void)? = nil
     var onSelectJournalEntry: ((JournalEntry) -> Void)? = nil
     var onAddAcquiredEvent: (() async -> Bool)? = nil
+    var onAddLegacyEvent: (() async -> Bool)? = nil
 
     @State private var isAddingAcquiredEvent = false
     @State private var acquiredEventError: String?
+    @State private var isAddingLegacyEvent = false
+    @State private var legacyEventError: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             let eventLookup = Dictionary(uniqueKeysWithValues: events.map { ($0.id, $0) })
             let hasAcquiredEvent = events.contains { $0.eventType == "acquired" }
+            let hasPropagationEvent = events.contains { $0.eventType == "propagated" }
+            let shouldShowAcquiredPrompt = !hasAcquiredEvent && !hasPropagationEvent
+            let hasLegacyEvent = events.contains { $0.eventType == "legacy" }
+            let shouldShowLegacyPrompt = isLegacy && !hasLegacyEvent
 
-            if !hasAcquiredEvent {
+            if shouldShowAcquiredPrompt {
                 LeafbookCard {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Add an acquired event")
@@ -54,6 +62,37 @@ struct PlantDetailTimelineTab: View {
                 }
             }
 
+            if shouldShowLegacyPrompt {
+                LeafbookCard {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Add a legacy event")
+                            .font(.headline)
+                        Text("Record when this plant left your collection.")
+                            .font(.subheadline)
+                            .foregroundStyle(LeafbookColors.foreground.opacity(0.7))
+                        Button(isAddingLegacyEvent ? "Adding…" : "Add legacy event") {
+                            guard let onAddLegacyEvent else { return }
+                            legacyEventError = nil
+                            isAddingLegacyEvent = true
+                            Task {
+                                let success = await onAddLegacyEvent()
+                                if !success {
+                                    legacyEventError = "We couldn't add that event."
+                                }
+                                isAddingLegacyEvent = false
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(isAddingLegacyEvent)
+                        if let legacyEventError {
+                            Text(legacyEventError)
+                                .font(.footnote)
+                                .foregroundStyle(.red)
+                        }
+                    }
+                }
+            }
+
             LeafbookCard {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Care events")
@@ -72,7 +111,8 @@ struct PlantDetailTimelineTab: View {
                                     title: event.eventType.replacingOccurrences(of: "_", with: " ").capitalized,
                                     subtitle: moveDetail.primary ?? event.notes,
                                     secondarySubtitle: moveDetail.primary != nil ? event.notes : nil,
-                                    dateString: event.eventDate
+                                    dateString: event.eventDate,
+                                    eventType: event.eventType
                                 )
                             }
                             .buttonStyle(.plain)
@@ -139,18 +179,22 @@ struct PlantDetailTimelineTab: View {
         subtitle: String?,
         secondarySubtitle: String? = nil,
         dateString: String?,
-        footer: String? = nil
+        footer: String? = nil,
+        eventType: String? = nil
     ) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline) {
                 Text(title)
-                    .font(.subheadline.weight(.semibold))
+                    .font(.headline)
                 Spacer()
                 if let dateString, let dateLabel = formattedDate(dateString) {
                     Text(dateLabel)
                         .font(.caption)
                         .foregroundStyle(LeafbookColors.foreground.opacity(0.6))
                 }
+            }
+            if let eventType {
+                TimelineEventBadgeView(display: .from(eventType: eventType))
             }
             if let subtitle, !subtitle.isEmpty {
                 Text(subtitle)
@@ -173,13 +217,79 @@ struct PlantDetailTimelineTab: View {
     }
 
     private func formattedDate(_ dateString: String) -> String? {
+        guard let date = Self.parseDate(from: dateString) else { return nil }
+        return Self.displayDateFormatter.string(from: date)
+    }
+
+    private static func parseDate(from dateString: String) -> Date? {
+        let trimmed = dateString.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        for formatter in isoFormatters {
+            if let date = formatter.date(from: trimmed) {
+                return date
+            }
+        }
+
+        if trimmed.contains("T"), !hasTimezoneSuffix(in: trimmed) {
+            let withZ = trimmed + "Z"
+            for formatter in isoFormatters {
+                if let date = formatter.date(from: withZ) {
+                    return date
+                }
+            }
+        }
+
+        for formatter in fallbackDateFormatters {
+            if let date = formatter.date(from: trimmed) {
+                return date
+            }
+        }
+
+        return nil
+    }
+
+    private static let displayDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
-        let date = formatter.date(from: dateString) ?? ISO8601DateFormatter().date(from: dateString)
-        guard let resolvedDate = date else { return nil }
         formatter.dateStyle = .medium
         formatter.timeStyle = .none
-        return formatter.string(from: resolvedDate)
+        return formatter
+    }()
+
+    private static let isoFormatters: [ISO8601DateFormatter] = {
+        let fractional = ISO8601DateFormatter()
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds, .withColonSeparatorInTimeZone]
+        let plain = ISO8601DateFormatter()
+        plain.formatOptions = [.withInternetDateTime, .withColonSeparatorInTimeZone]
+        return [fractional, plain]
+    }()
+
+    private static func hasTimezoneSuffix(in string: String) -> Bool {
+        guard let regex = timezoneSuffixRegex else { return false }
+        let range = NSRange(string.startIndex..., in: string)
+        return regex.firstMatch(in: string, options: [], range: range) != nil
+    }
+
+    private static let timezoneSuffixRegex: NSRegularExpression? = {
+        try? NSRegularExpression(pattern: "(Z|[+-]\\d{2}:?\\d{2})$", options: .caseInsensitive)
+    }()
+
+    private static let fallbackDateFormatters: [DateFormatter] = [
+        makeDateFormatter("yyyy-MM-dd'T'HH:mm:ss.SSSSSSXXXXX"),
+        makeDateFormatter("yyyy-MM-dd'T'HH:mm:ss.SSSXXXXX"),
+        makeDateFormatter("yyyy-MM-dd'T'HH:mm:ssXXXXX"),
+        makeDateFormatter("yyyy-MM-dd'T'HH:mm:ss"),
+        makeDateFormatter("yyyy-MM-dd HH:mm:ss"),
+        makeDateFormatter("yyyy-MM-dd")
+    ]
+
+    private static func makeDateFormatter(_ format: String) -> DateFormatter {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .iso8601)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = format
+        return formatter
     }
 
     private func moveSubtitle(for event: PlantEvent) -> (primary: String?, secondary: String?) {

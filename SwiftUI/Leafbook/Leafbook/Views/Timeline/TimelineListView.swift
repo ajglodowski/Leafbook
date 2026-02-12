@@ -9,8 +9,9 @@ import SwiftUI
 
 struct TimelineListView: View {
     @EnvironmentObject private var sessionState: SessionState
-    @StateObject private var viewModel: TimelineViewModel
-    @StateObject private var journalViewModel = JournalViewModel()
+    @EnvironmentObject private var tabRouter: TabRouter
+    @State private var viewModel: TimelineViewModel
+    @State private var journalViewModel = JournalViewModel()
 
     @State private var selectedFeed: TimelineFeed
     @State private var selectedPlantId: String? = nil
@@ -23,7 +24,7 @@ struct TimelineListView: View {
         viewModel: TimelineViewModel = TimelineViewModel(),
         initialFeed: TimelineFeed = .all
     ) {
-        _viewModel = StateObject(wrappedValue: viewModel)
+        _viewModel = State(initialValue: viewModel)
         _selectedFeed = State(initialValue: initialFeed)
     }
 
@@ -121,6 +122,17 @@ struct TimelineListView: View {
         }
         .sheet(item: $editingEvent) { event in
             eventEditView(for: event)
+        }
+        .onAppear {
+            if let feed = tabRouter.requestedTimelineFeed {
+                selectedFeed = feed
+                tabRouter.requestedTimelineFeed = nil
+            }
+        }
+        .onChange(of: tabRouter.requestedTimelineFeed) { feed in
+            guard let feed else { return }
+            selectedFeed = feed
+            tabRouter.requestedTimelineFeed = nil
         }
         .task {
             guard !viewModel.isPreview else { return }
@@ -443,4 +455,5 @@ extension TimelineFeed: @MainActor IconLabelTabItem {}
         TimelineListView(viewModel: .preview())
     }
     .environmentObject(SessionState(isPreview: true))
+    .environmentObject(TabRouter())
 }

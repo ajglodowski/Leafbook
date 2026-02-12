@@ -1,0 +1,26 @@
+<svg viewBox="0 0 120 120" width="1024" height="1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Bookmark ribbon — top right corner -->
+  <polygon points="82,0 82,28 90,22 98,28 98,0" fill="#5a7a52" />
+
+  <!-- Pointed leaf -->
+  <g transform="translate(54, 56) rotate(-15)">
+    <path
+      d="M 0,-42 C 18,-34 27,-14 24,8 C 22,24 12,38 0,46 C -12,38 -22,24 -24,8 C -27,-14 -18,-34 0,-42 Z"
+      fill="#5a7a52"
+    />
+
+    <!-- Midrib - lighter green, same for all lines -->
+    <line x1="0" y1="-40" x2="0" y2="44" stroke="#8fae87" stroke-width="2.2" />
+
+    <!-- Vein pair 1 - same green as midrib -->
+    <line x1="0" y1="-18" x2="-19" y2="-6" stroke="#8fae87" stroke-width="1.6" />
+    <line x1="0" y1="-18" x2="19" y2="-6" stroke="#8fae87" stroke-width="1.6" />
+
+    <!-- Vein pair 2 - same green as midrib -->
+    <line x1="0" y1="6" x2="-21" y2="18" stroke="#8fae87" stroke-width="1.6" />
+    <line x1="0" y1="6" x2="21" y2="18" stroke="#8fae87" stroke-width="1.6" />
+
+    <!-- Stem -->
+    <line x1="0" y1="44" x2="3" y2="56" stroke="#5a7a52" stroke-width="2.5" stroke-linecap="round" />
+  </g>
+</svg>

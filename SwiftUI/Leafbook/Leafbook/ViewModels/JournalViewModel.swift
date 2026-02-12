@@ -5,14 +5,15 @@
 //  Created by AJ Glodowski on 1/26/26.
 //
 
-import Combine
 import Foundation
+import Observation
 
+@Observable
 @MainActor
-final class JournalViewModel: ObservableObject {
-    @Published private(set) var entries: [JournalEntry] = []
-    @Published private(set) var isLoading = false
-    @Published var errorMessage: String?
+final class JournalViewModel {
+    private(set) var entries: [JournalEntry] = []
+    private(set) var isLoading = false
+    var errorMessage: String?
 
     private let service: SupabaseService
 

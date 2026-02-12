@@ -15,11 +15,14 @@ final class SupabaseService: @unchecked Sendable {
 
     private enum ValidationError: LocalizedError {
         case invalidUUID(field: String, value: String)
+        case selfReference
 
         var errorDescription: String? {
             switch self {
             case let .invalidUUID(field, value):
                 return "Invalid UUID for \(field): \(value)"
+            case .selfReference:
+                return "A plant cannot be its own parent"
             }
         }
     }
@@ -43,8 +46,32 @@ final class SupabaseService: @unchecked Sendable {
         let parent_plant_id: String?
     }
 
+    private struct ParentPlantUpdate: Encodable {
+        let parent_plant_id: String?
+    }
+
+    private struct PlantInsertPayload: Encodable {
+        let user_id: String
+        let name: String
+        let nickname: String?
+        let plant_type_id: String?
+        let parent_plant_id: String?
+        let plant_location: String
+        let location: String?
+        let light_exposure: String?
+        let how_acquired: String?
+        let acquired_at: String?
+        let description: String?
+    }
+
     private struct PlantCurrentPotUpdate: Encodable {
         let current_pot_id: String?
+    }
+
+    private struct PlantLegacyUpdate: Encodable {
+        let is_legacy: Bool
+        let legacy_reason: String?
+        let legacy_at: String?
     }
 
     private struct PlantLocationUpdate: Encodable {
@@ -88,6 +115,15 @@ final class SupabaseService: @unchecked Sendable {
         let metadata: RepotEventMetadataPayload
     }
 
+    private struct PropagationEventPayload: Encodable {
+        let plant_id: String
+        let user_id: String
+        let event_type: String
+        let event_date: String
+        let notes: String?
+        let metadata: PropagationEventMetadataPayload
+    }
+
     private struct MoveEventUpdatePayload: Encodable {
         let event_date: String
         let notes: String?
@@ -110,8 +146,25 @@ final class SupabaseService: @unchecked Sendable {
         let metadata: RepotEventMetadataPayload
     }
 
+    private struct PlantPhotoUpdatePayload: Encodable {
+        let taken_at: String
+        let caption: String?
+    }
+
     private struct CountRecord: Decodable {
         let id: String
+    }
+
+    private struct ParentPlantSnapshot: Decodable {
+        let id: String
+        let name: String
+        let plantTypeId: String?
+
+        enum CodingKeys: String, CodingKey {
+            case id
+            case name
+            case plantTypeId = "plant_type_id"
+        }
     }
 
     init() {
@@ -120,6 +173,7 @@ final class SupabaseService: @unchecked Sendable {
             supabaseKey: SupabaseConfiguration.publishableKey,
             options: SupabaseClientOptions(
                 auth: SupabaseClientOptions.AuthOptions(
+                    storage: SharedAuthStorage(),
                     emitLocalSessionAsInitialSession: true
                 )
             )
@@ -238,6 +292,40 @@ final class SupabaseService: @unchecked Sendable {
                 .value
         } catch {
             print("SupabaseService: fetchActivePlants failed for userId=\(userId): \(error)")
+            throw error
+        }
+    }
+
+    func fetchLegacyPlants(userId: String) async throws -> [Plant] {
+        do {
+            return try await client
+                .from("plants")
+                .select("""
+                    id,
+                    name,
+                    nickname,
+                    plant_location,
+                    location,
+                    is_active,
+                    is_legacy,
+                    legacy_reason,
+                    legacy_at,
+                    created_at,
+                    plant_type_id,
+                    active_photo_id,
+                    plant_types (
+                      id,
+                      name,
+                      scientific_name
+                    )
+                """)
+                .eq("user_id", value: userId)
+                .eq("is_legacy", value: true)
+                .order("legacy_at", ascending: false)
+                .execute()
+                .value
+        } catch {
+            print("SupabaseService: fetchLegacyPlants failed for userId=\(userId): \(error)")
             throw error
         }
     }
@@ -894,6 +982,105 @@ final class SupabaseService: @unchecked Sendable {
         }
     }
 
+    func updatePlantPhotoMetadata(photoId: String, takenAt: Date, caption: String?) async throws {
+        do {
+            let payload = PlantPhotoUpdatePayload(
+                taken_at: ISO8601DateFormatter().string(from: takenAt),
+                caption: caption
+            )
+            try await client
+                .from("plant_photos")
+                .update(payload)
+                .eq("id", value: photoId)
+                .execute()
+        } catch {
+            print("SupabaseService: updatePlantPhotoMetadata failed for photoId=\(photoId): \(error)")
+            throw error
+        }
+    }
+
+    func uploadPlantPhoto(plantId: String, imageData: Data, takenAt: Date?, caption: String?) async throws -> PlantPhoto {
+        do {
+            // Get auth token
+            let session = try await client.auth.session
+            let token = session.accessToken
+
+            // Get API base URL
+            guard let apiURL = URL(string: SupabaseConfiguration.apiBaseURL) else {
+                throw NSError(domain: "SupabaseService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid API base URL"])
+            }
+
+            // Build upload URL
+            let uploadURL = apiURL.appendingPathComponent("api/mobile/plant-photos/upload")
+
+            // Create multipart form data
+            let boundary = "Boundary-\(UUID().uuidString)"
+            var request = URLRequest(url: uploadURL)
+            request.httpMethod = "POST"
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+
+            var body = Data()
+
+            // Add image file
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"file\"; filename=\"photo.jpg\"\r\n".data(using: .utf8)!)
+            body.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
+            body.append(imageData)
+            body.append("\r\n".data(using: .utf8)!)
+
+            // Add plantId
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"plantId\"\r\n\r\n".data(using: .utf8)!)
+            body.append(plantId.data(using: .utf8)!)
+            body.append("\r\n".data(using: .utf8)!)
+
+            // Add takenAt if provided
+            if let takenAt {
+                let isoDate = ISO8601DateFormatter().string(from: takenAt)
+                body.append("--\(boundary)\r\n".data(using: .utf8)!)
+                body.append("Content-Disposition: form-data; name=\"takenAt\"\r\n\r\n".data(using: .utf8)!)
+                body.append(isoDate.data(using: .utf8)!)
+                body.append("\r\n".data(using: .utf8)!)
+            }
+
+            // Add caption if provided
+            if let caption, !caption.isEmpty {
+                body.append("--\(boundary)\r\n".data(using: .utf8)!)
+                body.append("Content-Disposition: form-data; name=\"caption\"\r\n\r\n".data(using: .utf8)!)
+                body.append(caption.data(using: .utf8)!)
+                body.append("\r\n".data(using: .utf8)!)
+            }
+
+            // Close multipart
+            body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+
+            request.httpBody = body
+
+            // Execute request
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw NSError(domain: "SupabaseService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid response"])
+            }
+
+            guard (200...299).contains(httpResponse.statusCode) else {
+                let errorMessage = String(data: data, encoding: .utf8) ?? "Upload failed"
+                throw NSError(domain: "SupabaseService", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: errorMessage])
+            }
+
+            // Decode response
+            let decoder = JSONDecoder()
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            let photo = try decoder.decode(PlantPhoto.self, from: data)
+
+            return photo
+        } catch {
+            print("SupabaseService: uploadPlantPhoto failed for plantId=\(plantId): \(error)")
+            throw error
+        }
+    }
+
     func updatePlantCarePreferences(plantId: String, wateringDays: Int?, fertilizingDays: Int?) async throws {
         do {
             let payload = PlantCarePreferencesUpsert(
@@ -945,6 +1132,162 @@ final class SupabaseService: @unchecked Sendable {
                 .execute()
         } catch {
             print("SupabaseService: updatePlantDetails failed for plantId=\(plantId): \(error)")
+            throw error
+        }
+    }
+
+    func setParentPlant(
+        childPlantId: String,
+        parentPlantId: String,
+        userId: String,
+        propagationDate: Date?
+    ) async throws {
+        do {
+            if childPlantId == parentPlantId {
+                throw ValidationError.selfReference
+            }
+            try validateUUID(childPlantId, field: "childPlantId")
+            try validateUUID(parentPlantId, field: "parentPlantId")
+            try validateUUID(userId, field: "userId")
+
+            let payload = ParentPlantUpdate(parent_plant_id: parentPlantId)
+            try await client
+                .from("plants")
+                .update(payload)
+                .eq("id", value: childPlantId)
+                .eq("user_id", value: userId)
+                .execute()
+
+            let eventDate = ISO8601DateFormatter().string(from: propagationDate ?? Date())
+            do {
+                let payload = PropagationEventPayload(
+                    plant_id: childPlantId,
+                    user_id: userId,
+                    event_type: "propagated",
+                    event_date: eventDate,
+                    notes: "Propagated from parent plant",
+                    metadata: PropagationEventMetadataPayload(parent_plant_id: parentPlantId)
+                )
+                try await client
+                    .from("plant_events")
+                    .insert(payload)
+                    .execute()
+            } catch {
+                print("SupabaseService: setParentPlant event log failed for childPlantId=\(childPlantId): \(error)")
+            }
+        } catch {
+            print("SupabaseService: setParentPlant failed for childPlantId=\(childPlantId), parentPlantId=\(parentPlantId): \(error)")
+            throw error
+        }
+    }
+
+    func clearParentPlant(childPlantId: String, userId: String) async throws {
+        do {
+            try validateUUID(childPlantId, field: "childPlantId")
+            try validateUUID(userId, field: "userId")
+
+            let payload = ParentPlantUpdate(parent_plant_id: nil)
+            try await client
+                .from("plants")
+                .update(payload)
+                .eq("id", value: childPlantId)
+                .eq("user_id", value: userId)
+                .execute()
+        } catch {
+            print("SupabaseService: clearParentPlant failed for childPlantId=\(childPlantId): \(error)")
+            throw error
+        }
+    }
+
+    func createPropagatedPlant(
+        userId: String,
+        parentPlantId: String,
+        name: String,
+        nickname: String?,
+        plantTypeId: String?,
+        plantLocation: String,
+        location: String?,
+        lightExposure: String?,
+        propagationDate: Date?,
+        description: String?
+    ) async throws -> Plant {
+        do {
+            try validateUUID(userId, field: "userId")
+            try validateUUID(parentPlantId, field: "parentPlantId")
+
+            let parent: ParentPlantSnapshot = try await client
+                .from("plants")
+                .select("id, name, plant_type_id")
+                .eq("id", value: parentPlantId)
+                .eq("user_id", value: userId)
+                .single()
+                .execute()
+                .value
+
+            let resolvedPlantTypeId = plantTypeId ?? parent.plantTypeId
+            let eventDate = propagationDate ?? Date()
+            let payload = PlantInsertPayload(
+                user_id: userId,
+                name: name,
+                nickname: nickname,
+                plant_type_id: resolvedPlantTypeId,
+                parent_plant_id: parentPlantId,
+                plant_location: plantLocation,
+                location: location,
+                light_exposure: lightExposure,
+                how_acquired: "Propagated from \(parent.name)",
+                acquired_at: ISO8601DateFormatter().string(from: eventDate),
+                description: description
+            )
+
+            let plant: Plant = try await client
+                .from("plants")
+                .insert(payload)
+                .select("""
+                    id,
+                    name,
+                    nickname,
+                    plant_location,
+                    location,
+                    light_exposure,
+                    size_category,
+                    is_active,
+                    is_legacy,
+                    legacy_reason,
+                    legacy_at,
+                    created_at,
+                    acquired_at,
+                    how_acquired,
+                    description,
+                    plant_type_id,
+                    active_photo_id,
+                    current_pot_id,
+                    parent_plant_id
+                """)
+                .single()
+                .execute()
+                .value
+
+            do {
+                let eventPayload = PropagationEventPayload(
+                    plant_id: plant.id,
+                    user_id: userId,
+                    event_type: "propagated",
+                    event_date: ISO8601DateFormatter().string(from: eventDate),
+                    notes: "Propagated from \(parent.name)",
+                    metadata: PropagationEventMetadataPayload(parent_plant_id: parentPlantId)
+                )
+                try await client
+                    .from("plant_events")
+                    .insert(eventPayload)
+                    .execute()
+            } catch {
+                print("SupabaseService: createPropagatedPlant event log failed for plantId=\(plant.id): \(error)")
+            }
+
+            return plant
+        } catch {
+            print("SupabaseService: createPropagatedPlant failed for parentPlantId=\(parentPlantId), userId=\(userId): \(error)")
             throw error
         }
     }
@@ -1343,6 +1686,93 @@ final class SupabaseService: @unchecked Sendable {
                 .execute()
         } catch {
             print("SupabaseService: deleteJournalEntry failed for entryId=\(entryId), userId=\(userId): \(error)")
+            throw error
+        }
+    }
+
+    func markPlantAsLegacy(plantId: String, userId: String, reason: String) async throws {
+        do {
+            try validateUUID(plantId, field: "plantId")
+            try validateUUID(userId, field: "userId")
+
+            let payload = PlantLegacyUpdate(
+                is_legacy: true,
+                legacy_reason: reason,
+                legacy_at: ISO8601DateFormatter().string(from: Date())
+            )
+            try await client
+                .from("plants")
+                .update(payload)
+                .eq("id", value: plantId)
+                .eq("user_id", value: userId)
+                .execute()
+
+            try await client
+                .from("plant_events")
+                .insert([
+                    "plant_id": plantId,
+                    "user_id": userId,
+                    "event_type": "legacy",
+                    "event_date": ISO8601DateFormatter().string(from: Date()),
+                    "notes": reason,
+                ])
+                .execute()
+        } catch {
+            print("SupabaseService: markPlantAsLegacy failed for plantId=\(plantId), userId=\(userId): \(error)")
+            throw error
+        }
+    }
+
+    func restorePlantFromLegacy(plantId: String, userId: String) async throws {
+        do {
+            try validateUUID(plantId, field: "plantId")
+            try validateUUID(userId, field: "userId")
+
+            let payload = PlantLegacyUpdate(
+                is_legacy: false,
+                legacy_reason: nil,
+                legacy_at: nil
+            )
+            try await client
+                .from("plants")
+                .update(payload)
+                .eq("id", value: plantId)
+                .eq("user_id", value: userId)
+                .execute()
+
+            try await client
+                .from("plant_events")
+                .insert([
+                    "plant_id": plantId,
+                    "user_id": userId,
+                    "event_type": "restored",
+                    "event_date": ISO8601DateFormatter().string(from: Date()),
+                    "notes": "Restored from legacy",
+                ])
+                .execute()
+        } catch {
+            print("SupabaseService: restorePlantFromLegacy failed for plantId=\(plantId), userId=\(userId): \(error)")
+            throw error
+        }
+    }
+
+    func createLegacyEvent(userId: String, plantId: String, reason: String?) async throws {
+        do {
+            try validateUUID(plantId, field: "plantId")
+            try validateUUID(userId, field: "userId")
+
+            try await client
+                .from("plant_events")
+                .insert([
+                    "plant_id": plantId,
+                    "user_id": userId,
+                    "event_type": "legacy",
+                    "event_date": ISO8601DateFormatter().string(from: Date()),
+                    "notes": reason ?? "",
+                ])
+                .execute()
+        } catch {
+            print("SupabaseService: createLegacyEvent failed for plantId=\(plantId), userId=\(userId): \(error)")
             throw error
         }
     }

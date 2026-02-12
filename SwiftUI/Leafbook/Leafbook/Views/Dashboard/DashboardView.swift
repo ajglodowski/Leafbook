@@ -9,10 +9,10 @@ import SwiftUI
 
 struct DashboardView: View {
     @EnvironmentObject private var sessionState: SessionState
-    @StateObject private var viewModel: DashboardViewModel
+    @State private var viewModel: DashboardViewModel
 
     init(viewModel: DashboardViewModel = .init()) {
-        _viewModel = StateObject(wrappedValue: viewModel)
+        _viewModel = State(initialValue: viewModel)
     }
 
     var body: some View {
@@ -137,5 +137,6 @@ struct DashboardView: View {
 #Preview {
     DashboardView(viewModel: DashboardViewModel(initialSummary: .preview))
         .environmentObject(SessionState(isPreview: true))
+        .environmentObject(TabRouter())
         .padding(.vertical)
 }

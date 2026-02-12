@@ -27,6 +27,9 @@ struct PlantRowDisplayModel: Equatable {
     let locationBadge: LocationBadge
     let taskBadges: [TaskBadge]
     let thumbnailURL: URL?
+    let isLegacy: Bool
+    let legacyReason: String?
+    let legacyDateText: String?
 
     init(plant: Plant, taskStatus: PlantDueTask?, thumbnailURL: URL?) {
         self.name = plant.name
@@ -37,6 +40,9 @@ struct PlantRowDisplayModel: Equatable {
         self.locationBadge = PlantRowDisplayModel.locationBadge(from: plant.plantLocation)
         self.taskBadges = PlantRowDisplayModel.taskBadges(from: taskStatus)
         self.thumbnailURL = thumbnailURL
+        self.isLegacy = plant.isLegacy ?? false
+        self.legacyReason = PlantRowDisplayModel.normalizedText(plant.legacyReason)
+        self.legacyDateText = PlantRowDisplayModel.formattedLegacyDate(from: plant.legacyAt)
     }
 
     static func locationBadge(from plantLocation: String?) -> LocationBadge {
@@ -71,5 +77,21 @@ struct PlantRowDisplayModel: Equatable {
             return nil
         }
         return value
+    }
+
+    private static func formattedLegacyDate(from value: String?) -> String? {
+        guard let value else { return nil }
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        var date = formatter.date(from: value)
+        if date == nil {
+            formatter.formatOptions = [.withInternetDateTime]
+            date = formatter.date(from: value)
+        }
+        guard let resolvedDate = date else { return nil }
+        let outputFormatter = DateFormatter()
+        outputFormatter.locale = Locale(identifier: "en_US_POSIX")
+        outputFormatter.dateFormat = "MMM d, yyyy"
+        return outputFormatter.string(from: resolvedDate)
     }
 }

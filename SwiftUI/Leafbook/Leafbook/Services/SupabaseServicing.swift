@@ -70,6 +70,8 @@ protocol SupabaseServicing: Sendable {
     ) async throws
     func deletePlantEvent(eventId: String) async throws
     func createPlantIssue(userId: String, plantId: String, issueType: String, severity: String, description: String) async throws
+    func updatePlantPhotoMetadata(photoId: String, takenAt: Date, caption: String?) async throws
+    func uploadPlantPhoto(plantId: String, imageData: Data, takenAt: Date?, caption: String?) async throws -> PlantPhoto
     func updatePlantCarePreferences(plantId: String, wateringDays: Int?, fertilizingDays: Int?) async throws
     func updatePlantDetails(
         plantId: String,
@@ -84,6 +86,25 @@ protocol SupabaseServicing: Sendable {
         acquiredAt: Date?,
         parentPlantId: String?
     ) async throws
+    func setParentPlant(
+        childPlantId: String,
+        parentPlantId: String,
+        userId: String,
+        propagationDate: Date?
+    ) async throws
+    func clearParentPlant(childPlantId: String, userId: String) async throws
+    func createPropagatedPlant(
+        userId: String,
+        parentPlantId: String,
+        name: String,
+        nickname: String?,
+        plantTypeId: String?,
+        plantLocation: String,
+        location: String?,
+        lightExposure: String?,
+        propagationDate: Date?,
+        description: String?
+    ) async throws -> Plant
     func createAcquiredEvent(userId: String, plantId: String) async throws
     func updatePlantCurrentPot(plantId: String, potId: String?) async throws
     func updatePlantLocation(plantId: String, location: String?) async throws
@@ -98,4 +119,7 @@ protocol SupabaseServicing: Sendable {
         eventId: String?
     ) async throws
     func deleteJournalEntry(entryId: String, userId: String) async throws
+    func markPlantAsLegacy(plantId: String, userId: String, reason: String) async throws
+    func restorePlantFromLegacy(plantId: String, userId: String) async throws
+    func createLegacyEvent(userId: String, plantId: String, reason: String?) async throws
 }

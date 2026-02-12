@@ -8,14 +8,17 @@
 import SwiftUI
 
 struct MainTabView: View {
+    @EnvironmentObject private var tabRouter: TabRouter
+
     var body: some View {
-        TabView {
+        TabView(selection: $tabRouter.selectedTab) {
             NavigationStack {
                 DashboardView()
             }
             .tabItem {
                 Label("Dashboard", systemImage: "calendar.badge.checkmark")
             }
+            .tag(LeafbookTab.dashboard)
 
             NavigationStack {
                 PlantsListView()
@@ -23,6 +26,7 @@ struct MainTabView: View {
             .tabItem {
                 Label("Plants", systemImage: "leaf")
             }
+            .tag(LeafbookTab.plants)
 
             NavigationStack {
                 TimelineListView()
@@ -30,6 +34,7 @@ struct MainTabView: View {
             .tabItem {
                 Label("Timeline", systemImage: "clock")
             }
+            .tag(LeafbookTab.timeline)
 
             NavigationStack {
                 SettingsView()
@@ -37,8 +42,9 @@ struct MainTabView: View {
             .tabItem {
                 Label("Settings", systemImage: "gearshape")
             }
+            .tag(LeafbookTab.settings)
         }
-#if os(macOS)
+#if os(macOS) || os(iOS)
         .tabViewStyle(.sidebarAdaptable)
         .labelStyle(.titleAndIcon)
 #endif
@@ -50,4 +56,5 @@ struct MainTabView: View {
     MainTabView()
         .environmentObject(SessionState(isPreview: true))
         .environmentObject(AppearanceSettings())
+        .environmentObject(TabRouter())
 }

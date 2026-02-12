@@ -7,6 +7,7 @@
 
 import SwiftUI
 
+@MainActor
 protocol IconLabelTabItem: Identifiable, Hashable {
     var title: String { get }
     var iconName: String { get }
@@ -62,6 +63,7 @@ struct IconLabelTabBar<Tab: IconLabelTabItem>: View {
                         .frame(minWidth: isCompactWidth ? 62 : 78)
                         .padding(.vertical, isCompactWidth ? 8 : 10)
                         .padding(.horizontal, isCompactWidth ? 10 : 12)
+                        .contentShape(Rectangle())
                         .foregroundStyle(selection == tab ? primaryColor : foregroundColor)
                         .background(
                             RoundedRectangle(cornerRadius: 10, style: .continuous)

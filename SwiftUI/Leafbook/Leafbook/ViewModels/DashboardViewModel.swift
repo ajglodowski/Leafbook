@@ -5,14 +5,16 @@
 //  Created by AJ Glodowski on 1/26/26.
 //
 
-import Combine
 import Foundation
+import Observation
+import WidgetKit
 
+@Observable
 @MainActor
-final class DashboardViewModel: ObservableObject {
-    @Published private(set) var summary: DashboardSummary
-    @Published private(set) var isLoading = false
-    @Published var errorMessage: String?
+final class DashboardViewModel {
+    private(set) var summary: DashboardSummary
+    private(set) var isLoading = false
+    var errorMessage: String?
 
     private let service: SupabaseService
 
@@ -76,6 +78,7 @@ final class DashboardViewModel: ObservableObject {
                 eventDate: eventDate
             )
             await load(userId: userId)
+            WidgetCenter.shared.reloadAllTimelines()
             return true
         } catch {
             errorMessage = "We couldn't log that care task."

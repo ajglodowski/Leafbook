@@ -1,20 +1,18 @@
-import { Leaf } from "lucide-react";
 import Link from "next/link";
 
+import { LeafbookIcon } from "@/components/LeafbookIcon";
 import { Button } from "@/components/ui/button";
 
 export function MarketingHeader() {
   return (
     <header className="border-b">
-      <div className="container flex h-14 items-center justify-between">
+      <div className="container flex h-14 items-center justify-between px-4 md:px-6">
         <Link
           href="/"
-          className="flex items-center gap-2 font-serif text-lg font-semibold tracking-tight text-primary"
+          className="flex items-center gap-2 font-serif text-lg font-semibold tracking-tight"
         >
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-            <Leaf className="h-5 w-5 text-primary" />
-          </div>
-          <span>Leafbook</span>
+          <LeafbookIcon size={40} className="text-primary" />
+          <span className="text-primary">Leafbook</span>
         </Link>
         <div className="flex items-center gap-2">
           <Link href="/about">

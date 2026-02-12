@@ -5,17 +5,19 @@
 //  Created by AJ Glodowski on 1/26/26.
 //
 
-import Combine
 import Foundation
+import Observation
 
+@Observable
 @MainActor
-final class PlantsViewModel: ObservableObject {
-    @Published private(set) var plants: [Plant] = []
-    @Published private(set) var dueTasksByPlantId: [String: PlantDueTask] = [:]
-    @Published private(set) var photosById: [String: PlantPhoto] = [:]
-    @Published private(set) var photosByPlantId: [String: PlantPhoto] = [:]
-    @Published private(set) var isLoading = false
-    @Published var errorMessage: String?
+final class PlantsViewModel {
+    private(set) var plants: [Plant] = []
+    private(set) var legacyPlants: [Plant] = []
+    private(set) var dueTasksByPlantId: [String: PlantDueTask] = [:]
+    private(set) var photosById: [String: PlantPhoto] = [:]
+    private(set) var photosByPlantId: [String: PlantPhoto] = [:]
+    private(set) var isLoading = false
+    var errorMessage: String?
 
     private let service: SupabaseService
 
@@ -29,15 +31,19 @@ final class PlantsViewModel: ObservableObject {
         defer { isLoading = false }
 
         do {
-            let plants = try await service.fetchActivePlants(userId: userId)
+            async let plantsResult = service.fetchActivePlants(userId: userId)
+            async let legacyPlantsResult = service.fetchLegacyPlants(userId: userId)
             async let dueTasks = service.fetchDueTasks(userId: userId)
 
-            let plantIds = plants.map { $0.id }
+            let plants = try await plantsResult
+            let legacyPlants = try await legacyPlantsResult
+            let plantIds = (plants + legacyPlants).map { $0.id }
             let photos = try await service.fetchPlantPhotos(plantIds: plantIds)
 
             let resolvedTasks = try await dueTasks
 
             self.plants = plants
+            self.legacyPlants = legacyPlants
             self.dueTasksByPlantId = Dictionary(uniqueKeysWithValues: resolvedTasks.map { ($0.plantId, $0) })
             self.photosById = Dictionary(uniqueKeysWithValues: photos.map { ($0.id, $0) })
             self.photosByPlantId = Self.firstPhotosByPlantId(from: photos)

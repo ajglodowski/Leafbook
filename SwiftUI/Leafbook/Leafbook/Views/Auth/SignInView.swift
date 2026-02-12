@@ -8,16 +8,21 @@
 import SwiftUI
 
 struct SignInView: View {
-    @StateObject private var viewModel = AuthViewModel()
+    @State private var viewModel = AuthViewModel()
 
     var body: some View {
         VStack(spacing: 24) {
-            VStack(spacing: 8) {
-                Text("Leafbook")
-                    .font(.largeTitle.weight(.semibold))
-                Text("Welcome back. Your plants missed you.")
-                    .font(.subheadline)
-                    .foregroundStyle(LeafbookColors.foreground.opacity(0.7))
+            VStack(spacing: 16) {
+                LeafbookLogoView()
+                    .frame(width: 120, height: 144)
+
+                VStack(spacing: 8) {
+                    Text("Leafbook")
+                        .font(.largeTitle.weight(.semibold))
+                    Text("Welcome back. Your plants missed you.")
+                        .font(.subheadline)
+                        .foregroundStyle(LeafbookColors.foreground.opacity(0.7))
+                }
             }
 
             VStack(spacing: 16) {

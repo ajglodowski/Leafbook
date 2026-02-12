@@ -16,28 +16,24 @@ struct DashboardJournalRow: View {
             NavigationLink {
                 PlantDetailView(plantId: entry.plantId)
             } label: {
-                DashboardThumbnailView(url: thumbnailURL, size: 56)
+                DashboardThumbnailView(url: thumbnailURL, size: 64)
+                    .cornerRadius(16)
             }
             .buttonStyle(.plain)
 
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 6) {
-                    NavigationLink {
-                        PlantDetailView(plantId: entry.plantId)
-                    } label: {
-                        Text(entry.plant.name)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(LeafbookColors.primary)
-                    }
-                    .buttonStyle(.plain)
-
-                    Text("·")
-                        .foregroundStyle(LeafbookColors.foreground.opacity(0.5))
-
-                    Text(DashboardUtils.formatJournalDate(entry.entryDate))
-                        .font(.caption)
-                        .foregroundStyle(LeafbookColors.foreground.opacity(0.6))
+            VStack(alignment: .leading, spacing: 4) {
+                NavigationLink {
+                    PlantDetailView(plantId: entry.plantId)
+                } label: {
+                    Text(entry.plant.name)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(LeafbookColors.foreground)
                 }
+                .buttonStyle(.plain)
+
+                Text(DashboardUtils.formatJournalDate(entry.entryDate))
+                    .font(.caption)
+                    .foregroundStyle(LeafbookColors.foreground.opacity(0.6))
 
                 if let title = entry.title, !title.isEmpty {
                     Text(title)
@@ -61,6 +57,7 @@ struct DashboardJournalRow: View {
             }
             .buttonStyle(.bordered)
         }
+        .padding(.trailing, 16)
     }
 }
 

@@ -9,47 +9,77 @@ import SwiftUI
 
 struct PlantDetailCareTab: View {
     let plant: Plant
+    let isLegacy: Bool
     let dueTask: PlantDueTask?
     let carePreferences: PlantCarePreferences?
     let scheduleSuggestion: PlantScheduleSuggestion?
     let currentPot: PlantPot?
     let unusedPots: [PlantPot]
     let hasCustomCare: Bool
-    let onWater: (() -> Void)?
-    let onFertilize: (() -> Void)?
+    let onWater: ((Date) -> Void)?
+    let onFertilize: ((Date) -> Void)?
     let onEditCarePreferences: (() -> Void)?
     let onRepot: (() -> Void)?
     let onAcceptSuggestion: (() -> Void)?
     let onDismissSuggestion: (() -> Void)?
 
+    private let quickActionHeight: CGFloat = 30
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            if plant.isLegacy == false {
+            if !isLegacy {
                 LeafbookCard {
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 12) {
                         Text("Quick care")
                             .font(.headline)
-                        HStack(spacing: 12) {
-                            Button("Log water") {
-                                onWater?()
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 12) {
+                                if let onWater {
+                                    CareLogButton(
+                                        title: "Water",
+                                        systemImage: "drop.fill",
+                                        tint: LeafbookColors.waterBlue,
+                                        onLog: onWater
+                                    )
+                                }
+                                if let onFertilize {
+                                    CareLogButton(
+                                        title: "Feed",
+                                        systemImage: "sparkles",
+                                        tint: LeafbookColors.fertilizerAmber,
+                                        onLog: onFertilize
+                                    )
+                                }
+                                if let onRepot {
+                                    Button {
+                                        onRepot()
+                                    } label: {
+                                        Label("Repot", systemImage: "square.stack.3d.up.fill")
+                                            .font(.caption.weight(.semibold))
+                                            .foregroundStyle(LeafbookColors.foreground)
+                                            .padding(.horizontal, 12)
+                                            .frame(height: quickActionHeight)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .background(
+                                        LinearGradient(
+                                            colors: [
+                                                LeafbookColors.primary.opacity(0.18),
+                                                LeafbookColors.muted.opacity(0.6)
+                                            ],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                }
                             }
-                            .buttonStyle(.borderedProminent)
-                            Button("Log fertilizer") {
-                                onFertilize?()
-                            }
-                            .buttonStyle(.bordered)
-                        }
-                        if let onRepot {
-                            Button("Repot") {
-                                onRepot()
-                            }
-                            .buttonStyle(.bordered)
                         }
                     }
                 }
             }
 
-            if let dueTask {
+            if !isLegacy, let dueTask {
                 LeafbookCard {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Care status")
@@ -63,8 +93,19 @@ struct PlantDetailCareTab: View {
 
             LeafbookCard {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Care rhythm")
-                        .font(.headline)
+                    HStack(spacing: 6) {
+                        Text("Care rhythm")
+                            .font(.headline)
+                        if isLegacy {
+                            Text("Historical")
+                                .font(.caption2.weight(.medium))
+                                .foregroundStyle(LeafbookColors.foreground.opacity(0.5))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(LeafbookColors.muted.opacity(0.5))
+                                .clipShape(Capsule())
+                        }
+                    }
                     if let watering = carePreferences?.wateringFrequencyDays {
                         detailRow(label: "Water", value: "Every \(watering) days")
                     }
@@ -90,7 +131,7 @@ struct PlantDetailCareTab: View {
                 }
             }
 
-            if let scheduleSuggestion {
+            if !isLegacy, let scheduleSuggestion {
                 LeafbookCard {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Schedule suggestion")
@@ -170,6 +211,7 @@ struct PlantDetailCareTab: View {
 #Preview {
     PlantDetailCareTab(
         plant: .preview,
+        isLegacy: false,
         dueTask: .preview,
         carePreferences: .preview,
         scheduleSuggestion: .preview,

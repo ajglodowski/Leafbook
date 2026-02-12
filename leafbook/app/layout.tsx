@@ -12,6 +12,10 @@ export const metadata: Metadata = {
   metadataBase: new URL(defaultUrl),
   title: "Leafbook — A warm, modern plant journal",
   description: "Journal your plants. Track care with one tap. Build a story for every leaf.",
+  icons: {
+    icon: '/icon',
+    apple: '/apple-icon',
+  },
 };
 
 const lora = Lora({

@@ -52,3 +52,13 @@ struct PropagationGroup: Equatable {
     let childrenPlants: [PropagationPlant]
     let availableParents: [PropagationPlant]
 }
+
+struct PropagationDraft: Equatable {
+    let name: String
+    let nickname: String?
+    let plantLocation: String
+    let location: String?
+    let lightExposure: String?
+    let propagationDate: Date?
+    let notes: String?
+}

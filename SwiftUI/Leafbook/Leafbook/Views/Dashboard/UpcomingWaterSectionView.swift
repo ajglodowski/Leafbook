@@ -45,7 +45,7 @@ struct UpcomingWaterSectionView: View {
                         .foregroundStyle(LeafbookColors.foreground.opacity(0.7))
                     LazyVStack(spacing: 8) {
                         ForEach(upcomingTasks.prefix(6)) { upcoming in
-                            LeafbookCard(verticalPadding: 10, horizontalPadding: 12) {
+                            LeafbookCard(verticalPadding: 0, horizontalPadding: 0) {
                                 UpcomingTaskRow(
                                     task: upcoming.task,
                                     daysUntilWater: upcoming.daysUntilWater,
@@ -80,7 +80,8 @@ private struct UpcomingTaskRow: View {
             NavigationLink {
                 PlantDetailView(plantId: task.plantId)
             } label: {
-                DashboardThumbnailView(url: thumbnailURL)
+                DashboardThumbnailView(url: thumbnailURL, size: 64)
+                    .cornerRadius(16)
             }
             .buttonStyle(.plain)
 
@@ -98,17 +99,19 @@ private struct UpcomingTaskRow: View {
                     .font(.caption)
                     .foregroundStyle(LeafbookColors.foreground.opacity(0.6))
             }
+            .padding(.vertical, 8)
 
             Spacer()
 
             CareLogButton(
-                title: "Log",
-                systemImage: "square.and.pencil",
+                title: "Water",
+                systemImage: "drop",
                 tint: LeafbookColors.waterBlue,
                 onLog: { date in onWater(task.plantId, date) }
             )
             .controlSize(.small)
         }
+        .padding(.trailing, 16)
     }
 }
 

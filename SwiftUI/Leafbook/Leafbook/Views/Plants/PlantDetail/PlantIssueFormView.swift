@@ -12,13 +12,23 @@ struct PlantIssueFormView: View {
 
     let onSave: @Sendable (String, String, String) async -> Bool
 
-    @State private var issueType = "pests"
+    @State private var issueType = "pest"
     @State private var severity = "medium"
     @State private var descriptionText = ""
     @State private var isSaving = false
     @State private var errorMessage: String?
 
-    private let issueTypes = ["pests", "rot", "droop", "yellowing", "spots", "other"]
+    private let issueTypes = [
+        "pest",
+        "disease",
+        "overwatering",
+        "underwatering",
+        "root_rot",
+        "yellowing",
+        "browning",
+        "wilting",
+        "other"
+    ]
     private let severityLevels = ["low", "medium", "high"]
 
     var body: some View {
@@ -27,7 +37,7 @@ struct PlantIssueFormView: View {
                 Section(header: Text("Issue")) {
                     Picker("Type", selection: $issueType) {
                         ForEach(issueTypes, id: \.self) { type in
-                            Text(type.capitalized).tag(type)
+                            Text(formatIssueType(type)).tag(type)
                         }
                     }
                     Picker("Severity", selection: $severity) {
@@ -60,6 +70,21 @@ struct PlantIssueFormView: View {
                     .disabled(isSaving || descriptionText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
+        }
+    }
+
+    private func formatIssueType(_ type: String) -> String {
+        switch type {
+        case "pest": return "Pest"
+        case "disease": return "Disease"
+        case "overwatering": return "Overwatering"
+        case "underwatering": return "Underwatering"
+        case "root_rot": return "Root Rot"
+        case "yellowing": return "Yellowing"
+        case "browning": return "Browning"
+        case "wilting": return "Wilting"
+        case "other": return "Other"
+        default: return type.capitalized
         }
     }
 

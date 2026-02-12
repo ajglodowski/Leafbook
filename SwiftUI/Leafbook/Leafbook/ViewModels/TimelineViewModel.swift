@@ -5,19 +5,20 @@
 //  Created by AJ Glodowski on 1/31/26.
 //
 
-import Combine
 import Foundation
+import Observation
 
+@Observable
 @MainActor
-final class TimelineViewModel: ObservableObject {
-    @Published private(set) var events: [PlantEvent] = []
-    @Published private(set) var issues: [PlantIssue] = []
-    @Published private(set) var entries: [JournalEntry] = []
-    @Published private(set) var plants: [Plant] = []
-    @Published private(set) var pots: [PlantPot] = []
-    @Published private(set) var photosByPlantId: [String: [PlantPhoto]] = [:]
-    @Published private(set) var isLoading = false
-    @Published var errorMessage: String?
+final class TimelineViewModel {
+    private(set) var events: [PlantEvent] = []
+    private(set) var issues: [PlantIssue] = []
+    private(set) var entries: [JournalEntry] = []
+    private(set) var plants: [Plant] = []
+    private(set) var pots: [PlantPot] = []
+    private(set) var photosByPlantId: [String: [PlantPhoto]] = [:]
+    private(set) var isLoading = false
+    var errorMessage: String?
 
     private let service: SupabaseService
     let isPreview: Bool

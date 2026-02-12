@@ -5,30 +5,35 @@
 //  Created by AJ Glodowski on 1/26/26.
 //
 
-import Combine
 import Foundation
+import Observation
 
+@Observable
 @MainActor
-final class PlantDetailViewModel: ObservableObject {
-    @Published private(set) var plant: Plant = .preview
-    @Published private(set) var photos: [PlantPhoto] = []
-    @Published private(set) var journalEntries: [JournalEntry] = []
-    @Published private(set) var events: [PlantEvent] = []
-    @Published private(set) var issues: [PlantIssue] = []
-    @Published private(set) var dueTask: PlantDueTask?
-    @Published private(set) var carePreferences: PlantCarePreferences?
-    @Published private(set) var scheduleSuggestion: PlantScheduleSuggestion?
-    @Published private(set) var pots: [PlantPot] = []
-    @Published private(set) var propagationGroup = PropagationGroup(parentPlant: nil, childrenPlants: [], availableParents: [])
-    @Published private(set) var propagationPhotosByPlantId: [String: PlantPhoto] = [:]
-    @Published private(set) var isLoading = false
-    @Published private(set) var hasLoadedData = false
-    @Published var errorMessage: String?
+final class PlantDetailViewModel {
+    private(set) var plant: Plant = .preview
+    private(set) var photos: [PlantPhoto] = []
+    private(set) var journalEntries: [JournalEntry] = []
+    private(set) var events: [PlantEvent] = []
+    private(set) var issues: [PlantIssue] = []
+    private(set) var dueTask: PlantDueTask?
+    private(set) var carePreferences: PlantCarePreferences?
+    private(set) var scheduleSuggestion: PlantScheduleSuggestion?
+    private(set) var pots: [PlantPot] = []
+    private(set) var propagationGroup = PropagationGroup(parentPlant: nil, childrenPlants: [], availableParents: [])
+    private(set) var propagationPhotosByPlantId: [String: PlantPhoto] = [:]
+    private(set) var isLoading = false
+    private(set) var hasLoadedData = false
+    var errorMessage: String?
 
     private let service: SupabaseServicing
 
     init(service: SupabaseServicing = SupabaseService.shared) {
         self.service = service
+    }
+
+    var isLegacy: Bool {
+        plant.isLegacy ?? false
     }
 
     var activeIssues: [PlantIssue] {
@@ -256,6 +261,35 @@ final class PlantDetailViewModel: ObservableObject {
         }
     }
 
+    func updatePhotoMetadata(userId: String, photoId: String, takenAt: Date, caption: String?) async -> String? {
+        do {
+            try await service.updatePlantPhotoMetadata(photoId: photoId, takenAt: takenAt, caption: caption)
+            await load(plantId: plant.id, userId: userId)
+            return nil
+        } catch {
+            print("PlantDetailViewModel: failed to update photo metadata: \(error)")
+            errorMessage = "We couldn't update that photo."
+            return "We couldn't update that photo."
+        }
+    }
+
+    func uploadPhoto(userId: String, plantId: String, imageData: Data, takenAt: Date, caption: String?) async -> String? {
+        do {
+            _ = try await service.uploadPlantPhoto(
+                plantId: plantId,
+                imageData: imageData,
+                takenAt: takenAt,
+                caption: caption
+            )
+            await load(plantId: plantId, userId: userId)
+            return nil
+        } catch {
+            print("PlantDetailViewModel: failed to upload photo: \(error)")
+            errorMessage = "We couldn't upload that photo."
+            return "We couldn't upload that photo."
+        }
+    }
+
     func savePlantEdits(
         plantId: String,
         userId: String,
@@ -289,6 +323,70 @@ final class PlantDetailViewModel: ObservableObject {
         } catch {
             errorMessage = "We couldn't update that plant."
             return false
+        }
+    }
+
+    func setParentPlant(
+        userId: String,
+        plantId: String,
+        parentPlantId: String,
+        propagationDate: Date?
+    ) async -> Bool {
+        do {
+            try await service.setParentPlant(
+                childPlantId: plantId,
+                parentPlantId: parentPlantId,
+                userId: userId,
+                propagationDate: propagationDate
+            )
+            await load(plantId: plantId, userId: userId)
+            return true
+        } catch {
+            errorMessage = "We couldn't set that parent plant."
+            return false
+        }
+    }
+
+    func clearParentPlant(userId: String, plantId: String) async -> Bool {
+        do {
+            try await service.clearParentPlant(childPlantId: plantId, userId: userId)
+            await load(plantId: plantId, userId: userId)
+            return true
+        } catch {
+            errorMessage = "We couldn't remove that parent plant."
+            return false
+        }
+    }
+
+    func createPropagatedPlant(
+        userId: String,
+        plantId: String,
+        parentPlantId: String,
+        plantTypeId: String?,
+        draft: PropagationDraft
+    ) async -> String? {
+        do {
+            let trimmedName = draft.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            let trimmedNickname = draft.nickname?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let trimmedLocation = draft.location?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let trimmedNotes = draft.notes?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let plant = try await service.createPropagatedPlant(
+                userId: userId,
+                parentPlantId: parentPlantId,
+                name: trimmedName,
+                nickname: trimmedNickname?.isEmpty == true ? nil : trimmedNickname,
+                plantTypeId: plantTypeId,
+                plantLocation: draft.plantLocation,
+                location: trimmedLocation?.isEmpty == true ? nil : trimmedLocation,
+                lightExposure: draft.lightExposure,
+                propagationDate: draft.propagationDate,
+                description: trimmedNotes?.isEmpty == true ? nil : trimmedNotes
+            )
+            await load(plantId: plantId, userId: userId)
+            return plant.id
+        } catch {
+            errorMessage = "We couldn't create that propagation."
+            return nil
         }
     }
 
@@ -495,6 +593,39 @@ final class PlantDetailViewModel: ObservableObject {
             return true
         } catch {
             errorMessage = "We couldn't save that journal entry."
+            return false
+        }
+    }
+
+    func markAsLegacy(userId: String, plantId: String, reason: String) async -> Bool {
+        do {
+            try await service.markPlantAsLegacy(plantId: plantId, userId: userId, reason: reason)
+            await load(plantId: plantId, userId: userId)
+            return true
+        } catch {
+            errorMessage = "We couldn't mark this plant as legacy."
+            return false
+        }
+    }
+
+    func createLegacyEvent(userId: String, plantId: String) async -> Bool {
+        do {
+            try await service.createLegacyEvent(userId: userId, plantId: plantId, reason: plant.legacyReason)
+            await load(plantId: plantId, userId: userId)
+            return true
+        } catch {
+            errorMessage = "We couldn't add that legacy event."
+            return false
+        }
+    }
+
+    func restoreFromLegacy(userId: String, plantId: String) async -> Bool {
+        do {
+            try await service.restorePlantFromLegacy(plantId: plantId, userId: userId)
+            await load(plantId: plantId, userId: userId)
+            return true
+        } catch {
+            errorMessage = "We couldn't restore this plant."
             return false
         }
     }

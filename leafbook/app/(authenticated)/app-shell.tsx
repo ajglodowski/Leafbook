@@ -2,9 +2,9 @@
 
 import {
   CalendarCheck,
+  Leaf,
   Heart,
   History,
-  Leaf,
   Library,
   LogOut,
   Menu,
@@ -16,6 +16,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
 import { ThemeSwitcher } from "@/app/(authenticated)/theme-switcher";
+import { LeafbookIcon } from "@/components/LeafbookIcon";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -63,12 +64,10 @@ export function AppShell({
           {/* Logo */}
           <Link
             href="/"
-            className="flex items-center gap-2 font-serif text-lg font-semibold tracking-tight text-primary mr-6"
+            className="flex items-center gap-2 font-serif text-lg font-semibold tracking-tight mr-6"
           >
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-              <Leaf className="h-5 w-5 text-primary" />
-            </div>
-            <span className="hidden sm:inline">Leafbook</span>
+            <LeafbookIcon size={40} className="text-primary" />
+            <span className="hidden sm:inline text-primary">Leafbook</span>
           </Link>
 
           {/* Mobile hamburger menu */}

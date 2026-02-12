@@ -7,10 +7,21 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1A2B11632F3BE5CD0088A0E1 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1A2B11442F3BE58F0088A0E1 /* WidgetKit.framework */; };
+		1A2B11642F3BE5CD0088A0E1 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1A2B11462F3BE58F0088A0E1 /* SwiftUI.framework */; };
+		1A2B11712F3BE5CE0088A0E1 /* LeafbookWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 1A2B11622F3BE5CD0088A0E1 /* LeafbookWidgetExtension.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		1A2B11802F3BF0000088A0E1 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 1A2B117F2F3BF0000088A0E1 /* Supabase */; };
 		1AC9B5472F286B0F00A3C3BC /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 1AC9B5A22F28700000A3C3BC /* Supabase */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		1A2B116F2F3BE5CE0088A0E1 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1AC9B3B12F28658300A3C3BC /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 1A2B11612F3BE5CD0088A0E1;
+			remoteInfo = LeafbookWidgetExtension;
+		};
 		1AC9B3C72F28658400A3C3BC /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 1AC9B3B12F28658300A3C3BC /* Project object */;
@@ -27,13 +38,49 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		1A2B115D2F3BE5900088A0E1 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				1A2B11712F3BE5CE0088A0E1 /* LeafbookWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		1A2B11442F3BE58F0088A0E1 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		1A2B11462F3BE58F0088A0E1 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		1A2B11622F3BE5CD0088A0E1 /* LeafbookWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = LeafbookWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		1A2B11762F3BE6010088A0E1 /* LeafbookWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = LeafbookWidgetExtension.entitlements; sourceTree = "<group>"; };
 		1AC9B3B92F28658300A3C3BC /* Leafbook.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Leafbook.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1AC9B3C62F28658400A3C3BC /* LeafbookTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LeafbookTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		1AC9B3D02F28658400A3C3BC /* LeafbookUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LeafbookUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		1A2B11722F3BE5CE0088A0E1 /* Exceptions for "LeafbookWidget" folder in "LeafbookWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 1A2B11612F3BE5CD0088A0E1 /* LeafbookWidgetExtension */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		1A2B11652F3BE5CD0088A0E1 /* LeafbookWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				1A2B11722F3BE5CE0088A0E1 /* Exceptions for "LeafbookWidget" folder in "LeafbookWidgetExtension" target */,
+			);
+			path = LeafbookWidget;
+			sourceTree = "<group>";
+		};
 		1AC9B3BB2F28658300A3C3BC /* Leafbook */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Leafbook;
@@ -52,6 +99,16 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		1A2B115F2F3BE5CD0088A0E1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1A2B11642F3BE5CD0088A0E1 /* SwiftUI.framework in Frameworks */,
+				1A2B11632F3BE5CD0088A0E1 /* WidgetKit.framework in Frameworks */,
+				1A2B11802F3BF0000088A0E1 /* Supabase in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		1AC9B3B62F28658300A3C3BC /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -77,12 +134,24 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		1A2B11432F3BE58F0088A0E1 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				1A2B11442F3BE58F0088A0E1 /* WidgetKit.framework */,
+				1A2B11462F3BE58F0088A0E1 /* SwiftUI.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		1AC9B3B02F28658300A3C3BC = {
 			isa = PBXGroup;
 			children = (
+				1A2B11762F3BE6010088A0E1 /* LeafbookWidgetExtension.entitlements */,
 				1AC9B3BB2F28658300A3C3BC /* Leafbook */,
 				1AC9B3C92F28658400A3C3BC /* LeafbookTests */,
 				1AC9B3D32F28658400A3C3BC /* LeafbookUITests */,
+				1A2B11652F3BE5CD0088A0E1 /* LeafbookWidget */,
+				1A2B11432F3BE58F0088A0E1 /* Frameworks */,
 				1AC9B3BA2F28658300A3C3BC /* Products */,
 			);
 			sourceTree = "<group>";
@@ -93,6 +162,7 @@
 				1AC9B3B92F28658300A3C3BC /* Leafbook.app */,
 				1AC9B3C62F28658400A3C3BC /* LeafbookTests.xctest */,
 				1AC9B3D02F28658400A3C3BC /* LeafbookUITests.xctest */,
+				1A2B11622F3BE5CD0088A0E1 /* LeafbookWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -100,6 +170,29 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		1A2B11612F3BE5CD0088A0E1 /* LeafbookWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1A2B11732F3BE5CE0088A0E1 /* Build configuration list for PBXNativeTarget "LeafbookWidgetExtension" */;
+			buildPhases = (
+				1A2B115E2F3BE5CD0088A0E1 /* Sources */,
+				1A2B115F2F3BE5CD0088A0E1 /* Frameworks */,
+				1A2B11602F3BE5CD0088A0E1 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				1A2B11652F3BE5CD0088A0E1 /* LeafbookWidget */,
+			);
+			name = LeafbookWidgetExtension;
+			packageProductDependencies = (
+				1A2B117F2F3BF0000088A0E1 /* Supabase */,
+			);
+			productName = LeafbookWidgetExtension;
+			productReference = 1A2B11622F3BE5CD0088A0E1 /* LeafbookWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		1AC9B3B82F28658300A3C3BC /* Leafbook */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 1AC9B3DA2F28658400A3C3BC /* Build configuration list for PBXNativeTarget "Leafbook" */;
@@ -107,10 +200,12 @@
 				1AC9B3B52F28658300A3C3BC /* Sources */,
 				1AC9B3B62F28658300A3C3BC /* Frameworks */,
 				1AC9B3B72F28658300A3C3BC /* Resources */,
+				1A2B115D2F3BE5900088A0E1 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				1A2B11702F3BE5CE0088A0E1 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				1AC9B3BB2F28658300A3C3BC /* Leafbook */,
@@ -179,6 +274,9 @@
 				LastSwiftUpdateCheck = 2610;
 				LastUpgradeCheck = 2610;
 				TargetAttributes = {
+					1A2B11612F3BE5CD0088A0E1 = {
+						CreatedOnToolsVersion = 26.1;
+					};
 					1AC9B3B82F28658300A3C3BC = {
 						CreatedOnToolsVersion = 26.1;
 					};
@@ -212,11 +310,19 @@
 				1AC9B3B82F28658300A3C3BC /* Leafbook */,
 				1AC9B3C52F28658400A3C3BC /* LeafbookTests */,
 				1AC9B3CF2F28658400A3C3BC /* LeafbookUITests */,
+				1A2B11612F3BE5CD0088A0E1 /* LeafbookWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		1A2B11602F3BE5CD0088A0E1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		1AC9B3B72F28658300A3C3BC /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -241,6 +347,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		1A2B115E2F3BE5CD0088A0E1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		1AC9B3B52F28658300A3C3BC /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -265,6 +378,12 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		1A2B11702F3BE5CE0088A0E1 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			platformFilter = ios;
+			target = 1A2B11612F3BE5CD0088A0E1 /* LeafbookWidgetExtension */;
+			targetProxy = 1A2B116F2F3BE5CE0088A0E1 /* PBXContainerItemProxy */;
+		};
 		1AC9B3C82F28658400A3C3BC /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 1AC9B3B82F28658300A3C3BC /* Leafbook */;
@@ -278,6 +397,73 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		1A2B11742F3BE5CE0088A0E1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = LeafbookWidgetExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 55DY7Z3JY7;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = LeafbookWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = LeafbookWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ajglodo.Leafbook.LeafbookWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		1A2B11752F3BE5CE0088A0E1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = LeafbookWidgetExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 55DY7Z3JY7;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = LeafbookWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = LeafbookWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.1;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ajglodo.Leafbook.LeafbookWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 		1AC9B3D82F28658400A3C3BC /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -589,6 +775,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		1A2B11732F3BE5CE0088A0E1 /* Build configuration list for PBXNativeTarget "LeafbookWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1A2B11742F3BE5CE0088A0E1 /* Debug */,
+				1A2B11752F3BE5CE0088A0E1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		1AC9B3B42F28658300A3C3BC /* Build configuration list for PBXProject "Leafbook" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -639,6 +834,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		1A2B117F2F3BF0000088A0E1 /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1AC9B5A12F28700000A3C3BC /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
 		1AC9B5A22F28700000A3C3BC /* Supabase */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 1AC9B5A12F28700000A3C3BC /* XCRemoteSwiftPackageReference "supabase-swift" */;

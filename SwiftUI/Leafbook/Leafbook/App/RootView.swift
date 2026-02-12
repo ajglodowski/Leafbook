@@ -9,18 +9,24 @@ import SwiftUI
 
 struct RootView: View {
     @EnvironmentObject private var sessionState: SessionState
+    @StateObject private var tabRouter = TabRouter()
 
     var body: some View {
         Group {
             switch sessionState.status {
             case .checking:
-                ProgressView("Getting things ready…")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(LeafbookColors.background)
+                VStack(spacing: 20) {
+                    LeafbookLogoView()
+                        .frame(width: 120, height: 144)
+                    ProgressView("Getting things ready…")
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(LeafbookColors.background)
             case .signedOut:
                 SignInView()
             case .signedIn:
                 MainTabView()
+                    .environmentObject(tabRouter)
             }
         }
     }
@@ -29,4 +35,5 @@ struct RootView: View {
 #Preview {
     RootView()
         .environmentObject(SessionState(isPreview: true))
+        .environmentObject(TabRouter())
 }

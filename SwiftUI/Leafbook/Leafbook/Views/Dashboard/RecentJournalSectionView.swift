@@ -10,6 +10,7 @@ import SwiftUI
 struct RecentJournalSectionView: View {
     let entries: [JournalEntry]
     let photosByPlantId: [String: [PlantPhoto]]
+    @EnvironmentObject private var tabRouter: TabRouter
 
     var body: some View {
         if entries.isEmpty {
@@ -20,8 +21,8 @@ struct RecentJournalSectionView: View {
                     Label("Recent Journal Entries", systemImage: "clock")
                         .font(.system(.title3, design: .serif).weight(.semibold))
                     Spacer()
-                    NavigationLink {
-                        TimelineListView(initialFeed: .journal)
+                    Button {
+                        tabRouter.openTimeline(feed: .journal)
                     } label: {
                         Text("View all")
                             .font(.subheadline.weight(.semibold))
@@ -55,4 +56,5 @@ struct RecentJournalSectionView: View {
         .padding()
         .background(LeafbookColors.background)
     }
+    .environmentObject(TabRouter())
 }

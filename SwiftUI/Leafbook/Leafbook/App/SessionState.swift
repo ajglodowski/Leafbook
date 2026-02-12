@@ -8,6 +8,7 @@
 import Combine
 import Foundation
 import Supabase
+import WidgetKit
 
 @MainActor
 final class SessionState: ObservableObject {
@@ -64,16 +65,24 @@ final class SessionState: ObservableObject {
     }
 
     private func updateSession(_ session: Session?) {
+        let shared = UserDefaults(suiteName: SharedAuthStorage.suiteName)
         guard let session else {
             status = .signedOut
+            shared?.removeObject(forKey: "widgetUserId")
+            WidgetCenter.shared.reloadAllTimelines()
             return
         }
 
         if session.isExpired {
             status = .signedOut
+            shared?.removeObject(forKey: "widgetUserId")
+            WidgetCenter.shared.reloadAllTimelines()
             return
         }
 
-        status = .signedIn(userId: session.user.id.uuidString)
+        let userId = session.user.id.uuidString
+        status = .signedIn(userId: userId)
+        shared?.set(userId, forKey: "widgetUserId")
+        WidgetCenter.shared.reloadAllTimelines()
     }
 }

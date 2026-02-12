@@ -67,7 +67,7 @@ struct CareTasksSectionView: View {
                             .foregroundStyle(LeafbookColors.foreground.opacity(0.7))
                         LazyVStack(spacing: 8) {
                             ForEach(needsWater.prefix(6)) { task in
-                                LeafbookCard(verticalPadding: 10, horizontalPadding: 12) {
+                                LeafbookCard(verticalPadding: 0, horizontalPadding: 0) {
                                     CareTaskRow(
                                         task: task,
                                         thumbnailURL: DashboardUtils.getThumbnailUrl(
@@ -160,7 +160,8 @@ private struct CareTaskRow: View {
             NavigationLink {
                 PlantDetailView(plantId: task.plantId)
             } label: {
-                DashboardThumbnailView(url: thumbnailURL)
+                DashboardThumbnailView(url: thumbnailURL, size: 64)
+                    .cornerRadius(16)
             }
             .buttonStyle(.plain)
 
@@ -178,17 +179,19 @@ private struct CareTaskRow: View {
                     .font(.caption)
                     .foregroundStyle(LeafbookColors.foreground.opacity(0.6))
             }
+            .padding(.vertical, 8)
 
             Spacer()
 
             CareLogButton(
-                title: "Log",
-                systemImage: "square.and.pencil",
+                title: "Water",
+                systemImage: "drop",
                 tint: logTint,
                 onLog: onLog
             )
             .controlSize(.small)
         }
+        .padding(.trailing, 16)
     }
 }
 

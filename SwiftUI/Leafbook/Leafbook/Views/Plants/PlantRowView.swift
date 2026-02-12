@@ -62,12 +62,22 @@ struct PlantRowView: View {
                         .foregroundStyle(LeafbookColors.foreground.opacity(0.7))
                         .lineLimit(1)
                 }
-                
-                LeafbookBadge(
-                    label: model.locationBadge.label,
-                    systemImage: model.locationBadge.systemImage,
-                    style: .muted
-                )
+
+                HStack(spacing: 6) {
+                    if model.isLegacy {
+                        LeafbookBadge(
+                            label: "Legacy",
+                            systemImage: "archivebox.fill",
+                            style: .muted
+                        )
+                    }
+
+                    LeafbookBadge(
+                        label: model.locationBadge.label,
+                        systemImage: model.locationBadge.systemImage,
+                        style: .muted
+                    )
+                }
             }
 
             
@@ -87,10 +97,30 @@ struct PlantRowView: View {
             }
 
             if let location = model.locationLine {
-                Label(location, systemImage: "mappin.and.ellipse")
-                    .font(.caption)
-                    .foregroundStyle(LeafbookColors.foreground.opacity(0.6))
-                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    Image(systemName: "mappin.and.ellipse")
+                    Text(location)
+                        .multilineTextAlignment(.center)
+                }
+                .font(.caption)
+                .foregroundStyle(LeafbookColors.foreground.opacity(0.6))
+                .lineLimit(1)
+            }
+
+            if model.isLegacy {
+                if let legacyReason = model.legacyReason {
+                    Label(legacyReason, systemImage: "archivebox")
+                        .font(.caption)
+                        .foregroundStyle(LeafbookColors.foreground.opacity(0.6))
+                        .lineLimit(1)
+                }
+
+                if let legacyDate = model.legacyDateText {
+                    Label(legacyDate, systemImage: "calendar")
+                        .font(.caption2)
+                        .foregroundStyle(LeafbookColors.foreground.opacity(0.55))
+                        .lineLimit(1)
+                }
             }
         }
     }

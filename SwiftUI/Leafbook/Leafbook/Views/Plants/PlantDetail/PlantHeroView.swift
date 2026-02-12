@@ -16,12 +16,6 @@ struct PlantHeroView: View {
     var onFertilize: ((Date) -> Void)?
     var onMove: (() -> Void)?
     var onEdit: (() -> Void)?
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-
-    private var lastWateredLabel: String {
-        // TODO: Get actual last watered date from dueTask when available
-        "Recently"
-    }
 
     private var isLegacy: Bool {
         plant.isLegacy ?? false
@@ -40,179 +34,139 @@ struct PlantHeroView: View {
     }
 
     var body: some View {
-        ZStack {
-            // Background gradient
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            LeafbookColors.primary.opacity(0.08),
-                            Color.clear,
-                            LeafbookColors.fertilizerAmber.opacity(0.05)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+        VStack(spacing: 0) {
 
-            // Decorative blur circles
-            Circle()
-                .fill(LeafbookColors.primary.opacity(0.06))
-                .frame(width: 140, height: 140)
-                .blur(radius: 40)
-                .offset(x: -80, y: -60)
+            // ── Photo + info ──
+            HStack(alignment: .center, spacing: 14) {
+                plantPhotoView
 
-            Circle()
-                .fill(LeafbookColors.fertilizerAmber.opacity(0.08))
-                .frame(width: 100, height: 100)
-                .blur(radius: 30)
-                .offset(x: 100, y: 80)
+                VStack(alignment: .leading, spacing: 6) {
+                    // Name
+                    Text(plant.name)
+                        .font(.system(.title, design: .serif))
+                        .fontWeight(.bold)
+                        .foregroundStyle(LeafbookColors.foreground)
+                        .lineLimit(2)
 
-            VStack(alignment: .leading, spacing: 0) {
-                // Last watered indicator
-                HStack(spacing: 6) {
-                    Image(systemName: "drop.fill")
-                        .font(.system(size: 12))
-                        .foregroundStyle(LeafbookColors.waterBlue)
-                    Text("Last watered \(lastWateredLabel)")
-                        .font(.caption)
-                        .foregroundStyle(LeafbookColors.foreground.opacity(0.7))
+                    if let nickname = plant.nickname, !nickname.isEmpty {
+                        Text("\u{201C}\(nickname)\u{201D}")
+                            .font(.callout)
+                            .italic()
+                            .foregroundStyle(LeafbookColors.foreground.opacity(0.55))
+                    }
+
+                    // Type
+                    if let plantType = plant.plantTypes {
+                        HStack(spacing: 4) {
+                            Image(systemName: "leaf")
+                                .font(.system(size: 11))
+                                .foregroundStyle(LeafbookColors.primary)
+                            Text(plantType.name)
+                                .font(.subheadline)
+                                .foregroundStyle(LeafbookColors.foreground.opacity(0.65))
+                            if let sci = plantType.scientificName, !sci.isEmpty {
+                                Text("·")
+                                    .foregroundStyle(LeafbookColors.foreground.opacity(0.25))
+                                Text(sci)
+                                    .font(.caption)
+                                    .italic()
+                                    .foregroundStyle(LeafbookColors.foreground.opacity(0.4))
+                            }
+                        }
+                    }
+
+                    // Badges
+                    badgesView
+
+                    // Legacy details
+                    if isLegacy {
+                        legacyDetailsView
+                    }
+
+                    // Origin
+                    originStoryView
+
+                    // Care status inline
+                    if let dueTask {
+                        HStack(spacing: 16) {
+                            HStack(spacing: 5) {
+                                Image(systemName: "drop.fill")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(LeafbookColors.waterBlue)
+                                Text(dueTask.wateringStatus?.displayText ?? "Not tracked")
+                                    .font(.caption)
+                                    .foregroundStyle(LeafbookColors.foreground.opacity(0.6))
+                            }
+                            HStack(spacing: 5) {
+                                Image(systemName: "sparkles")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(LeafbookColors.fertilizerAmber)
+                                Text(dueTask.fertilizingStatus?.displayText ?? "Not tracked")
+                                    .font(.caption)
+                                    .foregroundStyle(LeafbookColors.foreground.opacity(0.6))
+                            }
+                        }
+                    }
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 16)
+            }
+            .padding(16)
 
-            // Main content
-            heroContent
+            // ── Actions ──
+            if !isLegacy {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        if let onEdit {
+                            HStack(spacing: 0) {
+                                Button(action: onEdit) {
+                                    Label("Edit", systemImage: "pencil")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(LeafbookColors.foreground.opacity(0.85))
+                                        .padding(.horizontal, 12)
+                                        .frame(height: 30)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            .background(LeafbookColors.card)
+                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        }
+                        if let onWater {
+                            CareLogButton(title: "Water", systemImage: "drop.fill", tint: LeafbookColors.waterBlue, onLog: onWater)
+                        }
+                        if let onFertilize {
+                            CareLogButton(title: "Feed", systemImage: "sparkles", tint: LeafbookColors.fertilizerAmber, onLog: onFertilize)
+                        }
+                        if let onMove {
+                            HStack(spacing: 0) {
+                                Button(action: onMove) {
+                                    Label("Move", systemImage: "location.fill")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(.white)
+                                        .padding(.horizontal, 12)
+                                        .frame(height: 30)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            .background(LeafbookColors.primary)
+                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                }
+                .background(LeafbookColors.muted.opacity(0.3))
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(LeafbookColors.card)
+        )
     }
 
-    // MARK: - Photo View
+    // MARK: - Photo
 
     private var plantPhotoView: some View {
-        ZStack {
-            // Decorative gradient ring
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            LeafbookColors.primary.opacity(0.25),
-                            LeafbookColors.fertilizerAmber.opacity(0.2)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .frame(width: 174, height: 174)
-                .blur(radius: 4)
-
-            // Photo container
-            ZStack {
-                if let urlString = photo?.url,
-                   let url = URL(string: urlString),
-                   !urlString.isEmpty {
-                    CachedAsyncImage(url: url)
-                } else {
-                    // Empty state
-                    VStack(spacing: 8) {
-                        Image(systemName: "leaf.fill")
-                            .font(.system(size: 32, weight: .medium))
-                            .foregroundStyle(LeafbookColors.primary.opacity(0.35))
-                        Text("No photo yet")
-                            .font(.caption2)
-                            .foregroundStyle(LeafbookColors.foreground.opacity(0.5))
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(
-                        LinearGradient(
-                            colors: [
-                                LeafbookColors.primary.opacity(0.08),
-                                LeafbookColors.muted.opacity(0.3)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                }
-            }
-            .frame(width: 160, height: 160)
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(LeafbookColors.card, lineWidth: 3)
-            )
-            .shadow(color: LeafbookColors.foreground.opacity(0.1), radius: 8, x: 0, y: 4)
-
-            // Photo count badge
-            if photoCount > 1 {
-                HStack(spacing: 3) {
-                    Image(systemName: "camera.fill")
-                        .font(.system(size: 9))
-                    Text("\(photoCount)")
-                        .font(.system(size: 10, weight: .semibold))
-                }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(.black.opacity(0.6))
-                .clipShape(Capsule())
-                .offset(x: 50, y: 60)
-            }
-        }
-    }
-
-    // MARK: - Info View
-
-    private var plantInfoView: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            // Plant name
-            VStack(alignment: .leading, spacing: 4) {
-                Text(plant.name)
-                    .font(.system(.title, design: .serif))
-                    .fontWeight(.semibold)
-                    .foregroundStyle(LeafbookColors.foreground)
-
-                if let nickname = plant.nickname, !nickname.isEmpty {
-                    Text("\"\(nickname)\"")
-                        .font(.callout)
-                        .italic()
-                        .foregroundStyle(LeafbookColors.foreground.opacity(0.7))
-                }
-            }
-
-            // Plant type
-            if let plantType = plant.plantTypes {
-                HStack(spacing: 4) {
-                    Image(systemName: "leaf")
-                        .font(.system(size: 12))
-                        .foregroundStyle(LeafbookColors.primary.opacity(0.7))
-                    Text(plantType.name)
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(LeafbookColors.foreground.opacity(0.8))
-                    if let scientificName = plantType.scientificName, !scientificName.isEmpty {
-                        Text("(\(scientificName))")
-                            .font(.caption)
-                            .italic()
-                            .foregroundStyle(LeafbookColors.foreground.opacity(0.5))
-                    }
-                }
-            }
-
-            // Badges
-            badgesView
-                .padding(.top, 4)
-
-            // Origin story
-            originStoryView
-                .padding(.top, 2)
-
-            // Quick actions
-            if !isLegacy {
-                quickActionsView
-                    .padding(.top, 8)
-            }
-        }
+        squarePhoto(photo: photo, size: 160, cornerRadius: 14, photoCount: photoCount)
     }
 
     // MARK: - Badges
@@ -257,19 +211,16 @@ struct PlantHeroView: View {
     @ViewBuilder
     private var originStoryView: some View {
         if plant.acquiredAt != nil || plant.howAcquired != nil {
-            HStack(spacing: 4) {
-                Image(systemName: "heart.fill")
-                    .font(.system(size: 10))
-                    .foregroundStyle(LeafbookColors.roseAccent.opacity(0.8))
-
-                if let howAcquired = plant.howAcquired {
-                    Text(howAcquired)
-                        .font(.caption)
-                        .foregroundStyle(LeafbookColors.foreground.opacity(0.6))
-
-                    if plant.acquiredAt != nil {
-                        Text("·")
-                            .foregroundStyle(LeafbookColors.foreground.opacity(0.4))
+            VStack {
+                HStack {
+                    Image(systemName: "heart.fill")
+                        .font(.system(size: 10))
+                        .foregroundStyle(LeafbookColors.roseAccent.opacity(0.8))
+                    
+                    if let howAcquired = plant.howAcquired {
+                        Text(howAcquired)
+                            .font(.caption)
+                            .foregroundStyle(LeafbookColors.foreground.opacity(0.6))
                     }
                 }
 
@@ -282,52 +233,25 @@ struct PlantHeroView: View {
         }
     }
 
-    // MARK: - Quick Actions
+    // MARK: - Legacy Details
 
-    private var quickActionsView: some View {
-        ScrollView(.horizontal) {
-            HStack(spacing: 8) {
-                if let onEdit {
-                    Button {
-                        onEdit()
-                    } label: {
-                        Label("Edit", systemImage: "pencil")
-                            .font(.caption.weight(.medium))
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(LeafbookColors.foreground.opacity(0.8))
+    @ViewBuilder
+    private var legacyDetailsView: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            if let reason = plant.legacyReason, !reason.isEmpty {
+                HStack(spacing: 4) {
+                    Image(systemName: "archivebox.fill")
+                        .font(.system(size: 10))
+                        .foregroundStyle(LeafbookColors.foreground.opacity(0.5))
+                    Text(reason)
+                        .font(.caption)
+                        .foregroundStyle(LeafbookColors.foreground.opacity(0.6))
                 }
-                
-                if let onWater {
-                    CareLogButton(
-                        title: "Water",
-                        systemImage: "drop.fill",
-                        tint: LeafbookColors.waterBlue,
-                        onLog: onWater
-                    )
-                    .controlSize(.small)
-                }
-                
-                if let onFertilize {
-                    CareLogButton(
-                        title: "Feed",
-                        systemImage: "sparkles",
-                        tint: LeafbookColors.fertilizerAmber,
-                        onLog: onFertilize
-                    )
-                    .controlSize(.small)
-                }
-                
-                if let onMove {
-                    Button {
-                        onMove()
-                    } label: {
-                        Label("Move", systemImage: "location.fill")
-                            .font(.caption.weight(.medium))
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(LeafbookColors.primary)
-                }
+            }
+            if let legacyAt = plant.legacyAt {
+                Text("Since \(formatRelativeDate(legacyAt))")
+                    .font(.caption)
+                    .foregroundStyle(LeafbookColors.foreground.opacity(0.5))
             }
         }
     }
@@ -353,31 +277,6 @@ struct PlantHeroView: View {
         }
         let years = days / 365
         return "\(years) year\(years > 1 ? "s" : "") ago"
-    }
-
-    private var isCompactWidth: Bool {
-        horizontalSizeClass == .compact
-    }
-
-    private var heroContent: some View {
-        Group {
-            if isCompactWidth {
-                VStack(spacing: 16) {
-                    plantPhotoView
-                        .frame(maxWidth: .infinity, alignment: .center)
-                    plantInfoView
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-            } else {
-                HStack(alignment: .top, spacing: 20) {
-                    plantPhotoView
-                    plantInfoView
-                }
-            }
-        }
-        .padding(.horizontal, 20)
-        .padding(.top, 12)
-        .padding(.bottom, 20)
     }
 }
 

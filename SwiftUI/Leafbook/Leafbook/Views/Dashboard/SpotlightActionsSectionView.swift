@@ -12,6 +12,7 @@ struct SpotlightActionsSectionView: View {
     let hasPlants: Bool
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @EnvironmentObject private var tabRouter: TabRouter
 
     private var spotlightPlant: DashboardSpotlightPlant? {
         guard hasPlants, !plants.isEmpty else { return nil }
@@ -91,8 +92,8 @@ struct SpotlightActionsSectionView: View {
                         }
                         .buttonStyle(.bordered)
 
-                        NavigationLink {
-                            TimelineListView()
+                        Button {
+                            tabRouter.openTimeline()
                         } label: {
                             Label("Timeline", systemImage: "clock")
                                 .frame(maxWidth: .infinity)
@@ -112,4 +113,5 @@ struct SpotlightActionsSectionView: View {
             .padding()
             .background(LeafbookColors.background)
     }
+    .environmentObject(TabRouter())
 }

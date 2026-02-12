@@ -35,7 +35,7 @@ struct PlantIssue: Identifiable, Codable, Equatable {
     static let preview = PlantIssue(
         id: "issue-1",
         plantId: "00000000-0000-0000-0000-000000000001",
-        issueType: "pests",
+        issueType: "pest",
         severity: "medium",
         status: "active",
         description: "Spotted a few gnats on the soil.",

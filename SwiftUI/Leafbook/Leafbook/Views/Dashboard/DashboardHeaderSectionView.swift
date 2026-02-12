@@ -9,6 +9,7 @@ import SwiftUI
 
 struct DashboardHeaderSectionView: View {
     let summary: DashboardSummary
+    @EnvironmentObject private var tabRouter: TabRouter
 
     private var greeting: (greeting: String, subtext: String) {
         DashboardUtils.getGreeting()
@@ -27,8 +28,8 @@ struct DashboardHeaderSectionView: View {
 
             if summary.hasPlants {
                 HStack(spacing: 8) {
-                    NavigationLink {
-                        PlantsListView()
+                    Button {
+                        tabRouter.openPlants()
                     } label: {
                         DashboardBadge(
                             label: "\(summary.activePlantCount) plant\(summary.activePlantCount == 1 ? "" : "s")",
@@ -36,6 +37,7 @@ struct DashboardHeaderSectionView: View {
                             tint: LeafbookColors.primary
                         )
                     }
+                    .buttonStyle(.plain)
 
                     if summary.wishlistCount > 0 {
                         NavigationLink {
@@ -50,8 +52,8 @@ struct DashboardHeaderSectionView: View {
                     }
 
                     if summary.activeIssueCount > 0 {
-                        NavigationLink {
-                            TimelineListView()
+                        Button {
+                            tabRouter.openTimeline(feed: .issues)
                         } label: {
                             DashboardBadge(
                                 label: "\(summary.activeIssueCount) active issue\(summary.activeIssueCount == 1 ? "" : "s")",
@@ -59,6 +61,7 @@ struct DashboardHeaderSectionView: View {
                                 tint: LeafbookColors.issueOrange
                             )
                         }
+                        .buttonStyle(.plain)
                     }
                 }
                 .font(.caption)
@@ -100,4 +103,5 @@ private struct DashboardBadge: View {
             .padding()
             .background(LeafbookColors.background)
     }
+    .environmentObject(TabRouter())
 }

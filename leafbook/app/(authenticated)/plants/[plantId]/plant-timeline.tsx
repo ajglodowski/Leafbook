@@ -217,6 +217,8 @@ export function PlantTimeline({
   const [isPending, startTransition] = useTransition();
   const [acquiredError, setAcquiredError] = useState<string | null>(null);
   const hasAcquiredEvent = events.some((event) => event.event_type === "acquired");
+  const hasPropagationEvent = events.some((event) => event.event_type === "propagated");
+  const shouldShowAcquiredPrompt = !hasAcquiredEvent && !hasPropagationEvent;
   const eventLookup = new Map(events.map((event) => [event.id, event]));
   // Merge and sort timeline items by date (descending)
   const timelineItems: TimelineItem[] = [
@@ -248,7 +250,7 @@ export function PlantTimeline({
         <p className="text-sm text-muted-foreground max-w-xs mx-auto">
           Every great plant has a story. Start writing {plantName}&apos;s by logging care events or journal entries!
         </p>
-        {!hasAcquiredEvent && (
+        {shouldShowAcquiredPrompt && (
           <div className="mt-6 flex flex-col items-center gap-2">
             <Button
               type="button"
@@ -281,7 +283,7 @@ export function PlantTimeline({
       <div className="absolute left-[15px] top-2 bottom-2 w-0.5 bg-gradient-to-b from-border via-border to-transparent" />
       
       <div className="space-y-1">
-        {!hasAcquiredEvent && (
+        {shouldShowAcquiredPrompt && (
           <div className="relative flex items-start gap-4 pl-10 py-3">
             <div className="absolute left-0 flex h-8 w-8 items-center justify-center rounded-full bg-pink-500/10 ring-4 ring-background">
               <span className="text-base">🎁</span>

@@ -11,8 +11,8 @@ struct PlantDetailView: View {
     let plantId: String
 
     @EnvironmentObject private var sessionState: SessionState
-    @StateObject private var viewModel = PlantDetailViewModel()
-    @StateObject private var journalViewModel = JournalViewModel()
+    @State private var viewModel = PlantDetailViewModel()
+    @State private var journalViewModel = JournalViewModel()
     @State private var selectedTab: PlantDetailTab = .overview
     @State private var showingEditPlant = false
     @State private var showingCarePreferences = false
@@ -23,10 +23,12 @@ struct PlantDetailView: View {
     @State private var editingEvent: PlantEvent?
     @State private var editingEntry: JournalEntry?
     @State private var hasLoaded = false
+    @State private var linkedPlantId: String?
+    @State private var showingMarkAsLegacy = false
+    @State private var showingRestoreConfirmation = false
 
     init(plantId: String) {
         self.plantId = plantId
-        print("PlantDetailView: initialized with plantId=\(plantId)")
     }
 
     var body: some View {
@@ -153,6 +155,26 @@ struct PlantDetailView: View {
                 }
             )
         }
+        .navigationDestination(item: $linkedPlantId) { plantId in
+            PlantDetailView(plantId: plantId)
+        }
+        .sheet(isPresented: $showingMarkAsLegacy) {
+            MarkAsLegacySheet { reason in
+                guard case let .signedIn(userId) = await sessionState.status else { return false }
+                return await viewModel.markAsLegacy(userId: userId, plantId: plantId, reason: reason)
+            }
+        }
+        .confirmationDialog("Restore this plant?", isPresented: $showingRestoreConfirmation, titleVisibility: .visible) {
+            Button("Restore") {
+                guard case let .signedIn(userId) = sessionState.status else { return }
+                Task {
+                    _ = await viewModel.restoreFromLegacy(userId: userId, plantId: plantId)
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will move the plant back to your active collection.")
+        }
     }
 
     // MARK: - Plant Content
@@ -170,17 +192,35 @@ struct PlantDetailView: View {
                     onMove: { showingMoveForm = true },
                     onEdit: { showingEditPlant = true }
                 )
-
-                tabBar
-
-                tabContent
+                
+                VStack {
+                    tabBar
+                    tabContent
+                }
+                .padding()
             }
-            .padding()
         }
     }
 
     private var tabBar: some View {
         IconLabelTabBar(tabs: PlantDetailTab.allCases, selection: $selectedTab)
+    }
+
+    private var photoUploadHandler: ((Data, Date, String?) async -> String?)? {
+        guard !viewModel.isLegacy else { return nil }
+
+        return { imageData, takenAt, caption in
+            guard case let .signedIn(userId) = await self.sessionState.status else {
+                return "We couldn't upload this photo."
+            }
+            return await self.viewModel.uploadPhoto(
+                userId: userId,
+                plantId: self.plantId,
+                imageData: imageData,
+                takenAt: takenAt,
+                caption: caption
+            )
+        }
     }
 
     private var tabContent: some View {
@@ -189,24 +229,28 @@ struct PlantDetailView: View {
             case .overview:
                 PlantDetailOverviewTab(
                     plant: viewModel.plant,
+                    isLegacy: viewModel.isLegacy,
                     dueTask: viewModel.dueTask,
                     journalEntries: viewModel.journalEntries,
                     activeIssuesCount: viewModel.activeIssues.count,
                     onEditPlant: { showingEditPlant = true },
                     onAddIssue: { showingIssueForm = true },
-                    onAddJournal: { showingJournalEntry = true }
+                    onAddJournal: { showingJournalEntry = true },
+                    onMarkAsLegacy: { showingMarkAsLegacy = true },
+                    onRestore: { showingRestoreConfirmation = true }
                 )
             case .care:
                 PlantDetailCareTab(
                     plant: viewModel.plant,
+                    isLegacy: viewModel.isLegacy,
                     dueTask: viewModel.dueTask,
                     carePreferences: viewModel.carePreferences,
                     scheduleSuggestion: viewModel.scheduleSuggestion,
                     currentPot: viewModel.currentPot,
                     unusedPots: viewModel.unusedPots,
                     hasCustomCare: viewModel.hasCustomCare,
-                    onWater: { logCareEvent(eventType: "watered") },
-                    onFertilize: { logCareEvent(eventType: "fertilized") },
+                    onWater: { date in logCareEvent(eventType: "watered", eventDate: date) },
+                    onFertilize: { date in logCareEvent(eventType: "fertilized", eventDate: date) },
                     onEditCarePreferences: { showingCarePreferences = true },
                     onRepot: { showingRepotForm = true },
                     onAcceptSuggestion: { acceptScheduleSuggestion() },
@@ -217,6 +261,7 @@ struct PlantDetailView: View {
                     events: viewModel.events,
                     journalEntries: viewModel.journalEntries,
                     issues: viewModel.issues,
+                    isLegacy: viewModel.isLegacy,
                     onSelectEvent: { event in
                         editingEvent = event
                     },
@@ -226,14 +271,62 @@ struct PlantDetailView: View {
                     onAddAcquiredEvent: {
                         guard case let .signedIn(userId) = await sessionState.status else { return false }
                         return await viewModel.createAcquiredEvent(userId: userId, plantId: plantId)
+                    },
+                    onAddLegacyEvent: {
+                        guard case let .signedIn(userId) = await sessionState.status else { return false }
+                        return await viewModel.createLegacyEvent(userId: userId, plantId: plantId)
                     }
                 )
             case .photos:
-                PlantDetailPhotosTab(photos: viewModel.photos)
+                PlantDetailPhotosTab(
+                    photos: viewModel.photos,
+                    plantName: viewModel.plant.displayName,
+                    activePhotoId: viewModel.plant.activePhotoId,
+                    onUpdatePhoto: { photo, takenAt, caption in
+                        guard case let .signedIn(userId) = await sessionState.status else {
+                            return "We couldn't update this photo."
+                        }
+                        return await viewModel.updatePhotoMetadata(
+                            userId: userId,
+                            photoId: photo.id,
+                            takenAt: takenAt,
+                            caption: caption
+                        )
+                    },
+                    onUploadPhoto: photoUploadHandler
+                )
             case .propagation:
                 PlantDetailPropagationTab(
+                    plantName: viewModel.plant.displayName,
+                    isLegacy: viewModel.isLegacy,
                     group: viewModel.propagationGroup,
-                    photosByPlantId: viewModel.propagationPhotosByPlantId
+                    photosByPlantId: viewModel.propagationPhotosByPlantId,
+                    onSetParent: { parentId, propagationDate in
+                        guard case let .signedIn(userId) = await sessionState.status else { return false }
+                        return await viewModel.setParentPlant(
+                            userId: userId,
+                            plantId: plantId,
+                            parentPlantId: parentId,
+                            propagationDate: propagationDate
+                        )
+                    },
+                    onClearParent: {
+                        guard case let .signedIn(userId) = await sessionState.status else { return false }
+                        return await viewModel.clearParentPlant(userId: userId, plantId: plantId)
+                    },
+                    onCreatePropagation: { draft in
+                        guard case let .signedIn(userId) = await sessionState.status else { return nil }
+                        return await viewModel.createPropagatedPlant(
+                            userId: userId,
+                            plantId: plantId,
+                            parentPlantId: plantId,
+                            plantTypeId: viewModel.plant.plantTypeId,
+                            draft: draft
+                        )
+                    },
+                    onSelectPlant: { plantId in
+                        linkedPlantId = plantId
+                    }
                 )
             case .notes:
                 PlantDetailNotesTab(description: viewModel.plant.description)

@@ -11,7 +11,7 @@ struct QuickActionsPanelView: View {
     let hasPlants: Bool
 
     @EnvironmentObject private var sessionState: SessionState
-    @StateObject private var journalViewModel = JournalViewModel()
+    @State private var journalViewModel = JournalViewModel()
     @State private var showingJournalEntry = false
 
     var body: some View {
