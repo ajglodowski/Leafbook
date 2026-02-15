@@ -1,24 +1,25 @@
-import { createClient } from "@supabase/supabase-js";
 import { put } from "@vercel/blob";
+import { connection } from "next/server";
 import { NextRequest, NextResponse } from "next/server";
 
-const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic"];
-
 export async function POST(request: NextRequest) {
+  // Opt into dynamic rendering (required for Next.js 15)
+  await connection();
+
   try {
-    // Get auth token from Bearer header
+    // Parse Bearer token from Authorization header
     const authHeader = request.headers.get("authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return NextResponse.json(
-        { error: "Unauthorized: Missing or invalid Authorization header" },
+        { error: "Missing or invalid authorization header" },
         { status: 401 }
       );
     }
 
     const token = authHeader.replace("Bearer ", "");
 
-    // Create Supabase client with the token
+    // Create Supabase client with token (mobile apps use tokens, not cookies)
+    const { createClient } = await import("@supabase/supabase-js");
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
@@ -31,20 +32,15 @@ export async function POST(request: NextRequest) {
       }
     );
 
-    // Verify the token and get user ID
+    // Verify session and get user
     const {
       data: { user },
       error: authError,
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json(
-        { error: "Unauthorized: Invalid token" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const userId = user.id;
 
     // Parse multipart form data
     const formData = await request.formData();
@@ -55,56 +51,35 @@ export async function POST(request: NextRequest) {
 
     if (!file) {
       return NextResponse.json(
-        { error: "Missing required field: file" },
+        { error: "Missing file in request" },
         { status: 400 }
       );
     }
 
     if (!plantId) {
       return NextResponse.json(
-        { error: "Missing required field: plantId" },
+        { error: "Missing plantId in request" },
         { status: 400 }
       );
     }
 
-    // Validate file type
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      return NextResponse.json(
-        {
-          error: `Invalid file type. Allowed types: ${ALLOWED_TYPES.join(", ")}`,
-        },
-        { status: 400 }
-      );
-    }
-
-    // Validate file size
-    if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json(
-        { error: "File size exceeds 15MB limit" },
-        { status: 400 }
-      );
-    }
-
-    // Verify user owns the plant
+    // Verify user owns this plant
     const { data: plant, error: plantError } = await supabase
       .from("plants")
       .select("id")
       .eq("id", plantId)
-      .eq("user_id", userId)
+      .eq("user_id", user.id)
       .single();
 
     if (plantError || !plant) {
       return NextResponse.json(
         { error: "Unauthorized: You do not own this plant" },
-        { status: 401 }
+        { status: 403 }
       );
     }
 
     // Upload to Vercel Blob
-    const timestamp = Date.now();
-    const filename = `${timestamp}-${file.name}`;
-    const pathname = `user-uploads/${userId}/plant-photos/${filename}`;
-
+    const pathname = `user-uploads/${user.id}/plant-photos/${file.name}`;
     const blob = await put(pathname, file, {
       access: "public",
       addRandomSuffix: true,
@@ -115,7 +90,7 @@ export async function POST(request: NextRequest) {
       .from("plant_photos")
       .insert({
         plant_id: plantId,
-        user_id: userId,
+        user_id: user.id,
         url: blob.url,
         caption: caption || null,
         taken_at: takenAt || new Date().toISOString(),
@@ -124,18 +99,26 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (insertError) {
-      console.error("Failed to insert plant photo:", insertError);
+      console.error("Error creating plant photo:", insertError);
       return NextResponse.json(
-        { error: "Failed to save photo to database" },
+        { error: "Failed to create photo record" },
         { status: 500 }
       );
     }
 
-    return NextResponse.json(photo, { status: 201 });
+    return NextResponse.json({
+      id: photo.id,
+      url: photo.url,
+      caption: photo.caption,
+      takenAt: photo.taken_at,
+      plantId: photo.plant_id,
+      userId: photo.user_id,
+      createdAt: photo.created_at,
+    });
   } catch (error) {
-    console.error("Upload error:", error);
+    console.error("Plant photo upload error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: error instanceof Error ? error.message : "Upload failed" },
       { status: 500 }
     );
   }

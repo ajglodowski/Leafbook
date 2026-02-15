@@ -187,8 +187,8 @@ struct PlantDetailView: View {
                     photo: viewModel.heroPhoto,
                     dueTask: viewModel.dueTask,
                     photoCount: viewModel.photos.count,
-                    onWater: { date in logCareEvent(eventType: "watered", eventDate: date) },
-                    onFertilize: { date in logCareEvent(eventType: "fertilized", eventDate: date) },
+                    onWater: { date in logCareEvent(eventType: .watered, eventDate: date) },
+                    onFertilize: { date in logCareEvent(eventType: .fertilized, eventDate: date) },
                     onMove: { showingMoveForm = true },
                     onEdit: { showingEditPlant = true }
                 )
@@ -249,8 +249,8 @@ struct PlantDetailView: View {
                     currentPot: viewModel.currentPot,
                     unusedPots: viewModel.unusedPots,
                     hasCustomCare: viewModel.hasCustomCare,
-                    onWater: { date in logCareEvent(eventType: "watered", eventDate: date) },
-                    onFertilize: { date in logCareEvent(eventType: "fertilized", eventDate: date) },
+                    onWater: { date in logCareEvent(eventType: .watered, eventDate: date) },
+                    onFertilize: { date in logCareEvent(eventType: .fertilized, eventDate: date) },
                     onEditCarePreferences: { showingCarePreferences = true },
                     onRepot: { showingRepotForm = true },
                     onAcceptSuggestion: { acceptScheduleSuggestion() },
@@ -338,7 +338,7 @@ struct PlantDetailView: View {
 
     // MARK: - Actions
 
-    private func logCareEvent(eventType: String, eventDate: Date = Date()) {
+    private func logCareEvent(eventType: TimelineEventType, eventDate: Date = Date()) {
         guard case let .signedIn(userId) = sessionState.status else { return }
         Task {
             _ = await viewModel.logCareEvent(
@@ -354,7 +354,7 @@ struct PlantDetailView: View {
         let eventDate = parseDate(event.eventDate) ?? Date()
 
         switch event.eventType {
-        case "moved":
+        case .moved:
             return AnyView(
                 PlantMoveFormView(
                     currentLocation: event.metadata?.fromLocation ?? viewModel.plant.location,
@@ -377,7 +377,7 @@ struct PlantDetailView: View {
                     return await viewModel.deleteEvent(userId: userId, plantId: plantId, event: event)
                 }
             )
-        case "repotted":
+        case .repotted:
             let (currentPot, availablePots) = repotOptions(for: event)
             return AnyView(
                 RepotEventFormView(
@@ -401,7 +401,7 @@ struct PlantDetailView: View {
                     return await viewModel.deleteEvent(userId: userId, plantId: plantId, event: event)
                 }
             )
-        case "propagated":
+        case .propagated:
             return AnyView(
                 PropagationEventFormView(
                     title: "Edit propagation",
@@ -427,7 +427,7 @@ struct PlantDetailView: View {
         default:
             return AnyView(
                 CareEventFormView(
-                    title: "Edit \(event.eventType.replacingOccurrences(of: "_", with: " "))",
+                    title: "Edit \(event.eventType.displayName)",
                     initialDate: eventDate,
                     initialNotes: event.notes ?? ""
                 ) { date, notes in

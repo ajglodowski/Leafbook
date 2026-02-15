@@ -251,7 +251,7 @@ final class SupabaseService: @unchecked Sendable {
                 .from("plant_issues")
                 .select("id", count: .exact)
                 .eq("user_id", value: userId)
-                .eq("status", value: "active")
+                .eq("status", value: IssueStatus.active.rawValue)
                 .execute()
             let count = response.count ?? response.value.count
             return count
@@ -503,7 +503,7 @@ final class SupabaseService: @unchecked Sendable {
                 .from("plant_events")
                 .select("id, plant_id, event_type, event_date, notes, metadata")
                 .eq("plant_id", value: plantId)
-                .eq("event_type", value: "moved")
+                .eq("event_type", value: TimelineEventType.moved.rawValue)
                 .order("event_date", ascending: false)
                 .limit(1)
                 .execute()
@@ -777,14 +777,14 @@ final class SupabaseService: @unchecked Sendable {
         }
     }
 
-    func createCareEvent(userId: String, plantId: String, eventType: String, eventDate: Date = Date()) async throws {
+    func createCareEvent(userId: String, plantId: String, eventType: TimelineEventType, eventDate: Date = Date()) async throws {
         do {
             try await client
                 .from("plant_events")
                 .insert([
                     "plant_id": plantId,
                     "user_id": userId,
-                    "event_type": eventType,
+                    "event_type": eventType.rawValue,
                     "event_date": ISO8601DateFormatter().string(from: eventDate),
                 ])
                 .execute()
@@ -810,7 +810,7 @@ final class SupabaseService: @unchecked Sendable {
             let payload = MoveEventPayload(
                 plant_id: plantId,
                 user_id: userId,
-                event_type: "moved",
+                event_type: TimelineEventType.moved.rawValue,
                 event_date: ISO8601DateFormatter().string(from: eventDate),
                 notes: notes,
                 metadata: metadata
@@ -840,7 +840,7 @@ final class SupabaseService: @unchecked Sendable {
             let payload = RepotEventPayload(
                 plant_id: plantId,
                 user_id: userId,
-                event_type: "repotted",
+                event_type: TimelineEventType.repotted.rawValue,
                 event_date: ISO8601DateFormatter().string(from: eventDate),
                 metadata: metadata
             )
@@ -962,16 +962,16 @@ final class SupabaseService: @unchecked Sendable {
         }
     }
 
-    func createPlantIssue(userId: String, plantId: String, issueType: String, severity: String, description: String) async throws {
+    func createPlantIssue(userId: String, plantId: String, issueType: IssueType, severity: IssueSeverity, description: String) async throws {
         do {
             try await client
                 .from("plant_issues")
                 .insert([
                     "plant_id": plantId,
                     "user_id": userId,
-                    "issue_type": issueType,
-                    "severity": severity,
-                    "status": "active",
+                    "issue_type": issueType.rawValue,
+                    "severity": severity.rawValue,
+                    "status": IssueStatus.active.rawValue,
                     "description": description,
                     "started_at": ISO8601DateFormatter().string(from: Date()),
                 ])
@@ -1102,10 +1102,10 @@ final class SupabaseService: @unchecked Sendable {
         plantId: String,
         name: String,
         nickname: String?,
-        plantLocation: String?,
+        plantLocation: PlantLocation?,
         location: String?,
-        lightExposure: String?,
-        sizeCategory: String?,
+        lightExposure: LightRequirement?,
+        sizeCategory: SizeCategory?,
         howAcquired: String?,
         description: String?,
         acquiredAt: Date?,
@@ -1115,10 +1115,10 @@ final class SupabaseService: @unchecked Sendable {
             let payload = PlantDetailsUpdate(
                 name: name,
                 nickname: nickname,
-                plant_location: plantLocation,
+                plant_location: plantLocation?.rawValue,
                 location: location,
-                light_exposure: lightExposure,
-                size_category: sizeCategory,
+                light_exposure: lightExposure?.rawValue,
+                size_category: sizeCategory?.rawValue,
                 how_acquired: howAcquired,
                 description: description,
                 acquired_at: acquiredAt.map { ISO8601DateFormatter().string(from: $0) },
@@ -1163,7 +1163,7 @@ final class SupabaseService: @unchecked Sendable {
                 let payload = PropagationEventPayload(
                     plant_id: childPlantId,
                     user_id: userId,
-                    event_type: "propagated",
+                    event_type: TimelineEventType.propagated.rawValue,
                     event_date: eventDate,
                     notes: "Propagated from parent plant",
                     metadata: PropagationEventMetadataPayload(parent_plant_id: parentPlantId)
@@ -1205,9 +1205,9 @@ final class SupabaseService: @unchecked Sendable {
         name: String,
         nickname: String?,
         plantTypeId: String?,
-        plantLocation: String,
+        plantLocation: PlantLocation,
         location: String?,
-        lightExposure: String?,
+        lightExposure: LightRequirement?,
         propagationDate: Date?,
         description: String?
     ) async throws -> Plant {
@@ -1232,9 +1232,9 @@ final class SupabaseService: @unchecked Sendable {
                 nickname: nickname,
                 plant_type_id: resolvedPlantTypeId,
                 parent_plant_id: parentPlantId,
-                plant_location: plantLocation,
+                plant_location: plantLocation.rawValue,
                 location: location,
-                light_exposure: lightExposure,
+                light_exposure: lightExposure?.rawValue,
                 how_acquired: "Propagated from \(parent.name)",
                 acquired_at: ISO8601DateFormatter().string(from: eventDate),
                 description: description
@@ -1272,7 +1272,7 @@ final class SupabaseService: @unchecked Sendable {
                 let eventPayload = PropagationEventPayload(
                     plant_id: plant.id,
                     user_id: userId,
-                    event_type: "propagated",
+                    event_type: TimelineEventType.propagated.rawValue,
                     event_date: ISO8601DateFormatter().string(from: eventDate),
                     notes: "Propagated from \(parent.name)",
                     metadata: PropagationEventMetadataPayload(parent_plant_id: parentPlantId)
@@ -1299,7 +1299,7 @@ final class SupabaseService: @unchecked Sendable {
                 .insert([
                     "plant_id": plantId,
                     "user_id": userId,
-                    "event_type": "acquired",
+                    "event_type": TimelineEventType.acquired.rawValue,
                     "event_date": ISO8601DateFormatter().string(from: Date())
                 ])
                 .execute()
@@ -1366,7 +1366,7 @@ final class SupabaseService: @unchecked Sendable {
     private struct TimelineEventRecord: Decodable {
         let id: String
         let plantId: String?
-        let eventType: String
+        let eventType: TimelineEventType
         let eventDate: String
         let notes: String?
         let metadata: PlantEventMetadata?
@@ -1429,9 +1429,9 @@ final class SupabaseService: @unchecked Sendable {
     private struct TimelineIssueRecord: Decodable {
         let id: String
         let plantId: String?
-        let issueType: String
-        let severity: String?
-        let status: String
+        let issueType: IssueType
+        let severity: IssueSeverity?
+        let status: IssueStatus
         let description: String?
         let startedAt: String?
         let resolvedAt: String?
@@ -1712,7 +1712,7 @@ final class SupabaseService: @unchecked Sendable {
                 .insert([
                     "plant_id": plantId,
                     "user_id": userId,
-                    "event_type": "legacy",
+                    "event_type": TimelineEventType.legacy.rawValue,
                     "event_date": ISO8601DateFormatter().string(from: Date()),
                     "notes": reason,
                 ])
@@ -1745,7 +1745,7 @@ final class SupabaseService: @unchecked Sendable {
                 .insert([
                     "plant_id": plantId,
                     "user_id": userId,
-                    "event_type": "restored",
+                    "event_type": TimelineEventType.restored.rawValue,
                     "event_date": ISO8601DateFormatter().string(from: Date()),
                     "notes": "Restored from legacy",
                 ])
@@ -1766,7 +1766,7 @@ final class SupabaseService: @unchecked Sendable {
                 .insert([
                     "plant_id": plantId,
                     "user_id": userId,
-                    "event_type": "legacy",
+                    "event_type": TimelineEventType.legacy.rawValue,
                     "event_date": ISO8601DateFormatter().string(from: Date()),
                     "notes": reason ?? "",
                 ])

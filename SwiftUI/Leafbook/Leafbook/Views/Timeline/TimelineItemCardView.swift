@@ -69,18 +69,18 @@ struct TimelineItemCard: View {
     private var title: String {
         switch item {
         case .event(let event):
-            return event.eventType.replacingOccurrences(of: "_", with: " ").capitalized
+            return event.eventType.displayName
         case .journal(let entry):
             return entry.title ?? "Journal note"
         case .issue(let issue):
-            return issue.issueType.replacingOccurrences(of: "_", with: " ").capitalized
+            return issue.issueType.displayName
         }
     }
 
     private var subtitle: String? {
         switch item {
         case .event(let event):
-            if event.eventType == "moved", let metadata = event.metadata {
+            if event.eventType == .moved, let metadata = event.metadata {
                 if let fromLocation = metadata.fromLocation, let toLocation = metadata.toLocation {
                     return "\(fromLocation) → \(toLocation)"
                 }
@@ -102,7 +102,7 @@ struct TimelineItemCard: View {
     private var secondarySubtitle: String? {
         switch item {
         case .event(let event):
-            if event.eventType == "moved" {
+            if event.eventType == .moved {
                 return event.notes
             }
             return nil

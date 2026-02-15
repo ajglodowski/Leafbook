@@ -37,7 +37,7 @@ final class PlantDetailViewModel {
     }
 
     var activeIssues: [PlantIssue] {
-        issues.filter { $0.status == "active" }
+        issues.filter { $0.status == .active }
     }
 
     var needsWater: Bool {
@@ -221,7 +221,7 @@ final class PlantDetailViewModel {
     func logCareEvent(
         userId: String,
         plantId: String,
-        eventType: String,
+        eventType: TimelineEventType,
         eventDate: Date = Date()
     ) async -> Bool {
         do {
@@ -295,10 +295,10 @@ final class PlantDetailViewModel {
         userId: String,
         name: String,
         nickname: String?,
-        plantLocation: String?,
+        plantLocation: PlantLocation?,
         location: String?,
-        lightExposure: String?,
-        sizeCategory: String?,
+        lightExposure: LightRequirement?,
+        sizeCategory: SizeCategory?,
         howAcquired: String?,
         description: String?,
         acquiredAt: Date?,
@@ -390,7 +390,7 @@ final class PlantDetailViewModel {
         }
     }
 
-    func addIssue(userId: String, plantId: String, issueType: String, severity: String, description: String) async -> Bool {
+    func addIssue(userId: String, plantId: String, issueType: IssueType, severity: IssueSeverity, description: String) async -> Bool {
         do {
             try await service.createPlantIssue(userId: userId, plantId: plantId, issueType: issueType, severity: severity, description: description)
             await load(plantId: plantId, userId: userId)
@@ -538,7 +538,7 @@ final class PlantDetailViewModel {
     func deleteEvent(userId: String, plantId: String, event: PlantEvent) async -> Bool {
         do {
             try await service.deletePlantEvent(eventId: event.id)
-            if event.eventType == "moved" {
+            if event.eventType == .moved {
                 let latestMoveEvent = try await service.fetchLatestMoveEvent(plantId: plantId)
                 try await service.updatePlantLocation(plantId: plantId, location: latestMoveEvent?.metadata?.toLocation)
             }

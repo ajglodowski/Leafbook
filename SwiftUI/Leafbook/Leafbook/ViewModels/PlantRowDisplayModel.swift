@@ -45,8 +45,8 @@ struct PlantRowDisplayModel: Equatable {
         self.legacyDateText = PlantRowDisplayModel.formattedLegacyDate(from: plant.legacyAt)
     }
 
-    static func locationBadge(from plantLocation: String?) -> LocationBadge {
-        if plantLocation == "outdoor" {
+    static func locationBadge(from plantLocation: PlantLocation?) -> LocationBadge {
+        if plantLocation == .outdoor {
             return LocationBadge(label: "Outdoor", systemImage: "tree.fill")
         }
         return LocationBadge(label: "Indoor", systemImage: "house.fill")

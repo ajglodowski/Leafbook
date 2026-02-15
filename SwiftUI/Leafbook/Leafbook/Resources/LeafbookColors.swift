@@ -71,13 +71,21 @@ enum LeafbookColors {
 private extension Color {
     static func adaptive(light: Color, dark: Color) -> Color {
         #if os(iOS) || os(tvOS) || os(watchOS)
-        return Color(UIColor { traitCollection in
-            traitCollection.userInterfaceStyle == .dark ? UIColor(dark) : UIColor(light)
+        // Convert Colors to UIColors outside the closure
+        let lightUIColor = UIColor(light)
+        let darkUIColor = UIColor(dark)
+
+        // Mark closure as @Sendable to indicate it's safe for concurrent access
+        // This allows SwiftUI's AsyncRenderer to call it from background threads
+        return Color(UIColor { @Sendable (traitCollection: UITraitCollection) -> UIColor in
+            traitCollection.userInterfaceStyle == .dark ? darkUIColor : lightUIColor
         })
         #elseif os(macOS)
+        let lightNSColor = NSColor(light)
+        let darkNSColor = NSColor(dark)
         let adaptiveColor = NSColor(name: NSColor.Name("LeafbookAdaptive")) { appearance in
             let match = appearance.bestMatch(from: [.darkAqua, .aqua])
-            return match == .darkAqua ? NSColor(dark) : NSColor(light)
+            return match == .darkAqua ? darkNSColor : lightNSColor
         }
         return Color(adaptiveColor)
         #else

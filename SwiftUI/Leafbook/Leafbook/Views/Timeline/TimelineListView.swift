@@ -181,12 +181,12 @@ struct TimelineListView: View {
                 if selectedFeed == .events || selectedFeed == .all {
                     Menu {
                         Button("All events") { selectedEventType = nil }
-                        ForEach(TimelineEventType.allCases) { event in
-                            Button(event.label) { selectedEventType = event }
+                        ForEach(TimelineEventType.allCases, id: \.self) { event in
+                            Button(event.displayName) { selectedEventType = event }
                         }
                     } label: {
                         filterChip(
-                            title: selectedEventType?.label ?? "All events",
+                            title: selectedEventType?.displayName ?? "All events",
                             systemImage: "clock"
                         )
                     }
@@ -221,7 +221,7 @@ struct TimelineListView: View {
 
         let filteredEvents = viewModel.events.filter { event in
             if let plantFilter, event.plantId != plantFilter { return false }
-            if let selectedEventType, event.eventType != selectedEventType.rawValue { return false }
+            if let selectedEventType, event.eventType != selectedEventType { return false }
             return true
         }
 
@@ -252,13 +252,13 @@ struct TimelineListView: View {
     }
 
     private var activeIssuesCount: Int {
-        viewModel.issues.filter { $0.status == "active" }.count
+        viewModel.issues.filter { $0.status == .active }.count
     }
 
     private func linkedEventLabel(for item: TimelineItem) -> String? {
         guard case let .journal(entry) = item, let eventId = entry.eventId else { return nil }
         guard let event = viewModel.events.first(where: { $0.id == eventId }) else { return "Linked event" }
-        return "Linked to \(event.eventType.replacingOccurrences(of: "_", with: " ").capitalized)"
+        return "Linked to \(event.eventType.displayName)"
     }
 
     private func eventEditView(for event: PlantEvent) -> some View {
@@ -266,7 +266,7 @@ struct TimelineListView: View {
         let plantId = event.plantId
 
         switch event.eventType {
-        case "moved":
+        case .moved:
             return AnyView(
                 PlantMoveFormView(
                     currentLocation: event.metadata?.fromLocation,
@@ -289,7 +289,7 @@ struct TimelineListView: View {
                     return await viewModel.deleteEvent(userId: userId, event: event)
                 }
             )
-        case "repotted":
+        case .repotted:
             let (currentPot, availablePots) = repotOptions(for: event)
             return AnyView(
                 RepotEventFormView(
@@ -313,7 +313,7 @@ struct TimelineListView: View {
                     return await viewModel.deleteEvent(userId: userId, event: event)
                 }
             )
-        case "propagated":
+        case .propagated:
             return AnyView(
                 PropagationEventFormView(
                     title: "Edit propagation",
@@ -338,7 +338,7 @@ struct TimelineListView: View {
         default:
             return AnyView(
                 CareEventFormView(
-                    title: "Edit \(event.eventType.replacingOccurrences(of: "_", with: " "))",
+                    title: "Edit \(event.eventType.displayName)",
                     initialDate: eventDate,
                     initialNotes: event.notes ?? ""
                 ) { date, notes in

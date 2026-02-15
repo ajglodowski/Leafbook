@@ -11,10 +11,10 @@ struct Plant: Identifiable, Codable, Equatable {
     let id: String
     let name: String
     let nickname: String?
-    let plantLocation: String?
+    let plantLocation: PlantLocation?
     let location: String?
-    let lightExposure: String?
-    let sizeCategory: String?
+    let lightExposure: LightRequirement?
+    let sizeCategory: SizeCategory?
     let isActive: Bool?
     let isLegacy: Bool?
     let legacyReason: String?
@@ -60,10 +60,10 @@ struct Plant: Identifiable, Codable, Equatable {
         id: "00000000-0000-0000-0000-000000000001",
         name: "Monstera",
         nickname: "Mona",
-        plantLocation: "indoor",
+        plantLocation: .indoor,
         location: "Living room",
-        lightExposure: "bright_indirect",
-        sizeCategory: "medium",
+        lightExposure: .brightIndirect,
+        sizeCategory: .medium,
         isActive: true,
         isLegacy: false,
         legacyReason: nil,

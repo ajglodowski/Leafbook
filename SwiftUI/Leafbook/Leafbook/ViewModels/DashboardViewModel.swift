@@ -67,7 +67,7 @@ final class DashboardViewModel {
     func logCareEvent(
         userId: String,
         plantId: String,
-        eventType: String,
+        eventType: TimelineEventType,
         eventDate: Date = Date()
     ) async -> Bool {
         do {

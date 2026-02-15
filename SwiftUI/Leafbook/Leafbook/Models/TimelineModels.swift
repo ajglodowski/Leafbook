@@ -34,28 +34,6 @@ enum TimelineFeed: String, CaseIterable, Identifiable {
     }
 }
 
-enum TimelineEventType: String, CaseIterable, Identifiable {
-    case watered
-    case fertilized
-    case repotted
-    case moved
-    case pruned
-    case rotated
-    case misted
-    case cleaned
-    case propagated
-    case acquired
-    case legacy
-    case restored
-    case other
-
-    var id: String { rawValue }
-
-    var label: String {
-        rawValue.replacingOccurrences(of: "_", with: " ").capitalized
-    }
-}
-
 enum TimelineItem: Identifiable {
     case event(PlantEvent)
     case journal(JournalEntry)

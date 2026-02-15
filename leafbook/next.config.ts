@@ -4,6 +4,13 @@ const nextConfig: NextConfig = {
   // Enable caching with cache tags
   cacheComponents: true,
 
+  // Allow larger request bodies for image uploads (default is 1MB)
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "15mb",
+    },
+  },
+
   // Allow remote images from Vercel Blob Storage and Wikimedia Commons
   images: {
     remotePatterns: [

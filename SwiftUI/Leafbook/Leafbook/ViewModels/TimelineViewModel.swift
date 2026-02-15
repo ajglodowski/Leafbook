@@ -176,7 +176,7 @@ final class TimelineViewModel {
     func deleteEvent(userId: String, event: PlantEvent) async -> Bool {
         do {
             try await service.deletePlantEvent(eventId: event.id)
-            if event.eventType == "moved", let plantId = event.plantId {
+            if event.eventType == .moved, let plantId = event.plantId {
                 let latestMoveEvent = try await service.fetchLatestMoveEvent(plantId: plantId)
                 try await service.updatePlantLocation(plantId: plantId, location: latestMoveEvent?.metadata?.toLocation)
             }

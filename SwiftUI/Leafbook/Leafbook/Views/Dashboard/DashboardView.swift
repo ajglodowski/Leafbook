@@ -71,10 +71,10 @@ struct DashboardView: View {
                     hasPlants: viewModel.summary.hasPlants,
                     photosByPlantId: photosByPlantId,
                     onWater: { plantId, date in
-                        logCareEvent(plantId: plantId, eventType: "watered", eventDate: date)
+                        logCareEvent(plantId: plantId, eventType: .watered, eventDate: date)
                     },
                     onFertilize: { plantId, date in
-                        logCareEvent(plantId: plantId, eventType: "fertilized", eventDate: date)
+                        logCareEvent(plantId: plantId, eventType: .fertilized, eventDate: date)
                     }
                 )
 
@@ -82,7 +82,7 @@ struct DashboardView: View {
                     tasks: viewModel.summary.dueTasks,
                     photosByPlantId: photosByPlantId,
                     onWater: { plantId, date in
-                        logCareEvent(plantId: plantId, eventType: "watered", eventDate: date)
+                        logCareEvent(plantId: plantId, eventType: .watered, eventDate: date)
                     }
                 )
 
@@ -110,7 +110,7 @@ struct DashboardView: View {
         DashboardUtils.buildPhotosByPlant(viewModel.summary.plantPhotos)
     }
 
-    private func logCareEvent(plantId: String, eventType: String, eventDate: Date = Date()) {
+    private func logCareEvent(plantId: String, eventType: TimelineEventType, eventDate: Date = Date()) {
         guard case let .signedIn(userId) = sessionState.status else { return }
         Task {
             _ = await viewModel.logCareEvent(

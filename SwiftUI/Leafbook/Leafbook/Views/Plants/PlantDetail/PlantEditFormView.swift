@@ -12,14 +12,14 @@ struct PlantEditFormView: View {
 
     let plant: Plant
     let parentOptions: [ParentPlantOption]
-    let onSave: @Sendable (String, String?, String?, String?, String?, String?, String?, String?, Date?, String?) async -> Bool
+    let onSave: @Sendable (String, String?, PlantLocation?, String?, LightRequirement?, SizeCategory?, String?, String?, Date?, String?) async -> Bool
 
     @State private var name: String
     @State private var nickname: String
-    @State private var plantLocation: String
+    @State private var plantLocation: PlantLocation?
     @State private var location: String
-    @State private var lightExposure: String
-    @State private var sizeCategory: String
+    @State private var lightExposure: LightRequirement?
+    @State private var sizeCategory: SizeCategory?
     @State private var howAcquired: String
     @State private var descriptionText: String
     @State private var acquiredAt: Date
@@ -32,17 +32,17 @@ struct PlantEditFormView: View {
     init(
         plant: Plant,
         parentOptions: [ParentPlantOption],
-        onSave: @escaping @Sendable (String, String?, String?, String?, String?, String?, String?, String?, Date?, String?) async -> Bool
+        onSave: @escaping @Sendable (String, String?, PlantLocation?, String?, LightRequirement?, SizeCategory?, String?, String?, Date?, String?) async -> Bool
     ) {
         self.plant = plant
         self.parentOptions = parentOptions
         self.onSave = onSave
         _name = State(initialValue: plant.name)
         _nickname = State(initialValue: plant.nickname ?? "")
-        _plantLocation = State(initialValue: plant.plantLocation ?? "")
+        _plantLocation = State(initialValue: plant.plantLocation)
         _location = State(initialValue: plant.location ?? "")
-        _lightExposure = State(initialValue: plant.lightExposure ?? "")
-        _sizeCategory = State(initialValue: plant.sizeCategory ?? "")
+        _lightExposure = State(initialValue: plant.lightExposure)
+        _sizeCategory = State(initialValue: plant.sizeCategory)
         _howAcquired = State(initialValue: plant.howAcquired ?? "")
         _descriptionText = State(initialValue: plant.description ?? "")
         let fallbackDate = ISO8601DateFormatter().date(from: plant.acquiredAt ?? "") ?? Date()
@@ -60,23 +60,27 @@ struct PlantEditFormView: View {
                     TextField("Name", text: $name)
                     TextField("Nickname", text: $nickname)
                     Picker("Environment", selection: $plantLocation) {
-                        Text("Not set").tag("")
-                        Text("Indoor").tag("indoor")
-                        Text("Outdoor").tag("outdoor")
+                        Text("Not set").tag(nil as PlantLocation?)
+                        ForEach(PlantLocation.allCases, id: \.self) { location in
+                            Text(location.displayName).tag(location as PlantLocation?)
+                        }
                     }
                     TextField("Location", text: $location)
                 }
 
                 Section(header: Text("Care details")) {
                     Picker("Light", selection: $lightExposure) {
-                        Text("Not set").tag("")
-                        Text("Dark").tag("dark")
-                        Text("Low indirect").tag("low_indirect")
-                        Text("Medium indirect").tag("medium_indirect")
-                        Text("Bright indirect").tag("bright_indirect")
-                        Text("Direct").tag("direct")
+                        Text("Not set").tag(nil as LightRequirement?)
+                        ForEach(LightRequirement.allCases, id: \.self) { light in
+                            Text(light.displayName).tag(light as LightRequirement?)
+                        }
                     }
-                    TextField("Size category", text: $sizeCategory)
+                    Picker("Size", selection: $sizeCategory) {
+                        Text("Not set").tag(nil as SizeCategory?)
+                        ForEach(SizeCategory.allCases, id: \.self) { size in
+                            Text(size.displayName).tag(size as SizeCategory?)
+                        }
+                    }
                 }
 
                 Section(header: Text("Origin")) {
@@ -174,10 +178,10 @@ struct PlantEditFormView: View {
         let result = await onSave(
             trimmedName,
             nickname.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
-            plantLocation.nilIfEmpty,
+            plantLocation,
             location.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
-            lightExposure.nilIfEmpty,
-            sizeCategory.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
+            lightExposure,
+            sizeCategory,
             resolvedHowAcquired,
             descriptionText.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
             hasAcquiredDate ? acquiredAt : nil,

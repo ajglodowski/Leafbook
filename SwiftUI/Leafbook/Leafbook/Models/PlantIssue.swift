@@ -10,9 +10,9 @@ import Foundation
 struct PlantIssue: Identifiable, Codable, Equatable {
     let id: String
     let plantId: String?
-    let issueType: String
-    let severity: String?
-    let status: String
+    let issueType: IssueType
+    let severity: IssueSeverity?
+    let status: IssueStatus
     let description: String?
     let startedAt: String?
     let resolvedAt: String?
@@ -35,9 +35,9 @@ struct PlantIssue: Identifiable, Codable, Equatable {
     static let preview = PlantIssue(
         id: "issue-1",
         plantId: "00000000-0000-0000-0000-000000000001",
-        issueType: "pest",
-        severity: "medium",
-        status: "active",
+        issueType: .pest,
+        severity: .medium,
+        status: .active,
         description: "Spotted a few gnats on the soil.",
         startedAt: "2026-01-18T12:00:00Z",
         resolvedAt: nil,

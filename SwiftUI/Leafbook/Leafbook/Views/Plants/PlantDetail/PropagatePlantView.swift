@@ -16,9 +16,9 @@ struct PropagatePlantView: View {
 
     @State private var name: String
     @State private var nickname = ""
-    @State private var plantLocation = "indoor"
+    @State private var plantLocation: PlantLocation = .indoor
     @State private var location = ""
-    @State private var lightExposure = ""
+    @State private var lightExposure: LightRequirement? = nil
     @State private var propagationDate = Date()
     @State private var notes = ""
     @State private var isSaving = false
@@ -52,17 +52,17 @@ struct PropagatePlantView: View {
 
                 Section(header: Text("Environment")) {
                     Picker("Environment", selection: $plantLocation) {
-                        Text("Indoor").tag("indoor")
-                        Text("Outdoor").tag("outdoor")
+                        Text("Indoor").tag(PlantLocation.indoor)
+                        Text("Outdoor").tag(PlantLocation.outdoor)
                     }
                     .pickerStyle(.segmented)
 
                     TextField("Location (optional)", text: $location)
 
                     Picker("Light exposure (optional)", selection: $lightExposure) {
-                        Text("Not set").tag("")
-                        ForEach(lightOptions, id: \.value) { option in
-                            Text(option.label).tag(option.value)
+                        Text("Not set").tag(nil as LightRequirement?)
+                        ForEach(LightRequirement.allCases, id: \.self) { light in
+                            Text(light.displayName).tag(light as LightRequirement?)
                         }
                     }
                 }
@@ -93,16 +93,6 @@ struct PropagatePlantView: View {
         }
     }
 
-    private var lightOptions: [(value: String, label: String)] {
-        [
-            ("dark", "Dark"),
-            ("low_indirect", "Low indirect"),
-            ("medium_indirect", "Medium indirect"),
-            ("bright_indirect", "Bright indirect"),
-            ("direct", "Direct")
-        ]
-    }
-
     private func createPropagation() async {
         isSaving = true
         errorMessage = nil
@@ -119,7 +109,7 @@ struct PropagatePlantView: View {
             nickname: nickname.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
             plantLocation: plantLocation,
             location: location.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
-            lightExposure: lightExposure.nilIfEmpty,
+            lightExposure: lightExposure,
             propagationDate: propagationDate,
             notes: notes.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
         )

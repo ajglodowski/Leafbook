@@ -56,9 +56,9 @@ struct PropagationGroup: Equatable {
 struct PropagationDraft: Equatable {
     let name: String
     let nickname: String?
-    let plantLocation: String
+    let plantLocation: PlantLocation
     let location: String?
-    let lightExposure: String?
+    let lightExposure: LightRequirement?
     let propagationDate: Date?
     let notes: String?
 }

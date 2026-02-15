@@ -38,6 +38,19 @@ struct PlantDetailPhotosTab: View {
                     )
                     .frame(maxWidth: 300)
                     .frame(maxWidth: .infinity, alignment: .center)
+
+                    // Show add button when upload is available and there are no other photos
+                    if onUploadPhoto != nil && otherPhotos.isEmpty {
+                        Button {
+                            showingUploadSheet = true
+                        } label: {
+                            Label("Add Photo", systemImage: "plus.circle.fill")
+                                .font(.system(.subheadline, design: .serif).weight(.semibold))
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(LeafbookColors.primary)
+                        .padding(.top, 16)
+                    }
                 }
 
                 if !otherPhotos.isEmpty {

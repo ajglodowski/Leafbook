@@ -215,27 +215,12 @@ struct PlantDetailOverviewTab: View {
         return formatter.string(from: resolvedDate)
     }
 
-    private func formattedLight(_ light: String?) -> String? {
-        guard let light, !light.isEmpty else { return nil }
-        let labels: [String: String] = [
-            "dark": "Dark",
-            "low_indirect": "Low indirect",
-            "medium_indirect": "Medium indirect",
-            "bright_indirect": "Bright indirect",
-            "direct": "Direct"
-        ]
-        return labels[light] ?? light.replacingOccurrences(of: "_", with: " ").capitalized
+    private func formattedLight(_ light: LightRequirement?) -> String? {
+        return light?.displayName
     }
 
-    private func formattedSize(_ size: String?) -> String? {
-        guard let size, !size.isEmpty else { return nil }
-        let labels: [String: String] = [
-            "small": "Small",
-            "medium": "Medium",
-            "large": "Large",
-            "extra_large": "Extra large"
-        ]
-        return labels[size] ?? size.replacingOccurrences(of: "_", with: " ").capitalized
+    private func formattedSize(_ size: SizeCategory?) -> String? {
+        return size?.displayName
     }
 
     private func quickActionButton(
@@ -285,38 +270,12 @@ struct PlantDetailOverviewTab: View {
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
-    private func lightIcon(_ light: String?) -> String {
-        guard let light else { return "sun.max.fill" }
-        switch light {
-        case "dark":
-            return "moon.fill"
-        case "low_indirect":
-            return "cloud.fill"
-        case "medium_indirect":
-            return "sun.haze.fill"
-        case "bright_indirect":
-            return "sun.max.fill"
-        case "direct":
-            return "sun.max.fill"
-        default:
-            return "sun.max.fill"
-        }
+    private func lightIcon(_ light: LightRequirement?) -> String {
+        return light?.symbolName ?? "sun.max.fill"
     }
 
-    private func sizeIcon(_ size: String?) -> String {
-        guard let size else { return "ruler.fill" }
-        switch size {
-        case "small":
-            return "leaf.fill"
-        case "medium":
-            return "leaf.fill"
-        case "large":
-            return "tree.fill"
-        case "extra_large":
-            return "tree.fill"
-        default:
-            return "ruler.fill"
-        }
+    private func sizeIcon(_ size: SizeCategory?) -> String {
+        return size?.symbolName ?? "ruler.fill"
     }
 
     private func howAcquiredIcon(_ how: String?) -> String {
@@ -334,22 +293,8 @@ struct PlantDetailOverviewTab: View {
         }
     }
 
-    private func lightTagline(_ light: String?) -> String? {
-        guard let light else { return nil }
-        switch light {
-        case "dark":
-            return "Loves the shadows 🌑"
-        case "low_indirect":
-            return "Cozy corner dweller ☁️"
-        case "medium_indirect":
-            return "Just right brightness ✨"
-        case "bright_indirect":
-            return "Sun-kissed but shaded 🌤️"
-        case "direct":
-            return "Sunbathing enthusiast ☀️"
-        default:
-            return nil
-        }
+    private func lightTagline(_ light: LightRequirement?) -> String? {
+        return light?.tagline
     }
 
     private func locationTagline(_ location: String?) -> String? {
@@ -357,20 +302,8 @@ struct PlantDetailOverviewTab: View {
         return "Current home 🏡"
     }
 
-    private func sizeTagline(_ size: String?) -> String? {
-        guard let size else { return nil }
-        switch size {
-        case "small":
-            return "Compact cutie 🌱"
-        case "medium":
-            return "Just the right size 🪴"
-        case "large":
-            return "Big and beautiful 🌿"
-        case "extra_large":
-            return "Absolute unit 🌴"
-        default:
-            return nil
-        }
+    private func sizeTagline(_ size: SizeCategory?) -> String? {
+        return size?.tagline
     }
 
     private func acquiredTagline(_ acquiredAt: String?) -> String? {

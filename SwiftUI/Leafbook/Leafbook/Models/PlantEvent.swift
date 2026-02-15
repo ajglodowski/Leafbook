@@ -30,7 +30,7 @@ struct PlantEventMetadata: Codable, Equatable {
 struct PlantEvent: Identifiable, Codable, Equatable {
     let id: String
     let plantId: String?
-    let eventType: String
+    let eventType: TimelineEventType
     let eventDate: String
     let notes: String?
     let metadata: PlantEventMetadata?
@@ -49,7 +49,7 @@ struct PlantEvent: Identifiable, Codable, Equatable {
     static let preview = PlantEvent(
         id: "event-1",
         plantId: "00000000-0000-0000-0000-000000000001",
-        eventType: "watered",
+        eventType: .watered,
         eventDate: "2026-01-22T12:00:00Z",
         notes: "Gave a thorough soak.",
         metadata: nil,

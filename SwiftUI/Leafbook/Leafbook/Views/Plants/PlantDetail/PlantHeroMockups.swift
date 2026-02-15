@@ -10,16 +10,8 @@ import SwiftUI
 
 // MARK: - Shared helper
 
-private func lightDisplayLabel(for raw: String?) -> String? {
-    guard let light = raw else { return nil }
-    let labels: [String: String] = [
-        "dark": "Dark",
-        "low_indirect": "Low Indirect",
-        "medium_indirect": "Medium Indirect",
-        "bright_indirect": "Bright Indirect",
-        "direct": "Direct"
-    ]
-    return labels[light] ?? light.replacingOccurrences(of: "_", with: " ").capitalized
+private func lightDisplayLabel(for lightRequirement: LightRequirement?) -> String? {
+    return lightRequirement?.displayName
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -155,8 +147,8 @@ struct PlantHeroMockupA: View {
     private var detailItems: [(icon: String, text: String, color: Color)] {
         var items: [(icon: String, text: String, color: Color)] = []
         items.append((
-            icon: plant.plantLocation == "indoor" ? "house.fill" : "tree.fill",
-            text: plant.plantLocation == "indoor" ? "Indoor" : "Outdoor",
+            icon: plant.plantLocation == .indoor ? "house.fill" : "tree.fill",
+            text: plant.plantLocation == .indoor ? "Indoor" : "Outdoor",
             color: LeafbookColors.primary
         ))
         if let location = plant.location, !location.isEmpty {
@@ -245,8 +237,8 @@ struct PlantHeroMockupB: View {
                 // Detail rows
                 VStack(alignment: .leading, spacing: 6) {
                     shelfDetailRow(
-                        icon: plant.plantLocation == "indoor" ? "house.fill" : "tree.fill",
-                        text: (plant.plantLocation == "indoor" ? "Indoor" : "Outdoor")
+                        icon: plant.plantLocation == .indoor ? "house.fill" : "tree.fill",
+                        text: (plant.plantLocation == .indoor ? "Indoor" : "Outdoor")
                             + (plant.location.map { ", \($0)" } ?? ""),
                         color: LeafbookColors.primary
                     )
@@ -400,8 +392,8 @@ struct PlantHeroMockupC: View {
                 // Detail row — icon pairs
                 HStack(spacing: 16) {
                     journalDetail(
-                        icon: plant.plantLocation == "indoor" ? "house.fill" : "tree.fill",
-                        label: plant.plantLocation == "indoor" ? "Indoor" : "Outdoor",
+                        icon: plant.plantLocation == .indoor ? "house.fill" : "tree.fill",
+                        label: plant.plantLocation == .indoor ? "Indoor" : "Outdoor",
                         color: LeafbookColors.primary
                     )
 
@@ -591,8 +583,8 @@ struct PlantHeroMockupD: View {
                     // Badges
                     FlowLayout(spacing: 6) {
                         PlantBadge(
-                            icon: plant.plantLocation == "indoor" ? "house.fill" : "tree.fill",
-                            text: plant.plantLocation == "indoor" ? "Indoor" : "Outdoor",
+                            icon: plant.plantLocation == .indoor ? "house.fill" : "tree.fill",
+                            text: plant.plantLocation == .indoor ? "Indoor" : "Outdoor",
                             iconColor: LeafbookColors.primary
                         )
                         if let location = plant.location, !location.isEmpty {
@@ -758,8 +750,8 @@ struct PlantHeroMockupE: View {
                 // Badges
                 HStack(spacing: 6) {
                     PlantBadge(
-                        icon: plant.plantLocation == "indoor" ? "house.fill" : "tree.fill",
-                        text: plant.plantLocation == "indoor" ? "Indoor" : "Outdoor",
+                        icon: plant.plantLocation == .indoor ? "house.fill" : "tree.fill",
+                        text: plant.plantLocation == .indoor ? "Indoor" : "Outdoor",
                         iconColor: LeafbookColors.primary
                     )
                     if let location = plant.location, !location.isEmpty {
@@ -910,8 +902,8 @@ struct PlantHeroMockupF: View {
                     // Detail rows with icons
                     VStack(alignment: .leading, spacing: 4) {
                         fRow(
-                            icon: plant.plantLocation == "indoor" ? "house.fill" : "tree.fill",
-                            text: plant.plantLocation == "indoor" ? "Indoor" : "Outdoor",
+                            icon: plant.plantLocation == .indoor ? "house.fill" : "tree.fill",
+                            text: plant.plantLocation == .indoor ? "Indoor" : "Outdoor",
                             color: LeafbookColors.primary
                         )
                         if let location = plant.location, !location.isEmpty {

@@ -198,7 +198,7 @@ private struct LeafbookBadge: View {
                 id: "plant-2",
                 name: "Rubber tree",
                 nickname: nil,
-                plantLocation: "outdoor",
+                plantLocation: .outdoor,
                 location: "Balcony",
                 lightExposure: nil,
                 sizeCategory: nil,

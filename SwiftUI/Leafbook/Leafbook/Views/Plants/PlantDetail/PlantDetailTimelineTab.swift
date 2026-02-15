@@ -25,10 +25,10 @@ struct PlantDetailTimelineTab: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             let eventLookup = Dictionary(uniqueKeysWithValues: events.map { ($0.id, $0) })
-            let hasAcquiredEvent = events.contains { $0.eventType == "acquired" }
-            let hasPropagationEvent = events.contains { $0.eventType == "propagated" }
+            let hasAcquiredEvent = events.contains { $0.eventType == .acquired }
+            let hasPropagationEvent = events.contains { $0.eventType == .propagated }
             let shouldShowAcquiredPrompt = !hasAcquiredEvent && !hasPropagationEvent
-            let hasLegacyEvent = events.contains { $0.eventType == "legacy" }
+            let hasLegacyEvent = events.contains { $0.eventType == .legacy }
             let shouldShowLegacyPrompt = isLegacy && !hasLegacyEvent
 
             if shouldShowAcquiredPrompt {
@@ -108,7 +108,7 @@ struct PlantDetailTimelineTab: View {
                                 onSelectEvent?(event)
                             } label: {
                                 timelineRow(
-                                    title: event.eventType.replacingOccurrences(of: "_", with: " ").capitalized,
+                                    title: event.eventType.displayName,
                                     subtitle: moveDetail.primary ?? event.notes,
                                     secondarySubtitle: moveDetail.primary != nil ? event.notes : nil,
                                     dateString: event.eventDate,
@@ -133,7 +133,7 @@ struct PlantDetailTimelineTab: View {
                         ForEach(journalEntries) { entry in
                             let linkedEvent = entry.eventId.flatMap { eventLookup[$0] }
                             let linkedLabel = linkedEvent.map { event in
-                                event.eventType.replacingOccurrences(of: "_", with: " ").capitalized
+                                event.eventType.displayName
                             }
                             Button {
                                 onSelectJournalEntry?(entry)
@@ -162,7 +162,7 @@ struct PlantDetailTimelineTab: View {
                     } else {
                         ForEach(issues) { issue in
                             timelineRow(
-                                title: issue.issueType.capitalized,
+                                title: issue.issueType.displayName,
                                 subtitle: issue.description,
                                 dateString: issue.startedAt ?? issue.resolvedAt
                             )
@@ -180,7 +180,7 @@ struct PlantDetailTimelineTab: View {
         secondarySubtitle: String? = nil,
         dateString: String?,
         footer: String? = nil,
-        eventType: String? = nil
+        eventType: TimelineEventType? = nil
     ) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline) {
@@ -293,7 +293,7 @@ struct PlantDetailTimelineTab: View {
     }
 
     private func moveSubtitle(for event: PlantEvent) -> (primary: String?, secondary: String?) {
-        guard event.eventType == "moved", let metadata = event.metadata else {
+        guard event.eventType == .moved, let metadata = event.metadata else {
             return (nil, nil)
         }
         if let fromLocation = metadata.fromLocation, let toLocation = metadata.toLocation {

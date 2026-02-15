@@ -208,7 +208,7 @@ struct JournalEntryFormView: View {
 
     private func eventLabel(for event: PlantEvent) -> String {
         let formattedDate = formattedDateLabel(from: event.eventDate)
-        let title = event.eventType.replacingOccurrences(of: "_", with: " ").capitalized
+        let title = event.eventType.displayName
         if let formattedDate {
             return "\(title) · \(formattedDate)"
         }

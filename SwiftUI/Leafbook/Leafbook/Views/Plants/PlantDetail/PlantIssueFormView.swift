@@ -10,26 +10,26 @@ import SwiftUI
 struct PlantIssueFormView: View {
     @Environment(\.dismiss) private var dismiss
 
-    let onSave: @Sendable (String, String, String) async -> Bool
+    let onSave: @Sendable (IssueType, IssueSeverity, String) async -> Bool
 
-    @State private var issueType = "pest"
-    @State private var severity = "medium"
+    @State private var issueType: IssueType = .pest
+    @State private var severity: IssueSeverity = .medium
     @State private var descriptionText = ""
     @State private var isSaving = false
     @State private var errorMessage: String?
 
-    private let issueTypes = [
-        "pest",
-        "disease",
-        "overwatering",
-        "underwatering",
-        "root_rot",
-        "yellowing",
-        "browning",
-        "wilting",
-        "other"
+    private let issueTypes: [IssueType] = [
+        .pest,
+        .disease,
+        .overwatering,
+        .underwatering,
+        .rootRot,
+        .yellowing,
+        .browning,
+        .wilting,
+        .other
     ]
-    private let severityLevels = ["low", "medium", "high"]
+    private let severityLevels: [IssueSeverity] = [.low, .medium, .high]
 
     var body: some View {
         NavigationStack {
@@ -37,12 +37,12 @@ struct PlantIssueFormView: View {
                 Section(header: Text("Issue")) {
                     Picker("Type", selection: $issueType) {
                         ForEach(issueTypes, id: \.self) { type in
-                            Text(formatIssueType(type)).tag(type)
+                            Text(type.displayName).tag(type)
                         }
                     }
                     Picker("Severity", selection: $severity) {
                         ForEach(severityLevels, id: \.self) { level in
-                            Text(level.capitalized).tag(level)
+                            Text(level.displayName).tag(level)
                         }
                     }
                 }
@@ -73,21 +73,6 @@ struct PlantIssueFormView: View {
         }
     }
 
-    private func formatIssueType(_ type: String) -> String {
-        switch type {
-        case "pest": return "Pest"
-        case "disease": return "Disease"
-        case "overwatering": return "Overwatering"
-        case "underwatering": return "Underwatering"
-        case "root_rot": return "Root Rot"
-        case "yellowing": return "Yellowing"
-        case "browning": return "Browning"
-        case "wilting": return "Wilting"
-        case "other": return "Other"
-        default: return type.capitalized
-        }
-    }
-
     private func save() async {
         isSaving = true
         errorMessage = nil
@@ -104,7 +89,7 @@ struct PlantIssueFormView: View {
 }
 
 #Preview {
-    PlantIssueFormView { _, _, _ in
+    PlantIssueFormView { (_: IssueType, _: IssueSeverity, _: String) in
         true
     }
 }

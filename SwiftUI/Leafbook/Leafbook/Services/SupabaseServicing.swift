@@ -32,7 +32,7 @@ protocol SupabaseServicing: Sendable {
     func fetchPlantsForParentSelection(userId: String, currentPlantId: String) async throws -> [PropagationPlant]
     func fetchLatestMoveEvent(plantId: String) async throws -> PlantEvent?
 
-    func createCareEvent(userId: String, plantId: String, eventType: String, eventDate: Date) async throws
+    func createCareEvent(userId: String, plantId: String, eventType: TimelineEventType, eventDate: Date) async throws
     func createMoveEvent(
         userId: String,
         plantId: String,
@@ -69,7 +69,7 @@ protocol SupabaseServicing: Sendable {
         toPotId: String?
     ) async throws
     func deletePlantEvent(eventId: String) async throws
-    func createPlantIssue(userId: String, plantId: String, issueType: String, severity: String, description: String) async throws
+    func createPlantIssue(userId: String, plantId: String, issueType: IssueType, severity: IssueSeverity, description: String) async throws
     func updatePlantPhotoMetadata(photoId: String, takenAt: Date, caption: String?) async throws
     func uploadPlantPhoto(plantId: String, imageData: Data, takenAt: Date?, caption: String?) async throws -> PlantPhoto
     func updatePlantCarePreferences(plantId: String, wateringDays: Int?, fertilizingDays: Int?) async throws
@@ -77,10 +77,10 @@ protocol SupabaseServicing: Sendable {
         plantId: String,
         name: String,
         nickname: String?,
-        plantLocation: String?,
+        plantLocation: PlantLocation?,
         location: String?,
-        lightExposure: String?,
-        sizeCategory: String?,
+        lightExposure: LightRequirement?,
+        sizeCategory: SizeCategory?,
         howAcquired: String?,
         description: String?,
         acquiredAt: Date?,
@@ -99,9 +99,9 @@ protocol SupabaseServicing: Sendable {
         name: String,
         nickname: String?,
         plantTypeId: String?,
-        plantLocation: String,
+        plantLocation: PlantLocation,
         location: String?,
-        lightExposure: String?,
+        lightExposure: LightRequirement?,
         propagationDate: Date?,
         description: String?
     ) async throws -> Plant

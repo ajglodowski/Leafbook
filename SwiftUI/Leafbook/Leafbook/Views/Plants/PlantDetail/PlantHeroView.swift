@@ -22,15 +22,7 @@ struct PlantHeroView: View {
     }
 
     private var lightLabel: String? {
-        guard let light = plant.lightExposure else { return nil }
-        let labels: [String: String] = [
-            "dark": "Dark",
-            "low_indirect": "Low Indirect",
-            "medium_indirect": "Medium Indirect",
-            "bright_indirect": "Bright Indirect",
-            "direct": "Direct"
-        ]
-        return labels[light] ?? light.replacingOccurrences(of: "_", with: " ").capitalized
+        return plant.lightExposure?.displayName
     }
 
     var body: some View {
@@ -183,9 +175,9 @@ struct PlantHeroView: View {
             }
 
             PlantBadge(
-                icon: plant.plantLocation == "indoor" ? "house.fill" : "tree.fill",
-                text: plant.plantLocation == "indoor" ? "Indoor" : "Outdoor",
-                iconColor: plant.plantLocation == "indoor" ? LeafbookColors.waterBlue : LeafbookColors.primary
+                icon: plant.plantLocation == .indoor ? "house.fill" : "tree.fill",
+                text: plant.plantLocation == .indoor ? "Indoor" : "Outdoor",
+                iconColor: plant.plantLocation == .indoor ? LeafbookColors.waterBlue : LeafbookColors.primary
             )
 
             if let location = plant.location, !location.isEmpty {
@@ -367,10 +359,10 @@ struct FlowLayout: Layout {
                     id: "test",
                     name: "Fiddle Leaf Fig",
                     nickname: nil,
-                    plantLocation: "outdoor",
+                    plantLocation: .outdoor,
                     location: "Patio",
-                    lightExposure: "direct",
-                    sizeCategory: "large",
+                    lightExposure: .direct,
+                    sizeCategory: .large,
                     isActive: true,
                     isLegacy: false,
                     legacyReason: nil,
