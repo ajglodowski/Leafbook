@@ -107,15 +107,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({
-      id: photo.id,
-      url: photo.url,
-      caption: photo.caption,
-      takenAt: photo.taken_at,
-      plantId: photo.plant_id,
-      userId: photo.user_id,
-      createdAt: photo.created_at,
-    });
+    return NextResponse.json(photo);
   } catch (error) {
     console.error("Plant photo upload error:", error);
     return NextResponse.json(
