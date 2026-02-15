@@ -1,11 +1,7 @@
 import { put } from "@vercel/blob";
-import { connection } from "next/server";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
-  // Opt into dynamic rendering (required for Next.js 15)
-  await connection();
-
   try {
     // Parse Bearer token from Authorization header
     const authHeader = request.headers.get("authorization");
