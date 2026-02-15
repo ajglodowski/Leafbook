@@ -1,6 +1,8 @@
 import { put } from "@vercel/blob";
 import { NextRequest, NextResponse } from "next/server";
 
+// Upload plant photo by streaming the request body directly to Vercel Blob.
+// Metadata is passed via headers to avoid multipart/formData body size limits.
 export async function POST(request: NextRequest) {
   try {
     // Parse Bearer token from Authorization header
@@ -14,7 +16,27 @@ export async function POST(request: NextRequest) {
 
     const token = authHeader.replace("Bearer ", "");
 
-    // Create Supabase client with token (mobile apps use tokens, not cookies)
+    // Read metadata from headers
+    const plantId = request.headers.get("x-plant-id");
+    const takenAt = request.headers.get("x-taken-at");
+    const caption = request.headers.get("x-caption");
+    const contentType = request.headers.get("content-type") || "image/jpeg";
+
+    if (!plantId) {
+      return NextResponse.json(
+        { error: "Missing x-plant-id header" },
+        { status: 400 }
+      );
+    }
+
+    if (!request.body) {
+      return NextResponse.json(
+        { error: "Missing request body" },
+        { status: 400 }
+      );
+    }
+
+    // Create Supabase client with the token
     const { createClient } = await import("@supabase/supabase-js");
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -38,27 +60,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Parse multipart form data
-    const formData = await request.formData();
-    const file = formData.get("file") as File | null;
-    const plantId = formData.get("plantId") as string | null;
-    const takenAt = formData.get("takenAt") as string | null;
-    const caption = formData.get("caption") as string | null;
-
-    if (!file) {
-      return NextResponse.json(
-        { error: "Missing file in request" },
-        { status: 400 }
-      );
-    }
-
-    if (!plantId) {
-      return NextResponse.json(
-        { error: "Missing plantId in request" },
-        { status: 400 }
-      );
-    }
-
     // Verify user owns this plant
     const { data: plant, error: plantError } = await supabase
       .from("plants")
@@ -74,11 +75,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Upload to Vercel Blob
-    const pathname = `user-uploads/${user.id}/plant-photos/${file.name}`;
-    const blob = await put(pathname, file, {
+    // Stream request body directly to Vercel Blob (bypasses body size limits)
+    const timestamp = Date.now();
+    const ext = contentType === "image/png" ? "png" : "jpg";
+    const pathname = `user-uploads/${user.id}/plant-photos/${timestamp}.${ext}`;
+
+    const blob = await put(pathname, request.body, {
       access: "public",
       addRandomSuffix: true,
+      contentType,
     });
 
     // Insert into database
