@@ -23,7 +23,7 @@ struct PlantDetailPhotosTab: View {
     private let gridSpacing: CGFloat = 24
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 16) {
             if photos.isEmpty {
                 emptyPolaroid
             } else {

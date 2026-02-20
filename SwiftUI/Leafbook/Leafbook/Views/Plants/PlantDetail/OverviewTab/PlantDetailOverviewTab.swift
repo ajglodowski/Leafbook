@@ -206,13 +206,11 @@ struct PlantDetailOverviewTab: View {
 
     private func formattedDate(_ dateString: String?) -> String? {
         guard let dateString else { return nil }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
-        let date = formatter.date(from: dateString) ?? ISO8601DateFormatter().date(from: dateString)
-        guard let resolvedDate = date else { return nil }
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .none
-        return formatter.string(from: resolvedDate)
+        guard let resolvedDate = parseFlexibleDate(dateString) else { return nil }
+        let display = DateFormatter()
+        display.dateStyle = .medium
+        display.timeStyle = .none
+        return display.string(from: resolvedDate)
     }
 
     private func formattedLight(_ light: LightRequirement?) -> String? {
@@ -264,7 +262,7 @@ struct PlantDetailOverviewTab: View {
                     .foregroundStyle(LeafbookColors.foreground.opacity(0.5))
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(10)
         .background(color.opacity(0.08))
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -308,10 +306,7 @@ struct PlantDetailOverviewTab: View {
 
     private func acquiredTagline(_ acquiredAt: String?) -> String? {
         guard let acquiredAt else { return nil }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
-        let date = formatter.date(from: acquiredAt) ?? ISO8601DateFormatter().date(from: acquiredAt)
-        guard let resolvedDate = date else { return nil }
+        guard let resolvedDate = parseFlexibleDate(acquiredAt) else { return nil }
 
         let calendar = Calendar.current
         let components = calendar.dateComponents([.day, .month, .year], from: resolvedDate, to: Date())
@@ -324,6 +319,18 @@ struct PlantDetailOverviewTab: View {
             return days == 1 ? "1 day together ✨" : "\(days) days together ✨"
         }
         return "Just joined! ✨"
+    }
+
+    private func parseFlexibleDate(_ dateString: String) -> Date? {
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = iso.date(from: dateString) { return date }
+        iso.formatOptions = [.withInternetDateTime]
+        if let date = iso.date(from: dateString) { return date }
+        let plain = DateFormatter()
+        plain.dateFormat = "yyyy-MM-dd"
+        plain.locale = Locale(identifier: "en_US_POSIX")
+        return plain.date(from: dateString)
     }
 
     private func howTagline(_ how: String?) -> String? {

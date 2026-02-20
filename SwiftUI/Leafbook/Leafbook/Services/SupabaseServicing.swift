@@ -70,6 +70,7 @@ protocol SupabaseServicing: Sendable {
     ) async throws
     func deletePlantEvent(eventId: String) async throws
     func createPlantIssue(userId: String, plantId: String, issueType: IssueType, severity: IssueSeverity, description: String) async throws
+    func resolvePlantIssue(issueId: String, resolutionNotes: String?) async throws
     func updatePlantPhotoMetadata(photoId: String, takenAt: Date, caption: String?) async throws
     func uploadPlantPhoto(plantId: String, imageData: Data, takenAt: Date?, caption: String?) async throws -> PlantPhoto
     func updatePlantCarePreferences(plantId: String, wateringDays: Int?, fertilizingDays: Int?) async throws
@@ -122,4 +123,13 @@ protocol SupabaseServicing: Sendable {
     func markPlantAsLegacy(plantId: String, userId: String, reason: String) async throws
     func restorePlantFromLegacy(plantId: String, userId: String) async throws
     func createLegacyEvent(userId: String, plantId: String, reason: String?) async throws
+
+    func fetchAllTaxa() async throws -> [Taxon]
+    func fetchAllTaxonEdges() async throws -> [TaxonEdge]
+
+    func fetchPlantsByType(plantTypeId: String, userId: String) async throws -> [Plant]
+    func fetchPlantTypePhotos(plantTypeId: String) async throws -> [PlantTypePhoto]
+
+    func fetchAllPlantTypes() async throws -> [PlantType]
+    func fetchPrimaryPhotosForAllPlantTypes() async throws -> [PlantTypePhoto]
 }

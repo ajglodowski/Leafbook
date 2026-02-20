@@ -17,6 +17,8 @@ final class PlantsViewModel {
     private(set) var photosById: [String: PlantPhoto] = [:]
     private(set) var photosByPlantId: [String: PlantPhoto] = [:]
     private(set) var isLoading = false
+    private(set) var taxonomyTree: CompactedTaxonomyTree?
+    private(set) var isTaxonomyLoading = false
     var errorMessage: String?
 
     private let service: SupabaseService
@@ -51,6 +53,38 @@ final class PlantsViewModel {
             print("Failed to load plants: \(error)")
             errorMessage = "We couldn't load your plants yet."
         }
+    }
+
+    func loadTaxonomy(userId: String) async {
+        guard taxonomyTree == nil else { return }
+        isTaxonomyLoading = true
+        defer { isTaxonomyLoading = false }
+
+        do {
+            async let taxaResult = service.fetchAllTaxa()
+            async let edgesResult = service.fetchAllTaxonEdges()
+
+            let taxa = try await taxaResult
+            let edges = try await edgesResult
+
+            self.taxonomyTree = TaxonomyTreeBuilder.buildCompactedTree(
+                plants: self.plants,
+                taxa: taxa,
+                edges: edges
+            )
+        } catch {
+            print("Failed to load taxonomy: \(error)")
+        }
+    }
+
+    var plantTypesById: [String: PlantType] {
+        var result: [String: PlantType] = [:]
+        for plant in plants + legacyPlants {
+            if let pt = plant.plantTypes, result[pt.id] == nil {
+                result[pt.id] = pt
+            }
+        }
+        return result
     }
 
     func taskStatus(for plant: Plant) -> PlantDueTask? {

@@ -151,6 +151,12 @@ final class SupabaseService: @unchecked Sendable {
         let caption: String?
     }
 
+    private struct IssueResolvePayload: Encodable {
+        let status: String
+        let resolved_at: String
+        let resolution_notes: String?
+    }
+
     private struct CountRecord: Decodable {
         let id: String
     }
@@ -281,7 +287,8 @@ final class SupabaseService: @unchecked Sendable {
                     plant_types (
                       id,
                       name,
-                      scientific_name
+                      scientific_name,
+                      taxon_id
                     )
                 """)
                 .eq("user_id", value: userId)
@@ -316,7 +323,8 @@ final class SupabaseService: @unchecked Sendable {
                     plant_types (
                       id,
                       name,
-                      scientific_name
+                      scientific_name,
+                      taxon_id
                     )
                 """)
                 .eq("user_id", value: userId)
@@ -365,7 +373,8 @@ final class SupabaseService: @unchecked Sendable {
                       fertilizing_frequency_days,
                       light_min,
                       light_max,
-                      description
+                      description,
+                      taxon_id
                     )
                 """)
                 .eq("id", value: plantId)
@@ -982,6 +991,24 @@ final class SupabaseService: @unchecked Sendable {
         }
     }
 
+    func resolvePlantIssue(issueId: String, resolutionNotes: String?) async throws {
+        do {
+            let payload = IssueResolvePayload(
+                status: IssueStatus.resolved.rawValue,
+                resolved_at: ISO8601DateFormatter().string(from: Date()),
+                resolution_notes: resolutionNotes
+            )
+            try await client
+                .from("plant_issues")
+                .update(payload)
+                .eq("id", value: issueId)
+                .execute()
+        } catch {
+            print("SupabaseService: resolvePlantIssue failed for issueId=\(issueId): \(error)")
+            throw error
+        }
+    }
+
     func updatePlantPhotoMetadata(photoId: String, takenAt: Date, caption: String?) async throws {
         do {
             let payload = PlantPhotoUpdatePayload(
@@ -1013,49 +1040,24 @@ final class SupabaseService: @unchecked Sendable {
             // Build upload URL
             let uploadURL = apiURL.appendingPathComponent("api/mobile/plant-photos/upload")
 
-            // Create multipart form data
-            let boundary = "Boundary-\(UUID().uuidString)"
+            // Send image as raw body with metadata in headers
+            // This avoids Next.js multipart/formData body size limits
             var request = URLRequest(url: uploadURL)
             request.httpMethod = "POST"
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-            request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+            request.setValue("image/jpeg", forHTTPHeaderField: "Content-Type")
+            request.setValue(plantId, forHTTPHeaderField: "x-plant-id")
 
-            var body = Data()
-
-            // Add image file
-            body.append("--\(boundary)\r\n".data(using: .utf8)!)
-            body.append("Content-Disposition: form-data; name=\"file\"; filename=\"photo.jpg\"\r\n".data(using: .utf8)!)
-            body.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
-            body.append(imageData)
-            body.append("\r\n".data(using: .utf8)!)
-
-            // Add plantId
-            body.append("--\(boundary)\r\n".data(using: .utf8)!)
-            body.append("Content-Disposition: form-data; name=\"plantId\"\r\n\r\n".data(using: .utf8)!)
-            body.append(plantId.data(using: .utf8)!)
-            body.append("\r\n".data(using: .utf8)!)
-
-            // Add takenAt if provided
             if let takenAt {
                 let isoDate = ISO8601DateFormatter().string(from: takenAt)
-                body.append("--\(boundary)\r\n".data(using: .utf8)!)
-                body.append("Content-Disposition: form-data; name=\"takenAt\"\r\n\r\n".data(using: .utf8)!)
-                body.append(isoDate.data(using: .utf8)!)
-                body.append("\r\n".data(using: .utf8)!)
+                request.setValue(isoDate, forHTTPHeaderField: "x-taken-at")
             }
 
-            // Add caption if provided
             if let caption, !caption.isEmpty {
-                body.append("--\(boundary)\r\n".data(using: .utf8)!)
-                body.append("Content-Disposition: form-data; name=\"caption\"\r\n\r\n".data(using: .utf8)!)
-                body.append(caption.data(using: .utf8)!)
-                body.append("\r\n".data(using: .utf8)!)
+                request.setValue(caption, forHTTPHeaderField: "x-caption")
             }
 
-            // Close multipart
-            body.append("--\(boundary)--\r\n".data(using: .utf8)!)
-
-            request.httpBody = body
+            request.httpBody = imageData
 
             // Execute request
             let (data, response) = try await URLSession.shared.data(for: request)
@@ -1069,10 +1071,8 @@ final class SupabaseService: @unchecked Sendable {
                 throw NSError(domain: "SupabaseService", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: errorMessage])
             }
 
-            // Decode response
-            let decoder = JSONDecoder()
-            decoder.keyDecodingStrategy = .convertFromSnakeCase
-            let photo = try decoder.decode(PlantPhoto.self, from: data)
+            // Decode response (PlantPhoto has explicit CodingKeys for snake_case)
+            let photo = try JSONDecoder().decode(PlantPhoto.self, from: data)
 
             return photo
         } catch {
@@ -1773,6 +1773,109 @@ final class SupabaseService: @unchecked Sendable {
                 .execute()
         } catch {
             print("SupabaseService: createLegacyEvent failed for plantId=\(plantId), userId=\(userId): \(error)")
+            throw error
+        }
+    }
+
+    // MARK: - Taxonomy
+
+    func fetchAllTaxa() async throws -> [Taxon] {
+        try await client
+            .from("taxa")
+            .select("id, wikidata_qid, rank, scientific_name, common_name")
+            .execute()
+            .value
+    }
+
+    func fetchAllTaxonEdges() async throws -> [TaxonEdge] {
+        try await client
+            .from("taxon_edges")
+            .select("parent_taxon_id, child_taxon_id")
+            .execute()
+            .value
+    }
+
+    func fetchPlantTypePhotos(plantTypeId: String) async throws -> [PlantTypePhoto] {
+        do {
+            try validateUUID(plantTypeId, field: "plantTypeId")
+
+            return try await client
+                .from("plant_type_photos")
+                .select("*")
+                .eq("plant_type_id", value: plantTypeId)
+                .order("is_primary", ascending: false)
+                .order("display_order", ascending: true)
+                .order("created_at", ascending: true)
+                .execute()
+                .value
+        } catch {
+            print("SupabaseService: fetchPlantTypePhotos failed for plantTypeId=\(plantTypeId): \(error)")
+            throw error
+        }
+    }
+
+    func fetchAllPlantTypes() async throws -> [PlantType] {
+        do {
+            return try await client
+                .from("plant_types")
+                .select("id, name, scientific_name, watering_frequency_days, fertilizing_frequency_days, light_min, light_max, size_min, size_max, description, taxon_id")
+                .order("name", ascending: true)
+                .execute()
+                .value
+        } catch {
+            print("SupabaseService: fetchAllPlantTypes failed: \(error)")
+            throw error
+        }
+    }
+
+    func fetchPrimaryPhotosForAllPlantTypes() async throws -> [PlantTypePhoto] {
+        do {
+            return try await client
+                .from("plant_type_photos")
+                .select("id, plant_type_id, url, caption, is_primary, display_order")
+                .eq("is_primary", value: true)
+                .execute()
+                .value
+        } catch {
+            print("SupabaseService: fetchPrimaryPhotosForAllPlantTypes failed: \(error)")
+            throw error
+        }
+    }
+
+    func fetchPlantsByType(plantTypeId: String, userId: String) async throws -> [Plant] {
+        do {
+            try validateUUID(plantTypeId, field: "plantTypeId")
+            try validateUUID(userId, field: "userId")
+
+            return try await client
+                .from("plants")
+                .select("""
+                    id,
+                    name,
+                    nickname,
+                    plant_location,
+                    location,
+                    is_active,
+                    is_legacy,
+                    legacy_reason,
+                    legacy_at,
+                    created_at,
+                    plant_type_id,
+                    active_photo_id,
+                    plant_types (
+                      id,
+                      name,
+                      scientific_name,
+                      taxon_id
+                    )
+                """)
+                .eq("user_id", value: userId)
+                .eq("plant_type_id", value: plantTypeId)
+                .order("created_at", ascending: false)
+                .execute()
+                .value
+        } catch {
+            print("SupabaseService: fetchPlantsByType failed for plantTypeId=\(plantTypeId), userId=\(userId): \(error)")
             throw error
         }
     }

@@ -19,6 +19,10 @@ struct TimelineListView: View {
     @State private var showingNewEntry = false
     @State private var editingEntry: JournalEntry? = nil
     @State private var editingEvent: PlantEvent? = nil
+    @State private var resolvingIssue: PlantIssue? = nil
+    @State private var viewMode: TimelineViewMode = .list
+    @State private var displayedMonth: Date = Date()
+    @State private var selectedCalendarDay: IdentifiableDate? = nil
 
     init(
         viewModel: TimelineViewModel = TimelineViewModel(),
@@ -28,68 +32,111 @@ struct TimelineListView: View {
         _selectedFeed = State(initialValue: initialFeed)
     }
 
-    var body: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                filterHeader
+    private var headerSubtitle: String {
+        let totalEvents = viewModel.events.count
+        let totalEntries = viewModel.entries.count
+        let totalIssues = viewModel.issues.count
+        let total = totalEvents + totalEntries + totalIssues
+        guard total > 0 else { return "Your plant care history" }
+        var parts: [String] = []
+        if totalEvents > 0 {
+            parts.append("\(totalEvents) event\(totalEvents == 1 ? "" : "s")")
+        }
+        if totalEntries > 0 {
+            parts.append("\(totalEntries) note\(totalEntries == 1 ? "" : "s")")
+        }
+        if totalIssues > 0 {
+            parts.append("\(totalIssues) issue\(totalIssues == 1 ? "" : "s")")
+        }
+        return parts.joined(separator: " · ")
+    }
 
-                if timelineItems.isEmpty && !viewModel.isLoading {
-                    EmptyStateView(
-                        title: "No timeline activity",
-                        message: "Log care, track issues, or write a journal note to start the story.",
-                        systemImage: "clock"
-                    )
-                    .padding(.top, 20)
-                } else {
-                    LazyVStack(spacing: 12) {
-                        ForEach(timelineItems) { item in
-                            if case let .journal(entry) = item {
-                                Button {
-                                    editingEntry = entry
-                                } label: {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Timeline")
+                        .font(.system(.title, design: .serif).weight(.semibold))
+                        .foregroundStyle(LeafbookColors.foreground)
+                    Text(headerSubtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(LeafbookColors.foreground.opacity(0.7))
+                }
+                Spacer()
+                Button {
+                    withAnimation {
+                        viewMode = viewMode == .list ? .calendar : .list
+                    }
+                } label: {
+                    Image(systemName: viewMode == .list ? "calendar" : "list.bullet")
+                        .font(.title3)
+                        .foregroundStyle(LeafbookColors.foreground.opacity(0.7))
+                }
+                Button {
+                    showingNewEntry = true
+                } label: {
+                    Image(systemName: "square.and.pencil")
+                        .font(.title3)
+                        .foregroundStyle(LeafbookColors.foreground.opacity(0.7))
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+
+            filterHeader
+                .padding(.horizontal, 16)
+
+            ScrollView {
+                VStack(spacing: 16) {
+                    if viewMode == .calendar {
+                        CalendarGridView(
+                            displayedMonth: $displayedMonth,
+                            dotColors: calendarDotColors,
+                            selectedDay: selectedCalendarDay?.date,
+                            onSelectDay: { day in
+                                selectedCalendarDay = IdentifiableDate(day)
+                            }
+                        )
+                    } else if timelineItems.isEmpty && !viewModel.isLoading {
+                        EmptyStateView(
+                            title: "No timeline activity",
+                            message: "Log care, track issues, or write a journal note to start the story.",
+                            systemImage: "clock"
+                        )
+                        .padding(.top, 20)
+                    } else {
+                        LazyVStack(spacing: 12) {
+                            ForEach(timelineItems) { item in
+                                if let plantId = item.plantId {
+                                    NavigationLink(destination: PlantDetailView(plantId: plantId)) {
+                                        TimelineItemCard(
+                                            item: item,
+                                            thumbnailURL: viewModel.thumbnailURL(for: item),
+                                            linkedEventLabel: linkedEventLabel(for: item),
+                                            dateFormatter: dateFormatter,
+                                            onEdit: editAction(for: item)
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
+                                } else {
                                     TimelineItemCard(
                                         item: item,
                                         thumbnailURL: viewModel.thumbnailURL(for: item),
                                         linkedEventLabel: linkedEventLabel(for: item),
-                                        dateFormatter: dateFormatter
+                                        dateFormatter: dateFormatter,
+                                        onEdit: editAction(for: item)
                                     )
                                 }
-                                .buttonStyle(.plain)
-                            } else if case let .event(event) = item {
-                                Button {
-                                    editingEvent = event
-                                } label: {
-                                    TimelineItemCard(
-                                        item: item,
-                                        thumbnailURL: viewModel.thumbnailURL(for: item),
-                                        linkedEventLabel: linkedEventLabel(for: item),
-                                        dateFormatter: dateFormatter
-                                    )
-                                }
-                                .buttonStyle(.plain)
-                            } else {
-                                TimelineItemCard(
-                                    item: item,
-                                    thumbnailURL: viewModel.thumbnailURL(for: item),
-                                    linkedEventLabel: linkedEventLabel(for: item),
-                                    dateFormatter: dateFormatter
-                                )
                             }
                         }
                     }
                 }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
             }
-            .padding()
         }
         .background(LeafbookColors.background)
-        .navigationTitle("Timeline")
-        .toolbar {
-            Button {
-                showingNewEntry = true
-            } label: {
-                Image(systemName: "square.and.pencil")
-            }
-        }
+        .navigationBarHidden(true)
         .sheet(isPresented: $showingNewEntry) {
             JournalEntryFormView { plantId, title, content, date, eventId, entryId in
                 await handleJournalSave(
@@ -122,6 +169,27 @@ struct TimelineListView: View {
         }
         .sheet(item: $editingEvent) { event in
             eventEditView(for: event)
+        }
+        .sheet(item: $resolvingIssue) { issue in
+            IssueResolveFormView(issue: issue) { resolutionNotes in
+                guard case let .signedIn(userId) = await sessionState.status else { return false }
+                return await viewModel.resolveIssue(
+                    userId: userId,
+                    issueId: issue.id,
+                    resolutionNotes: resolutionNotes
+                )
+            }
+        }
+        .sheet(item: $selectedCalendarDay) { identifiableDate in
+            CalendarDaySheetView(
+                date: identifiableDate.date,
+                items: itemsForDay(identifiableDate.date),
+                thumbnailURL: { viewModel.thumbnailURL(for: $0) },
+                linkedEventLabel: { linkedEventLabel(for: $0) },
+                onEdit: { editAction(for: $0) }
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
         }
         .onAppear {
             if let feed = tabRouter.requestedTimelineFeed {
@@ -162,6 +230,7 @@ struct TimelineListView: View {
                     }
                 }
             )
+            .fixedSize(horizontal: false, vertical: true)
 
             HStack(spacing: 12) {
                 Menu {
@@ -195,7 +264,6 @@ struct TimelineListView: View {
                 Spacer()
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func filterChip(title: String, systemImage: String) -> some View {
@@ -255,10 +323,51 @@ struct TimelineListView: View {
         viewModel.issues.filter { $0.status == .active }.count
     }
 
+    private var calendarDotColors: [Date: [Color]] {
+        let cal = Calendar.current
+        var grouped: [Date: [String: Color]] = [:]
+        for item in timelineItems {
+            guard let date = item.sortDate else { continue }
+            let day = cal.startOfDay(for: date)
+            let key: String
+            switch item {
+            case .event(let event): key = "event-\(event.eventType.rawValue)"
+            case .journal: key = "journal"
+            case .issue: key = "issue"
+            }
+            grouped[day, default: [:]][key] = item.dotColor
+        }
+        return grouped.mapValues { dict in
+            Array(dict.values.prefix(4))
+        }
+    }
+
+    private func itemsForDay(_ date: Date) -> [TimelineItem] {
+        let cal = Calendar.current
+        return timelineItems.filter { item in
+            guard let itemDate = item.sortDate else { return false }
+            return cal.isDate(itemDate, inSameDayAs: date)
+        }
+    }
+
     private func linkedEventLabel(for item: TimelineItem) -> String? {
         guard case let .journal(entry) = item, let eventId = entry.eventId else { return nil }
         guard let event = viewModel.events.first(where: { $0.id == eventId }) else { return "Linked event" }
         return "Linked to \(event.eventType.displayName)"
+    }
+
+    private func editAction(for item: TimelineItem) -> (() -> Void)? {
+        switch item {
+        case .journal(let entry):
+            return { editingEntry = entry }
+        case .event(let event):
+            return { editingEvent = event }
+        case .issue(let issue):
+            if issue.status == .active {
+                return { resolvingIssue = issue }
+            }
+            return nil
+        }
     }
 
     private func eventEditView(for event: PlantEvent) -> some View {

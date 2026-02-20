@@ -12,6 +12,7 @@ struct TimelineItemCard: View {
     let thumbnailURL: URL?
     let linkedEventLabel: String?
     let dateFormatter: DateFormatter
+    let onEdit: (() -> Void)?
 
     var body: some View {
         LeafbookCard(horizontalPadding: 8) {
@@ -31,6 +32,14 @@ struct TimelineItemCard: View {
                         TimelineEventBadgeView(display: eventDisplay)
                     }
 
+                    if case let .issue(issue) = item {
+                        TimelineEventBadgeView(display: TimelineEventDisplay(
+                            label: issue.status.displayName,
+                            symbol: issue.status.symbolName,
+                            color: issue.status.badgeColor
+                        ))
+                    }
+
                     if let subtitle {
                         Text(subtitle)
                             .font(.subheadline)
@@ -41,6 +50,13 @@ struct TimelineItemCard: View {
                         Text(secondarySubtitle)
                             .font(.subheadline)
                             .foregroundStyle(LeafbookColors.foreground.opacity(0.6))
+                    }
+
+                    if case let .issue(issue) = item, issue.status == .resolved,
+                       let notes = issue.resolutionNotes, !notes.isEmpty {
+                        Text(notes)
+                            .font(.caption)
+                            .foregroundStyle(.green.opacity(0.8))
                     }
 
                     if let linkedEventLabel {
@@ -60,6 +76,19 @@ struct TimelineItemCard: View {
             Text(title)
                 .font(.headline)
             Spacer()
+            if let onEdit {
+                Button(action: onEdit) {
+                    Image(systemName: "pencil")
+                        .font(.caption)
+                        .foregroundStyle(LeafbookColors.primary)
+                        .padding(6)
+                        .background(
+                            Circle()
+                                .fill(LeafbookColors.primary.opacity(0.1))
+                        )
+                }
+                .buttonStyle(.plain)
+            }
             Text(dateLabel)
                 .font(.caption)
                 .foregroundStyle(LeafbookColors.foreground.opacity(0.6))
@@ -146,7 +175,8 @@ struct TimelineItemCard: View {
         item: .event(.preview),
         thumbnailURL: URL(string: PlantPhoto.preview.url),
         linkedEventLabel: "Linked to watered",
-        dateFormatter: formatter
+        dateFormatter: formatter,
+        onEdit: {}
     )
     .padding()
     .background(LeafbookColors.background)

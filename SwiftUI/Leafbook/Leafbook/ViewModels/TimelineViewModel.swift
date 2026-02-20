@@ -187,4 +187,15 @@ final class TimelineViewModel {
             return false
         }
     }
+
+    func resolveIssue(userId: String, issueId: String, resolutionNotes: String?) async -> Bool {
+        do {
+            try await service.resolvePlantIssue(issueId: issueId, resolutionNotes: resolutionNotes)
+            await load(userId: userId)
+            return true
+        } catch {
+            errorMessage = "We couldn't resolve that issue."
+            return false
+        }
+    }
 }

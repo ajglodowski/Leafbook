@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import SwiftUI
 
 enum TimelineFeed: String, CaseIterable, Identifiable {
     case all
@@ -80,8 +81,30 @@ enum TimelineItem: Identifiable {
         }
     }
 
+    var dotColor: Color {
+        switch self {
+        case .event(let event): return event.eventType.badgeColor
+        case .journal: return LeafbookColors.primary
+        case .issue: return LeafbookColors.issueOrange
+        }
+    }
+
     private static func parseDate(_ dateString: String?) -> Date? {
         guard let dateString else { return nil }
         return DashboardUtils.parseDate(dateString)
+    }
+}
+
+enum TimelineViewMode: String, CaseIterable {
+    case list
+    case calendar
+}
+
+struct IdentifiableDate: Identifiable {
+    let id: TimeInterval
+    let date: Date
+    init(_ date: Date) {
+        self.date = date
+        self.id = date.timeIntervalSince1970
     }
 }

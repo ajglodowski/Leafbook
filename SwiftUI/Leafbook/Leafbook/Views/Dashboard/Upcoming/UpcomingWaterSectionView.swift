@@ -2,8 +2,6 @@
 //  UpcomingWaterSectionView.swift
 //  Leafbook
 //
-//  Created by AJ Glodowski on 1/29/26.
-//
 
 import SwiftUI
 
@@ -46,14 +44,20 @@ struct UpcomingWaterSectionView: View {
                     LazyVStack(spacing: 8) {
                         ForEach(upcomingTasks.prefix(6)) { upcoming in
                             LeafbookCard(verticalPadding: 0, horizontalPadding: 0) {
-                                UpcomingTaskRow(
-                                    task: upcoming.task,
-                                    daysUntilWater: upcoming.daysUntilWater,
+                                DashboardPlantTaskRow(
+                                    plantId: upcoming.task.plantId,
+                                    plantName: upcoming.task.plantName,
                                     thumbnailURL: DashboardUtils.getThumbnailUrl(
                                         plantId: upcoming.task.plantId,
                                         photosByPlant: photosByPlantId
                                     ),
-                                    onWater: onWater
+                                    statusText: upcoming.daysUntilWater == 1
+                                        ? "Water tomorrow"
+                                        : "Water in \(upcoming.daysUntilWater) days",
+                                    logTitle: "Water",
+                                    logIcon: "drop",
+                                    logTint: LeafbookColors.waterBlue,
+                                    onLog: { onWater(upcoming.task.plantId, $0) }
                                 )
                             }
                         }
@@ -66,52 +70,6 @@ struct UpcomingWaterSectionView: View {
                 }
             }
         }
-    }
-}
-
-private struct UpcomingTaskRow: View {
-    let task: PlantDueTask
-    let daysUntilWater: Int
-    let thumbnailURL: URL?
-    let onWater: (String, Date) -> Void
-
-    var body: some View {
-        HStack(spacing: 12) {
-            NavigationLink {
-                PlantDetailView(plantId: task.plantId)
-            } label: {
-                DashboardThumbnailView(url: thumbnailURL, size: 64)
-                    .cornerRadius(16)
-            }
-            .buttonStyle(.plain)
-
-            VStack(alignment: .leading, spacing: 4) {
-                NavigationLink {
-                    PlantDetailView(plantId: task.plantId)
-                } label: {
-                    Text(task.plantName)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(LeafbookColors.foreground)
-                }
-                .buttonStyle(.plain)
-
-                Text(daysUntilWater == 1 ? "Water tomorrow" : "Water in \(daysUntilWater) days")
-                    .font(.caption)
-                    .foregroundStyle(LeafbookColors.foreground.opacity(0.6))
-            }
-            .padding(.vertical, 8)
-
-            Spacer()
-
-            CareLogButton(
-                title: "Water",
-                systemImage: "drop",
-                tint: LeafbookColors.waterBlue,
-                onLog: { date in onWater(task.plantId, date) }
-            )
-            .controlSize(.small)
-        }
-        .padding(.trailing, 16)
     }
 }
 

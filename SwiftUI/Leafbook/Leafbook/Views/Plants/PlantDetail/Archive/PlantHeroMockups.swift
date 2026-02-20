@@ -33,7 +33,7 @@ struct PlantHeroMockupA: View {
         VStack(spacing: 20) {
 
             // Square photo
-            squarePhoto(
+            PlantSquarePhoto(
                 photo: photo,
                 size: 200,
                 cornerRadius: 16,
@@ -196,7 +196,7 @@ struct PlantHeroMockupB: View {
         HStack(alignment: .top, spacing: 16) {
 
             // Square photo — leading edge
-            squarePhoto(
+            PlantSquarePhoto(
                 photo: photo,
                 size: 130,
                 cornerRadius: 14,
@@ -545,7 +545,7 @@ struct PlantHeroMockupD: View {
 
             // ── Photo + identity ──
             HStack(alignment: .top, spacing: 14) {
-                squarePhoto(photo: photo, size: 160, cornerRadius: 14, photoCount: photoCount)
+                PlantSquarePhoto(photo: photo, size: 160, cornerRadius: 14, photoCount: photoCount)
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text(plant.name)
@@ -709,7 +709,7 @@ struct PlantHeroMockupE: View {
         VStack(spacing: 0) {
 
             // ── Photo ──
-            squarePhoto(photo: photo, size: 200, cornerRadius: 16, photoCount: photoCount)
+            PlantSquarePhoto(photo: photo, size: 200, cornerRadius: 16, photoCount: photoCount)
                 .padding(.top, 20)
                 .padding(.bottom, 14)
 
@@ -863,7 +863,7 @@ struct PlantHeroMockupF: View {
 
             // ── Photo + identity ──
             HStack(alignment: .top, spacing: 14) {
-                squarePhoto(photo: photo, size: 170, cornerRadius: 14, photoCount: photoCount)
+                PlantSquarePhoto(photo: photo, size: 170, cornerRadius: 14, photoCount: photoCount)
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text(plant.name)
@@ -1018,58 +1018,6 @@ struct PlantHeroMockupF: View {
             }
         }
         .frame(maxWidth: .infinity)
-    }
-}
-
-// ────────────────────────────────────────────────────────────────────────────
-// MARK: - Shared square photo component
-// ────────────────────────────────────────────────────────────────────────────
-
-struct squarePhoto: View {
-    let photo: PlantPhoto?
-    let size: CGFloat
-    var cornerRadius: CGFloat = 14
-    var photoCount: Int = 1
-
-    var body: some View {
-        ZStack(alignment: .bottomTrailing) {
-            if let urlString = photo?.url,
-               let url = URL(string: urlString),
-               !urlString.isEmpty {
-                CachedAsyncImage(url: url)
-                    .frame(width: size, height: size)
-                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-            } else {
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(LeafbookColors.muted.opacity(0.35))
-                    .frame(width: size, height: size)
-                    .overlay {
-                        VStack(spacing: 6) {
-                            Image(systemName: "leaf.fill")
-                                .font(.system(size: size * 0.16))
-                                .foregroundStyle(LeafbookColors.primary.opacity(0.3))
-                            Text("No photo")
-                                .font(.caption2)
-                                .foregroundStyle(LeafbookColors.foreground.opacity(0.35))
-                        }
-                    }
-            }
-
-            if photoCount > 1 {
-                HStack(spacing: 3) {
-                    Image(systemName: "photo.on.rectangle")
-                        .font(.system(size: 9))
-                    Text("\(photoCount)")
-                        .font(.system(size: 10, weight: .semibold))
-                }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(.black.opacity(0.5))
-                .clipShape(Capsule())
-                .padding(6)
-            }
-        }
     }
 }
 

@@ -5,7 +5,7 @@
 //  Created by Claude on 2/12/26.
 //
 
-import Foundation
+import SwiftUI
 
 enum IssueStatus: String, Codable, CaseIterable, Identifiable {
     case active
@@ -16,5 +16,19 @@ enum IssueStatus: String, Codable, CaseIterable, Identifiable {
 
     var displayName: String { rawValue.capitalized }
 
-    // Add helper properties as needed (e.g., badge colors)
+    var symbolName: String {
+        switch self {
+        case .active: return "exclamationmark.triangle.fill"
+        case .resolved: return "checkmark.circle.fill"
+        case .monitoring: return "eye.fill"
+        }
+    }
+
+    var badgeColor: Color {
+        switch self {
+        case .active: return LeafbookColors.roseAccent
+        case .resolved: return .green
+        case .monitoring: return LeafbookColors.fertilizerAmber
+        }
+    }
 }

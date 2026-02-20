@@ -24,8 +24,10 @@ struct PlantDetailView: View {
     @State private var editingEntry: JournalEntry?
     @State private var hasLoaded = false
     @State private var linkedPlantId: String?
+    @State private var linkedPlantType: PlantType?
     @State private var showingMarkAsLegacy = false
     @State private var showingRestoreConfirmation = false
+    @State private var resolvingIssue: PlantIssue?
 
     init(plantId: String) {
         self.plantId = plantId
@@ -103,6 +105,17 @@ struct PlantDetailView: View {
                 )
             }
         }
+        .sheet(item: $resolvingIssue) { issue in
+            IssueResolveFormView(issue: issue) { resolutionNotes in
+                guard case let .signedIn(userId) = await sessionState.status else { return false }
+                return await viewModel.resolveIssue(
+                    userId: userId,
+                    plantId: plantId,
+                    issueId: issue.id,
+                    resolutionNotes: resolutionNotes
+                )
+            }
+        }
         .sheet(isPresented: $showingRepotForm) {
             PlantRepotFormView(currentPot: viewModel.currentPot, availablePots: viewModel.unusedPots) { potId in
                 guard case let .signedIn(userId) = await sessionState.status else { return false }
@@ -158,6 +171,9 @@ struct PlantDetailView: View {
         .navigationDestination(item: $linkedPlantId) { plantId in
             PlantDetailView(plantId: plantId)
         }
+        .navigationDestination(item: $linkedPlantType) { plantType in
+            PlantTypeDetailView(plantType: plantType)
+        }
         .sheet(isPresented: $showingMarkAsLegacy) {
             MarkAsLegacySheet { reason in
                 guard case let .signedIn(userId) = await sessionState.status else { return false }
@@ -190,15 +206,16 @@ struct PlantDetailView: View {
                     onWater: { date in logCareEvent(eventType: .watered, eventDate: date) },
                     onFertilize: { date in logCareEvent(eventType: .fertilized, eventDate: date) },
                     onMove: { showingMoveForm = true },
-                    onEdit: { showingEditPlant = true }
+                    onEdit: { showingEditPlant = true },
+                    onTypeTapped: { plantType in linkedPlantType = plantType }
                 )
-                
-                VStack {
+
+                VStack(spacing: 16) {
                     tabBar
                     tabContent
                 }
-                .padding()
             }
+            .padding()
         }
     }
 
@@ -275,6 +292,9 @@ struct PlantDetailView: View {
                     onAddLegacyEvent: {
                         guard case let .signedIn(userId) = await sessionState.status else { return false }
                         return await viewModel.createLegacyEvent(userId: userId, plantId: plantId)
+                    },
+                    onResolveIssue: { issue in
+                        resolvingIssue = issue
                     }
                 )
             case .photos:
@@ -331,7 +351,10 @@ struct PlantDetailView: View {
             case .notes:
                 PlantDetailNotesTab(description: viewModel.plant.description)
             case .typeInfo:
-                PlantDetailTypeTab(plantType: viewModel.plant.plantTypes)
+                PlantDetailTypeTab(
+                    plantType: viewModel.plant.plantTypes,
+                    onTypeTapped: { plantType in linkedPlantType = plantType }
+                )
             }
         }
     }

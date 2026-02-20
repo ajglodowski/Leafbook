@@ -8,6 +8,7 @@
 enum PlantsListTab: String, CaseIterable, Identifiable, Hashable {
     case active
     case legacy
+    case taxonomy
 
     var id: String { rawValue }
 
@@ -17,6 +18,8 @@ enum PlantsListTab: String, CaseIterable, Identifiable, Hashable {
             return "Active"
         case .legacy:
             return "Legacy"
+        case .taxonomy:
+            return "Taxonomy"
         }
     }
 
@@ -26,6 +29,8 @@ enum PlantsListTab: String, CaseIterable, Identifiable, Hashable {
             return "leaf.fill"
         case .legacy:
             return "archivebox.fill"
+        case .taxonomy:
+            return "tree.fill"
         }
     }
 }

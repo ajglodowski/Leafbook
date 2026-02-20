@@ -16,6 +16,7 @@ struct PlantHeroView: View {
     var onFertilize: ((Date) -> Void)?
     var onMove: (() -> Void)?
     var onEdit: (() -> Void)?
+    var onTypeTapped: ((PlantType) -> Void)? = nil
 
     private var isLegacy: Bool {
         plant.isLegacy ?? false
@@ -49,22 +50,27 @@ struct PlantHeroView: View {
 
                     // Type
                     if let plantType = plant.plantTypes {
-                        HStack(spacing: 4) {
-                            Image(systemName: "leaf")
-                                .font(.system(size: 11))
-                                .foregroundStyle(LeafbookColors.primary)
-                            Text(plantType.name)
-                                .font(.subheadline)
-                                .foregroundStyle(LeafbookColors.foreground.opacity(0.65))
-                            if let sci = plantType.scientificName, !sci.isEmpty {
-                                Text("·")
-                                    .foregroundStyle(LeafbookColors.foreground.opacity(0.25))
-                                Text(sci)
-                                    .font(.caption)
-                                    .italic()
-                                    .foregroundStyle(LeafbookColors.foreground.opacity(0.4))
+                        Button {
+                            onTypeTapped?(plantType)
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "leaf")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(LeafbookColors.primary)
+                                Text(plantType.name)
+                                    .font(.subheadline)
+                                    .foregroundStyle(LeafbookColors.foreground.opacity(0.65))
+                                if let sci = plantType.scientificName, !sci.isEmpty {
+                                    Text("·")
+                                        .foregroundStyle(LeafbookColors.foreground.opacity(0.25))
+                                    Text(sci)
+                                        .font(.caption)
+                                        .italic()
+                                        .foregroundStyle(LeafbookColors.foreground.opacity(0.4))
+                                }
                             }
                         }
+                        .buttonStyle(.plain)
                     }
 
                     // Badges
@@ -101,7 +107,7 @@ struct PlantHeroView: View {
                     }
                 }
             }
-            .padding(16)
+            .padding(.vertical, 8)
 
             // ── Actions ──
             if !isLegacy {
@@ -158,7 +164,7 @@ struct PlantHeroView: View {
     // MARK: - Photo
 
     private var plantPhotoView: some View {
-        squarePhoto(photo: photo, size: 160, cornerRadius: 14, photoCount: photoCount)
+        PlantSquarePhoto(photo: photo, size: 160, cornerRadius: 14, photoCount: photoCount)
     }
 
     // MARK: - Badges
@@ -269,74 +275,6 @@ struct PlantHeroView: View {
         }
         let years = days / 365
         return "\(years) year\(years > 1 ? "s" : "") ago"
-    }
-}
-
-// MARK: - Plant Badge
-
-struct PlantBadge: View {
-    let icon: String
-    let text: String
-    var iconColor: Color = LeafbookColors.foreground
-    var backgroundColor: Color = LeafbookColors.muted.opacity(0.6)
-
-    var body: some View {
-        HStack(spacing: 4) {
-            Image(systemName: icon)
-                .font(.system(size: 10))
-                .foregroundStyle(iconColor)
-            Text(text)
-                .font(.caption2.weight(.medium))
-                .foregroundStyle(LeafbookColors.foreground.opacity(0.8))
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(backgroundColor)
-        .clipShape(Capsule())
-    }
-}
-
-// MARK: - Flow Layout for Badges
-
-struct FlowLayout: Layout {
-    var spacing: CGFloat = 8
-
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let result = computeLayout(proposal: proposal, subviews: subviews)
-        return result.size
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        let result = computeLayout(proposal: proposal, subviews: subviews)
-        for (index, position) in result.positions.enumerated() {
-            subviews[index].place(at: CGPoint(x: bounds.minX + position.x, y: bounds.minY + position.y), proposal: .unspecified)
-        }
-    }
-
-    private func computeLayout(proposal: ProposedViewSize, subviews: Subviews) -> (size: CGSize, positions: [CGPoint]) {
-        let maxWidth = proposal.width ?? .infinity
-        var positions: [CGPoint] = []
-        var currentX: CGFloat = 0
-        var currentY: CGFloat = 0
-        var lineHeight: CGFloat = 0
-        var totalHeight: CGFloat = 0
-
-        for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-
-            if currentX + size.width > maxWidth && currentX > 0 {
-                currentX = 0
-                currentY += lineHeight + spacing
-                lineHeight = 0
-            }
-
-            positions.append(CGPoint(x: currentX, y: currentY))
-            currentX += size.width + spacing
-            lineHeight = max(lineHeight, size.height)
-            totalHeight = currentY + lineHeight
-        }
-
-        return (CGSize(width: maxWidth, height: totalHeight), positions)
     }
 }
 

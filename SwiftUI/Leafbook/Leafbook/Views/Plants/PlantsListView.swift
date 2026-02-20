@@ -69,125 +69,44 @@ struct PlantsListView: View {
                         return viewModel.plants.count
                     case .legacy:
                         return viewModel.legacyPlants.count
+                    case .taxonomy:
+                        return 0
                     }
                 }
             )
             .fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal, 16)
 
-            HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(LeafbookColors.foreground.opacity(0.6))
-                TextField("Search plants", text: $searchText)
-                    .textFieldStyle(.plain)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .background(LeafbookColors.card)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(LeafbookColors.muted.opacity(0.6), lineWidth: 1)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .padding(.horizontal, 16)
-
-            List {
-                if viewModel.isLoading {
-                    HStack {
-                        Spacer()
-                        ProgressView("Loading plants…")
-                        Spacer()
-                    }
-                    .listRowBackground(LeafbookColors.background)
+            if selectedTab != .taxonomy {
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(LeafbookColors.foreground.opacity(0.6))
+                    TextField("Search plants", text: $searchText)
+                        .textFieldStyle(.plain)
                 }
-
-                if let message = viewModel.errorMessage {
-                    Text(message)
-                        .font(.footnote)
-                        .foregroundStyle(Color.red)
-                        .listRowBackground(LeafbookColors.background)
-                } else if selectedTab == .active {
-                    if filteredPlants.isEmpty && !viewModel.isLoading {
-                        if viewModel.plants.isEmpty && searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                            EmptyStateView(
-                                title: "No plants yet",
-                                message: "When you're ready, add your first plant to begin.",
-                                systemImage: "leaf"
-                            )
-                            .listRowBackground(LeafbookColors.background)
-                        } else {
-                            EmptyStateView(
-                                title: "No matches",
-                                message: "Try a different name or clear your search.",
-                                systemImage: "magnifyingglass"
-                            )
-                            .listRowBackground(LeafbookColors.background)
-                        }
-                    } else {
-                        ForEach(filteredPlants) { plant in
-                            Button {
-                                navigationPath.append(plant.id)
-                            } label: {
-                                PlantRowView(
-                                    plant: plant,
-                                    taskStatus: viewModel.taskStatus(for: plant),
-                                    thumbnailURL: viewModel.thumbnailURL(for: plant)
-                                )
-                            }
-                            .buttonStyle(.plain)
-                            .contentShape(Rectangle())
-                            .listRowInsets(EdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 0))
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(LeafbookColors.background)
-                        }
-                    }
-                } else {
-                    if filteredLegacyPlants.isEmpty && !viewModel.isLoading {
-                        if viewModel.legacyPlants.isEmpty && searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                            EmptyStateView(
-                                title: "No legacy plants",
-                                message: "Legacy plants are those no longer in your active collection. When a plant passes on or is given away, you can mark it as legacy to preserve its history.",
-                                systemImage: "archivebox"
-                            )
-                            .listRowBackground(LeafbookColors.background)
-                        } else {
-                            EmptyStateView(
-                                title: "No matches",
-                                message: "Try a different name or clear your search.",
-                                systemImage: "magnifyingglass"
-                            )
-                            .listRowBackground(LeafbookColors.background)
-                        }
-                    } else {
-                        ForEach(filteredLegacyPlants) { plant in
-                            Button {
-                                navigationPath.append(plant.id)
-                            } label: {
-                                PlantRowView(
-                                    plant: plant,
-                                    taskStatus: viewModel.taskStatus(for: plant),
-                                    thumbnailURL: viewModel.thumbnailURL(for: plant)
-                                )
-                            }
-                            .buttonStyle(.plain)
-                            .contentShape(Rectangle())
-                            .listRowInsets(EdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 0))
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(LeafbookColors.background)
-                        }
-                    }
-                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(LeafbookColors.card)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(LeafbookColors.muted.opacity(0.6), lineWidth: 1)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .padding(.horizontal, 16)
             }
-            #if os(macOS)
-            .listStyle(.inset)
-            #else
-            .listStyle(.plain)
-            #endif
-            .scrollContentBackground(.hidden)
+
+            if selectedTab == .taxonomy {
+                taxonomyContent
+            } else {
+                listContent
+            }
             }
             .background(LeafbookColors.background)
             .navigationDestination(for: String.self) { plantId in
                 PlantDetailView(plantId: plantId)
+            }
+            .navigationDestination(for: PlantType.self) { plantType in
+                PlantTypeDetailView(plantType: plantType)
             }
             .task(id: sessionState.status) {
                 if case let .signedIn(userId) = sessionState.status, !hasLoadedOnce {
@@ -201,7 +120,155 @@ struct PlantsListView: View {
                     await viewModel.load(userId: userId)
                 }
             }
+            .onChange(of: selectedTab) { _, newTab in
+                if newTab == .taxonomy, case let .signedIn(userId) = sessionState.status {
+                    Task { await viewModel.loadTaxonomy(userId: userId) }
+                }
+            }
         }
+    }
+
+    // MARK: - Taxonomy Content
+
+    @ViewBuilder
+    private var taxonomyContent: some View {
+        ScrollView {
+            if viewModel.isTaxonomyLoading {
+                HStack {
+                    Spacer()
+                    ProgressView("Loading taxonomy…")
+                    Spacer()
+                }
+                .padding(.top, 40)
+            } else if let tree = viewModel.taxonomyTree {
+                if tree.roots.isEmpty && tree.plantsWithoutTaxon.isEmpty {
+                    EmptyStateView(
+                        title: "No taxonomy data",
+                        message: "Your plants don't have taxonomic classification yet.",
+                        systemImage: "tree"
+                    )
+                    .padding(.top, 40)
+                } else {
+                    TaxonomyTreeView(
+                        tree: tree,
+                        photosById: viewModel.photosById,
+                        photosByPlantId: viewModel.photosByPlantId,
+                        plantTypesById: viewModel.plantTypesById,
+                        onPlantTapped: { plantId in
+                            navigationPath.append(plantId)
+                        },
+                        onTypeTapped: { plantType in
+                            navigationPath.append(plantType)
+                        }
+                    )
+                }
+            } else {
+                EmptyStateView(
+                    title: "No taxonomy data",
+                    message: "Your plants don't have taxonomic classification yet.",
+                    systemImage: "tree"
+                )
+                .padding(.top, 40)
+            }
+        }
+    }
+
+    // MARK: - List Content (Active / Legacy)
+
+    private var listContent: some View {
+        List {
+            if viewModel.isLoading {
+                HStack {
+                    Spacer()
+                    ProgressView("Loading plants…")
+                    Spacer()
+                }
+                .listRowBackground(LeafbookColors.background)
+            }
+
+            if let message = viewModel.errorMessage {
+                Text(message)
+                    .font(.footnote)
+                    .foregroundStyle(Color.red)
+                    .listRowBackground(LeafbookColors.background)
+            } else if selectedTab == .active {
+                if filteredPlants.isEmpty && !viewModel.isLoading {
+                    if viewModel.plants.isEmpty && searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        EmptyStateView(
+                            title: "No plants yet",
+                            message: "When you're ready, add your first plant to begin.",
+                            systemImage: "leaf"
+                        )
+                        .listRowBackground(LeafbookColors.background)
+                    } else {
+                        EmptyStateView(
+                            title: "No matches",
+                            message: "Try a different name or clear your search.",
+                            systemImage: "magnifyingglass"
+                        )
+                        .listRowBackground(LeafbookColors.background)
+                    }
+                } else {
+                    ForEach(filteredPlants) { plant in
+                        Button {
+                            navigationPath.append(plant.id)
+                        } label: {
+                            PlantRowView(
+                                plant: plant,
+                                taskStatus: viewModel.taskStatus(for: plant),
+                                thumbnailURL: viewModel.thumbnailURL(for: plant)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .contentShape(Rectangle())
+                        .listRowInsets(EdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 0))
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(LeafbookColors.background)
+                    }
+                }
+            } else {
+                if filteredLegacyPlants.isEmpty && !viewModel.isLoading {
+                    if viewModel.legacyPlants.isEmpty && searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        EmptyStateView(
+                            title: "No legacy plants",
+                            message: "Legacy plants are those no longer in your active collection. When a plant passes on or is given away, you can mark it as legacy to preserve its history.",
+                            systemImage: "archivebox"
+                        )
+                        .listRowBackground(LeafbookColors.background)
+                    } else {
+                        EmptyStateView(
+                            title: "No matches",
+                            message: "Try a different name or clear your search.",
+                            systemImage: "magnifyingglass"
+                        )
+                        .listRowBackground(LeafbookColors.background)
+                    }
+                } else {
+                    ForEach(filteredLegacyPlants) { plant in
+                        Button {
+                            navigationPath.append(plant.id)
+                        } label: {
+                            PlantRowView(
+                                plant: plant,
+                                taskStatus: viewModel.taskStatus(for: plant),
+                                thumbnailURL: viewModel.thumbnailURL(for: plant)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .contentShape(Rectangle())
+                        .listRowInsets(EdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 0))
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(LeafbookColors.background)
+                    }
+                }
+            }
+        }
+        #if os(macOS)
+        .listStyle(.inset)
+        #else
+        .listStyle(.plain)
+        #endif
+        .scrollContentBackground(.hidden)
     }
 }
 

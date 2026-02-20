@@ -11,7 +11,7 @@ struct PlantDetailNotesTab: View {
     let description: String?
 
     var body: some View {
-        VStack {
+        VStack(spacing: 16) {
             LeafbookCard {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("My notes")

@@ -401,6 +401,17 @@ final class PlantDetailViewModel {
         }
     }
 
+    func resolveIssue(userId: String, plantId: String, issueId: String, resolutionNotes: String?) async -> Bool {
+        do {
+            try await service.resolvePlantIssue(issueId: issueId, resolutionNotes: resolutionNotes)
+            await load(plantId: plantId, userId: userId)
+            return true
+        } catch {
+            errorMessage = "We couldn't resolve that issue."
+            return false
+        }
+    }
+
     func repotPlant(userId: String, plantId: String, potId: String?) async -> Bool {
         do {
             let fromPotId = plant.currentPotId

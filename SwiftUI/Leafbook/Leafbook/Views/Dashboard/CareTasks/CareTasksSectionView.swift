@@ -2,8 +2,6 @@
 //  CareTasksSectionView.swift
 //  Leafbook
 //
-//  Created by AJ Glodowski on 1/29/26.
-//
 
 import SwiftUI
 
@@ -68,17 +66,19 @@ struct CareTasksSectionView: View {
                         LazyVStack(spacing: 8) {
                             ForEach(needsWater.prefix(6)) { task in
                                 LeafbookCard(verticalPadding: 0, horizontalPadding: 0) {
-                                    CareTaskRow(
-                                        task: task,
+                                    DashboardPlantTaskRow(
+                                        plantId: task.plantId,
+                                        plantName: task.plantName,
                                         thumbnailURL: DashboardUtils.getThumbnailUrl(
                                             plantId: task.plantId,
                                             photosByPlant: photosByPlantId
                                         ),
                                         statusText: waterStatusText(for: task),
-                                        logTint: LeafbookColors.waterBlue
-                                    ) {
-                                        onWater(task.plantId, $0)
-                                    }
+                                        logTitle: "Water",
+                                        logIcon: "drop",
+                                        logTint: LeafbookColors.waterBlue,
+                                        onLog: { onWater(task.plantId, $0) }
+                                    )
                                 }
                             }
                         }
@@ -97,18 +97,20 @@ struct CareTasksSectionView: View {
                             .foregroundStyle(LeafbookColors.foreground.opacity(0.7))
                         LazyVStack(spacing: 8) {
                             ForEach(needsFertilizer.prefix(3)) { task in
-                                LeafbookCard(verticalPadding: 10, horizontalPadding: 12) {
-                                    CareTaskRow(
-                                        task: task,
+                                LeafbookCard(verticalPadding: 0, horizontalPadding: 0) {
+                                    DashboardPlantTaskRow(
+                                        plantId: task.plantId,
+                                        plantName: task.plantName,
                                         thumbnailURL: DashboardUtils.getThumbnailUrl(
                                             plantId: task.plantId,
                                             photosByPlant: photosByPlantId
                                         ),
                                         statusText: fertilizerStatusText(for: task),
-                                        logTint: LeafbookColors.fertilizerAmber
-                                    ) {
-                                        onFertilize(task.plantId, $0)
-                                    }
+                                        logTitle: "Fertilize",
+                                        logIcon: "sparkles",
+                                        logTint: LeafbookColors.fertilizerAmber,
+                                        onLog: { onFertilize(task.plantId, $0) }
+                                    )
                                 }
                             }
                         }
@@ -145,53 +147,6 @@ struct CareTasksSectionView: View {
         default:
             return "All set"
         }
-    }
-}
-
-private struct CareTaskRow: View {
-    let task: PlantDueTask
-    let thumbnailURL: URL?
-    let statusText: String
-    let logTint: Color
-    let onLog: (Date) -> Void
-
-    var body: some View {
-        HStack(spacing: 12) {
-            NavigationLink {
-                PlantDetailView(plantId: task.plantId)
-            } label: {
-                DashboardThumbnailView(url: thumbnailURL, size: 64)
-                    .cornerRadius(16)
-            }
-            .buttonStyle(.plain)
-
-            VStack(alignment: .leading, spacing: 4) {
-                NavigationLink {
-                    PlantDetailView(plantId: task.plantId)
-                } label: {
-                    Text(task.plantName)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(LeafbookColors.foreground)
-                }
-                .buttonStyle(.plain)
-
-                Text(statusText)
-                    .font(.caption)
-                    .foregroundStyle(LeafbookColors.foreground.opacity(0.6))
-            }
-            .padding(.vertical, 8)
-
-            Spacer()
-
-            CareLogButton(
-                title: "Water",
-                systemImage: "drop",
-                tint: logTint,
-                onLog: onLog
-            )
-            .controlSize(.small)
-        }
-        .padding(.trailing, 16)
     }
 }
 
